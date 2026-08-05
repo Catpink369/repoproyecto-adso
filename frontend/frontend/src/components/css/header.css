@@ -1,0 +1,478 @@
+/* header.css */
+
+.Header {
+    width: 100%;
+    background-color: #ffffff;
+    border-bottom: 3px solid #d4a9c2;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 40px;
+}
+
+.Header .Header-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    max-width: 1200px;
+    flex: 1;
+}
+
+/* ======= LOGO ======= */
+
+.Header .logoG {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: auto;
+    flex-shrink: 0;
+}
+
+.Header .logoG a {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.Header .logoG img {
+    height: 70px;
+    width: auto;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+    display: block;
+    margin: 0;
+}
+
+.Header .logoG img:hover {
+    transform: scale(1.05);
+}
+
+/* ======= BOTÓN VOLVER ======= */
+
+.Header .volver {
+    background-color: #c5749d;
+    color: white;
+    border: none;
+    padding: 10px 28px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(197, 116, 157, 0.25);
+}
+
+.Header .volver:hover {
+    background-color: #a85c85;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(197, 116, 157, 0.35);
+}
+
+.Header .volver:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(197, 116, 157, 0.25);
+}
+
+/* ======= NAVEGACIÓN ======= */
+
+.Header .Menu {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+}
+
+.Header .Menu ul {
+    list-style: none;
+    display: flex;
+    gap: 25px;
+    margin: 0;
+    padding: 0;
+}
+
+.Header .Menu li {
+    margin: 0;
+    padding: 0;
+}
+
+.Header .Menu a {
+    text-decoration: none;
+    color: #5a3d54;
+    font-weight: 500;
+    font-size: 1rem;
+    transition: color 0.3s ease, border-bottom 0.3s ease;
+    padding-bottom: 4px;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+}
+
+.Header .Menu a:hover {
+    color: #c45a77;
+}
+
+.Header .Menu a.activo {
+    color: #7a235f;
+    font-weight: bold;
+    border-bottom: 2px solid #c45a77;
+}
+
+/* ======= ICONOS ======= */
+
+.iconos {
+    display: flex;
+    align-items: center;
+}
+
+.iconos img {
+    width: 28px;
+    margin-left: 15px;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+.iconos img:hover {
+    transform: scale(1.15);
+}
+
+.iconos2 {
+    display: flex;
+    align-items: center;
+}
+
+.iconos2 img {
+    width: 28px;
+    margin-left: 15px;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+.iconos2 img:hover {
+    transform: scale(1.15);
+}
+
+/* NOTIFICACIONES */
+
+.notif-wrapper {
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.notif-icono {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.notif-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background-color: #E91E63;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 11px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notif-panel {
+    position: absolute;
+    top: 70px;
+    right: 20px;
+    width: 360px;
+    max-height: 480px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.notif-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #E91E63;
+    color: white;
+}
+
+.notif-panel-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.notif-cerrar {
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.notif-panel-body {
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.notif-item {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #f9f9f9;
+    border-left: 4px solid #E91E63;
+}
+
+.notif-item strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: #333;
+}
+
+.notif-item p {
+    font-size: 13px;
+    color: #555;
+    margin: 0 0 8px 0;
+}
+
+.notif-whatsapp {
+    font-size: 12px;
+    color: #25D366;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.notif-whatsapp:hover {
+    text-decoration: underline;
+}
+
+.notif-vacia {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+    font-size: 14px;
+}
+
+/* ============================== */
+/*         RESPONSIVE             */
+/* ============================== */
+
+/* Tablet (768px - 1024px) */
+@media (max-width: 1024px) {
+    .Header {
+        padding: 15px 25px;
+    }
+
+    .Header .logoG img {
+        height: 62px;
+    }
+
+    .Header .Menu ul {
+        gap: 18px;
+    }
+
+    .Header .Menu a {
+        font-size: 0.95rem;
+    }
+
+    .iconos img,
+    .iconos2 img,
+    .notif-icono {
+        width: 25px;
+        height: 25px;
+    }
+
+    .notif-panel {
+        width: 320px;
+        right: 10px;
+    }
+
+    .Header .volver {
+        padding: 9px 22px;
+        font-size: 14px;
+    }
+}
+
+/* Móvil grande (480px - 768px) */
+@media (max-width: 768px) {
+    .Header {
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px 20px;
+    }
+
+    .Header .Header-container {
+        flex-direction: column;
+        gap: 12px;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .Header .logoG {
+        margin-right: 0;
+        justify-content: center;
+    }
+
+    .Header .logoG img {
+        height: 58px;
+    }
+
+    .Header .Menu {
+        margin-left: 0;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .Header .Menu ul {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px 16px;
+        text-align: center;
+    }
+
+    .Header .Menu a {
+        font-size: 0.92rem;
+    }
+
+    .Header .volver {
+        width: 100%;
+        max-width: 200px;
+        font-size: 14px;
+        padding: 9px 20px;
+        text-align: center;
+    }
+
+    .iconos img,
+    .iconos2 img,
+    .notif-icono {
+        width: 24px;
+        height: 24px;
+        margin-left: 12px;
+    }
+
+    .notif-panel {
+        width: 300px;
+        right: 10px;
+        top: 60px;
+    }
+
+    .notif-panel-header {
+        padding: 13px 16px;
+    }
+
+    .notif-panel-header h3 {
+        font-size: 15px;
+    }
+
+    .notif-item {
+        padding: 10px 12px;
+    }
+
+    .notif-item strong {
+        font-size: 13px;
+    }
+
+    .notif-item p {
+        font-size: 12px;
+    }
+}
+
+/* Móvil pequeño (< 480px) */
+@media (max-width: 480px) {
+    .Header {
+        padding: 8px 14px;
+        gap: 10px;
+    }
+
+    .Header .logoG img {
+        height: 50px;
+    }
+
+    .Header .Menu ul {
+        gap: 6px 12px;
+    }
+
+    .Header .Menu a {
+        font-size: 0.88rem;
+    }
+
+    .Header .volver {
+        font-size: 13px;
+        padding: 8px 18px;
+        border-radius: 6px;
+        max-width: 180px;
+    }
+
+    .iconos img,
+    .iconos2 img,
+    .notif-icono {
+        width: 22px;
+        height: 22px;
+        margin-left: 10px;
+    }
+
+    .notif-badge {
+        width: 16px;
+        height: 16px;
+        font-size: 10px;
+        top: -5px;
+        right: -5px;
+    }
+
+    .notif-panel {
+        width: calc(100vw - 28px);
+        right: 0;
+        left: 0;
+        margin: 0 auto;
+        top: 55px;
+        border-radius: 10px;
+    }
+
+    .notif-panel-header {
+        padding: 11px 14px;
+    }
+
+    .notif-panel-header h3 {
+        font-size: 14px;
+    }
+
+    .notif-cerrar {
+        font-size: 20px;
+    }
+
+    .notif-panel-body {
+        padding: 10px;
+        gap: 8px;
+    }
+
+    .notif-item {
+        padding: 9px 11px;
+        border-radius: 6px;
+    }
+
+    .notif-item strong {
+        font-size: 12px;
+        margin-bottom: 4px;
+    }
+
+    .notif-item p {
+        font-size: 11px;
+    }
+
+    .notif-whatsapp {
+        font-size: 11px;
+    }
+}

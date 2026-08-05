@@ -1,0 +1,16 @@
+﻿GuramaOnline — POSTMAN
+
+1. Abrir Postman
+2. Clic en Import (arriba a la izquierda)
+3. Buscar el archivo en la carpeta postman/ del proyecto seleccionar GuramaOnline.postman_collection.json
+4. Clic Import
+5. Configurar la variable token:
+
+Hacer login en Auth  Login con su correo y contraseña dando send
+*Si es admin/trabajador ir a Auth Verify Code con su código dando a send
+
+*Copiar el token de la respuesta
+
+Clic en GuramaOnline API pestaña Variables pegar en Current Value de token Save
+
+

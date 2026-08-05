@@ -1,0 +1,370 @@
+{
+  "info": {
+    "name": "GuramaOnline API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_usuario\": \"Adm-01\",\n  \"contrasena\": \"12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Verify Code",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/verify-code",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_usuario\": \"Adm-01\",\n  \"codigo\": \"123456\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Usuarios",
+      "item": [
+        {
+          "name": "Crear usuario",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/usuarios",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_usuario\": \"Us-01\",\n  \"nom_1\": \"Juan\",\n  \"nom_2\": \"\",\n  \"ape_1\": \"Pérez\",\n  \"ape_2\": \"\",\n  \"correo\": \"juan@gmail.com\",\n  \"telefono\": 3001234567,\n  \"contrasena\": \"12345\",\n  \"id_rol_usuario\": \"2\",\n  \"t_doc\": \"CC\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Obtener todos los usuarios",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/usuarios"
+          }
+        },
+        {
+          "name": "Obtener usuario por ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/usuarios/Us-01"
+          }
+        },
+        {
+          "name": "Actualizar usuario",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/usuarios/Us-01",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"nuevo@gmail.com\",\n  \"telefono\": 3009876543\n}"
+            }
+          }
+        },
+        {
+          "name": "Eliminar usuario",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/usuarios/Us-01"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Productos",
+      "item": [
+        {
+          "name": "Crear producto",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/productos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom_producto\": \"Sábana doble\",\n  \"precio_unitario\": 45000,\n  \"stock_actual\": 20,\n  \"stock_minimo\": 5,\n  \"descripcion\": \"Sábana doble con encaje\",\n  \"id_categoria\": 1,\n  \"id_clasificacion\": 1,\n  \"color\": \"Blanco\",\n  \"talla\": \"Doble\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Obtener todos los productos",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/productos"
+          }
+        },
+        {
+          "name": "Obtener producto por ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/productos/1"
+          }
+        },
+        {
+          "name": "Verificar stock producto",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/productos/check/1"
+          }
+        },
+        {
+          "name": "Actualizar producto",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/productos/1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"precio_unitario\": 50000,\n  \"stock_actual\": 15\n}"
+            }
+          }
+        },
+        {
+          "name": "Eliminar producto",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/productos/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categorias",
+      "item": [
+        {
+          "name": "Obtener categorías",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/categorias"
+          }
+        },
+        {
+          "name": "Obtener clasificaciones",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/categorias/clasificaciones"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pedidos",
+      "item": [
+        {
+          "name": "Crear pedido completo",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/pedidos/crear",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_usuario\": \"Adm-01\",\n  \"metodo_pago\": \"Mtd_NQ\",\n  \"subtotal\": 45000,\n  \"total\": 45000,\n  \"items\": [\n    {\n      \"id_producto\": 1,\n      \"cantidad\": 1,\n      \"precio\": 45000\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Obtener todos los pedidos",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/pedidos"
+          }
+        },
+        {
+          "name": "Obtener pedidos de un usuario",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/pedidos/usuario/Adm-01"
+          }
+        },
+        {
+          "name": "Detalle de un pedido",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/pedidos/detalle/1"
+          }
+        },
+        {
+          "name": "Actualizar estado pedido",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/pedidos/1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"Enviado\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Eliminar pedido",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/pedidos/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Movimientos",
+      "item": [
+        {
+          "name": "Crear movimiento",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/movimientos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Cantidad_m\": 10,\n  \"observaciones\": \"Ingreso de stock\",\n  \"id_m\": \"M_E\",\n  \"id_producto\": 1,\n  \"id_usuario\": \"Adm-01\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Obtener todos los movimientos",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/movimientos"
+          }
+        },
+        {
+          "name": "Obtener movimiento por ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/movimientos/1"
+          }
+        },
+        {
+          "name": "Actualizar movimiento",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/movimientos/1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"observaciones\": \"Corrección de stock\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Eliminar movimiento",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/movimientos/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notificaciones",
+      "item": [
+        {
+          "name": "Todas las notificaciones",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/notificaciones"
+          }
+        },
+        {
+          "name": "Contar notificaciones",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/notificaciones/count"
+          }
+        },
+        {
+          "name": "Stock bajo",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/notificaciones/stock-bajo"
+          }
+        },
+        {
+          "name": "Productos agotados",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/notificaciones/agotados"
+          }
+        },
+        {
+          "name": "Pedidos recientes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/notificaciones/pedidos-recientes?dias=7",
+              "query": [{ "key": "dias", "value": "7" }]
+            }
+          }
+        },
+        {
+          "name": "Estadísticas",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/notificaciones/estadisticas"
+          }
+        }
+      ]
+    }
+  ]
+}
