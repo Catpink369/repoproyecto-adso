@@ -1,32 +1,27 @@
-describe ('Crear un producto', () => {
+// RF2.1 a 2.5 - gestion de productos
+const FRONT_URL = Cypress.env('FRONT_URL') || 'http://localhost:5173';
 
-    it('debe iniciar sesión con credenciales válidas y registrar u producto', () => {
-        cy.visit('http://localhost:5173/')
-        cy.get('.cerrar').click()
+describe('RF-002.1 - ', () => {
+    beforeEach(() => {
+    });
+});
 
-        cy.contains('Iniciar sesión').click()
-        cy.url().should('include', '/login')
+describe('RF-002.2 - ', () => {
+    beforeEach(() => {
+    });
+});
 
-        // formulario login
+describe('RF-002.3 - ', () => {
+    beforeEach(() => {
+    });
+});
 
-        cy.get('#correo').type('valruiz@gmail.com')
-        cy.get('#contrasena').type('vale123')
-        cy.get('button[type="submit"]').click()
-        cy.url().should('include', '/admin-code')
+describe('RF-002.4 - ', () => {
+    beforeEach(() => {
+    });
+});
 
-        cy.get('#codigo').type('12345')
-        cy.get('button[type="submit"]').click()
-        
-        // panel admin
-        cy.url().should('include', '/panel_control')
-
-        //productos
-        cy.contains('Productos').click()
-        cy.url().should('include', '/productos')
-
-        // resgistar producto
-        cy.get('a[href="/registro_prod"]').click()
-
-        cy.url().should('include', '/registro_prod')  
-    })
-})
+describe('RF-002.5 - ', () => {
+    beforeEach(() => {
+    });
+});

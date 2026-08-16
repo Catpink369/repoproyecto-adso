@@ -65,7 +65,7 @@ export default function CambiarDatosCliente() {
                 ape_1:    formData.ape_1,
                 ape_2:    formData.ape_2    || null,
                 correo:   formData.correo,
-                telefono: Number(formData.telefono),
+                telefono: String(formData.telefono),
                 t_doc:    formData.t_doc
             });
 

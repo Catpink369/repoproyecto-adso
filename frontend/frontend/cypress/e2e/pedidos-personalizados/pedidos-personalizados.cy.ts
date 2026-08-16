@@ -1,4 +1,4 @@
-// RF-005.1 (personalizar) / RF-005.2 (calcular precio)
+// RF-005.1 y RF-005.2 - Gestion pedidos personalizados
 const FRONT_URL = Cypress.env('FRONT_URL') || 'http://localhost:5173';
 
 describe('RF-005.1 - Acceder a personalización', () => {
@@ -15,7 +15,6 @@ describe('RF-005.1 - Acceder a personalización', () => {
     it('CP-004: el botón de confirmar debe permanecer deshabilitado si faltan campos obligatorios', () => {
         cy.contains('Personalizar sábana').click();
         cy.url().should('include', '/p_sabanas');
-
         cy.get('button').contains(/confirmar/i).should('be.disabled');
     });
 });
@@ -41,7 +40,7 @@ describe('RF-005.1 / RF-005.2 - Personalizar cubrelecho de dos lados y calcular 
     it('CP-007: cambiar de opción varias veces antes de confirmar no debe arrastrar precios de selecciones anteriores', () => {
         cy.get('[data-testid="tela-lado-1"]').eq(0).click();
         cy.get('[data-testid="precio-total"]').invoke('text').as('precioOpcionA');
-        cy.get('[data-testid="tela-lado-1"]').eq(1).click(); // cambia de opción
+        cy.get('[data-testid="tela-lado-1"]').eq(1).click();
         cy.get('@precioOpcionA').then((precioA) => {
         cy.get('[data-testid="precio-total"]').invoke('text').should('not.eq', precioA);
         });
@@ -67,3 +66,5 @@ describe('RF-005.1 - Personalizar sábana con complementos opcionales', () => {
         cy.get('[data-testid="desglose-item"]').should('have.length.at.least', 2);
     });
 });
+
+export {};

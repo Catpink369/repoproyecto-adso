@@ -1,4 +1,4 @@
-// RF-009.3 - Consultar notificaciones
+// RF-009.3 - Consultar notificaciones(historial de pedidos del cliente) - Gestion de historial y reportes
 const FRONT_URL = Cypress.env('FRONT_URL') || 'http://localhost:5173';
 
 describe('RF-009.3 - Notificaciones del cliente (campana en Header_c)', () => {
@@ -23,9 +23,9 @@ describe('RF-009.3 - Notificaciones del cliente (campana en Header_c)', () => {
         cy.get('body').click(0, 0);
         cy.get('.notif-panel').should('not.exist');
     });
-    });
+});
 
-    describe('RF-009.3 - Notificaciones / alertas del admin', () => {
+describe('RF-009.3 - Notificaciones / alertas del admin', () => {
     beforeEach(() => {
         cy.loginAdmin();
         cy.visit(`${FRONT_URL}/panel_control`);
@@ -47,3 +47,5 @@ describe('RF-009.3 - Notificaciones del cliente (campana en Header_c)', () => {
         cy.url().should('include', '/movimientos');
     });
 });
+
+export {};

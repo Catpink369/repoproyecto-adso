@@ -198,7 +198,7 @@ const hashStr = (s) => [...(s||'')].reduce((h, c) => h + c.charCodeAt(0), 0);
 // Genera un código de trabajador aleatorio
 const generarCodigo = () => 'TRB-' + Math.random().toString(36).substring(2, 7).toUpperCase();
 
-// ─── Modal Registrar Trabajador ───────────────────────────────────────────────
+// ─── Modal Registrar Usuario desde panel administrador ───────────────────────────────────────────────
 function ModalRegistrar({ onClose, onGuardado }) {
     const [form, setForm] = useState({
         id_usuario: '', t_doc: 'CC',
@@ -218,12 +218,19 @@ function ModalRegistrar({ onClose, onGuardado }) {
             setError('Documento, nombre, apellido, correo y contraseña son obligatorios.');
             return;
         }
+        
+        const payload = {
+            ...form,
+            codigo: form.id_rol_usuario === '2' ? null : form.codigo,
+            estado: 1,
+        };
+        
         setGuardando(true);
         try {
-            await apiPost('/usuarios', { ...form, estado: 1 });
+            await apiPost('/usuarios', payload);
             onGuardado('Trabajador registrado exitosamente.');
         } catch (e) {
-            setError(e.message || 'Error al registrar el trabajador.');
+            setError(e.message || 'Error al registrar el usuario.');
         } finally {
             setGuardando(false);
         }
@@ -234,25 +241,37 @@ function ModalRegistrar({ onClose, onGuardado }) {
             <div style={s.modal}>
                 <div style={s.modalTitulo}>
                     <span style={{ fontSize: '22px' }}></span>
-                    Registrar Trabajador
+                    Registrar Usuario
                 </div>
-                <p style={s.modalSub}>El admin asigna un código único al nuevo trabajador.</p>
+                <p style={s.modalSub}>Asigna los datos y el rol correspondiente al nuevo usuario.</p>
 
                 {error && <div style={s.alerta('error')}><i className="fa-solid fa-circle-exclamation"></i>{error}</div>}
 
-                {/* Código asignado */}
                 <div style={s.modalCampo}>
-                    <label style={s.modalLabel}>Código asignado</label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        <input style={{ ...s.modalInputReadonly, flex: 1 }} value={form.codigo} readOnly />
-                        <button
-                            onClick={() => setForm(p => ({ ...p, codigo: generarCodigo() }))}
-                            style={{ ...s.btnAccion('editar'), padding: '10px 14px', fontSize: '13px' }}
-                        >
-                            ↻ Nuevo
-                        </button>
-                    </div>
+                    <label style={s.modalLabel}>Rol de Usuario *</label>
+                    <select style={s.modalInput} name="id_rol_usuario" value={form.id_rol_usuario} onChange={handleChange}>
+                        <option value="1">Administrador</option>
+                        <option value="2">Cliente</option>
+                        <option value="3">Trabajador</option>
+                    </select>
                 </div>
+
+                {/* Código asignado */}
+                {form.id_rol_usuario !== '2' && (
+                    <div style={s.modalCampo}>
+                        <label style={s.modalLabel}>Código asignado</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <input style={{ ...s.modalInputReadonly, flex: 1 }} value={form.codigo} readOnly />
+                            <button
+                                type="button"
+                                onClick={() => setForm(p => ({ ...p, codigo: generarCodigo() }))}
+                                style={{ ...s.btnAccion('editar'), padding: '10px 14px', fontSize: '13px' }}
+                            >
+                                ↻ Nuevo
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div style={s.modalCampo}>
@@ -429,6 +448,10 @@ export default function Usuarios() {
     useEffect(() => { cargarUsuarios(); }, []);
 
     const handleCambiarEstado = async (usuario) => {
+        if (usuario.correo === 'valruiz@gmail.com') {
+            mostrarToast('El administrador principal no puede ser desactivado.', 'error');
+            return;
+        }
         const nuevoEstado = usuario.estado === 1 ? 0 : 1;
         const accion = nuevoEstado === 1 ? 'activar' : 'desactivar';
         if (!window.confirm(`¿Seguro que deseas ${accion} a ${usuario.nom_1} ${usuario.ape_1}?`)) return;
@@ -438,7 +461,7 @@ export default function Usuarios() {
             cargarUsuarios();
         } catch (e) {
             console.error("Error en patch:", e);
-            mostrarToast('Error al cambiar el estado.', 'error');
+            mostrarToast(e.message || 'Error al cambiar el estado.', 'error');
         }
     };
 
@@ -446,6 +469,8 @@ export default function Usuarios() {
     const porTab = todos.filter(u =>
         tabActiva === 'clientes' ? u.id_rol_usuario === '2'
         : tabActiva === 'trabajadores' ? u.id_rol_usuario === '3'
+        : tabActiva === 'administradores' ? u.id_rol_usuario === '1'
+
         : true
     );
 
@@ -527,6 +552,8 @@ export default function Usuarios() {
                                 {[
                                     { key: 'clientes', label: 'Clientes', rol: '2' },
                                     { key: 'trabajadores', label: 'Trabajadores', rol: '3' },
+                                    { key: 'administradores', label: 'Administradores', rol: '1' },
+
                                 ].map(({ key, label, rol }) => (
                                     <button key={key} style={s.tab(tabActiva === key)} onClick={() => { setTabActiva(key); setSearchTerm(''); setFiltroEstado('todos'); }}>
                                         {label}
@@ -535,14 +562,12 @@ export default function Usuarios() {
                                 ))}
                             </div>
 
-                            {/* Botón registrar trabajador */}
-                            {tabActiva === 'trabajadores' && (
+                            {/* Botón Registrar Usuario (Aparece sin importar en qué pestaña estés) */}
                                 <button style={s.btnPrimario} onClick={() => setModalRegistrar(true)}>
                                     <i className="fa-solid fa-user-plus"></i>
-                                    Registrar Trabajador
+                                    Registrar Usuario
                                 </button>
-                            )}
-                        </div>
+                            </div>
 
                         {/* Toolbar */}
                         <div style={{ padding: '16px 24px', borderBottom: `1px solid ${C.fondo}` }}>
@@ -581,8 +606,15 @@ export default function Usuarios() {
                                             <td colSpan="6" style={{ textAlign: 'center', padding: '50px', color: C.textoSec }}>
                                                 <div style={{ fontSize: '32px', marginBottom: '10px' }}></div>
                                                 <strong>{searchTerm ? 'Sin resultados' : `No hay ${tabActiva} registrados`}</strong>
+
                                                 <p style={{ fontSize: '13px', marginTop: '6px' }}>
-                                                    {searchTerm ? 'Prueba con otros términos' : tabActiva === 'trabajadores' ? 'Registra el primer trabajador con el botón de arriba.' : 'Los clientes aparecerán al registrarse.'}
+                                                    {searchTerm 
+                                                        ? 'Prueba con otros términos' 
+                                                        : tabActiva === 'trabajadores' 
+                                                        ? 'Registra el primer trabajador con el botón de arriba.' 
+                                                        : tabActiva === 'administradores' 
+                                                        ? 'No hay administradores registrados.' 
+                                                        : 'Los clientes aparecerán al registrarse.'}
                                                 </p>
                                             </td>
                                         </tr>
@@ -620,16 +652,23 @@ export default function Usuarios() {
                                                     <button style={s.btnAccion('editar')} onClick={() => setUsuarioEditar(u)}>
                                                         <i className="fa-solid fa-pen"></i> Editar
                                                     </button>
+
                                                     {/* Activar / Desactivar */}
-                                                    <button
-                                                        style={s.btnAccion(u.estado === 1 ? 'desactivar' : 'activar')}
-                                                        onClick={() => handleCambiarEstado(u)}
-                                                    >
-                                                        {u.estado === 1
-                                                            ? <><i className="fa-solid fa-ban"></i> Desactivar</>
-                                                            : <><i className="fa-solid fa-check"></i> Activar</>
-                                                        }
-                                                    </button>
+                                                    {u.correo === 'valruiz@gmail.com' ? (
+                                                        <span style={{ fontSize: '12px', color: C.gris, fontStyle: 'italic', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                                            <i className="fa-solid fa-lock"></i> Protegido
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            style={s.btnAccion(u.estado === 1 ? 'desactivar' : 'activar')}
+                                                            onClick={() => handleCambiarEstado(u)}
+                                                        >
+                                                            {u.estado === 1
+                                                                ? <><i className="fa-solid fa-ban"></i> Desactivar</>
+                                                                : <><i className="fa-solid fa-check"></i> Activar</>
+                                                            }
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

@@ -1,6 +1,29 @@
-// RF-009.1 (historial) / RF-009.2 (reporte general)
+// RF3.1 a RF3.4
+// RF-009.1 (historial) / RF-009.2 (reporte general) - Gestion de historial y reportes
 const FRONT_URL = Cypress.env('FRONT_URL') || 'http://localhost:5173';
 
+// Epica 3
+describe('RF-003.1 - ', () => {
+    beforeEach(() => {
+    });
+});
+
+describe('RF-003.2 - ', () => {
+    beforeEach(() => {
+    });
+});
+
+describe('RF-003.3 - ', () => {
+    beforeEach(() => {
+    });
+});
+
+describe('RF-003.4 - ', () => {
+    beforeEach(() => {
+    });
+});
+
+// Epica 9
 describe('RF-009.1 - Consultar historial de movimientos', () => {
     beforeEach(() => {
         cy.loginAdmin();
@@ -73,3 +96,5 @@ describe('RF-009.2 - Generar reporte general', () => {
         cy.contains(/Desde.*posterior.*Hasta/i).should('be.visible');
     });
 });
+
+export {};

@@ -71,12 +71,15 @@ CREATE TABLE `usuario` (
   `reset_expira` DATETIME DEFAULT NULL,
   `estado` INT DEFAULT 1,
   `fcm_token` VARCHAR(255) DEFAULT NULL,
+  `bloqueado_hasta` DATETIME(3) DEFAULT NULL,
+  `intentos_fallidos` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`id_usuario`),
   UNIQUE KEY `uk_usuario_codigo` (`codigo`),
   KEY `fk_usuario_rol` (`id_rol_usuario`),
   KEY `fk_usuario_tdoc` (`t_doc`),
   CONSTRAINT `chk_usuario_correo` CHECK (`correo` LIKE '%@%.%'),
   CONSTRAINT `chk_usuario_estado_valido` CHECK (`estado` IN (0, 1)),
+  CONSTRAINT `chk_usuario_intentos_fallidos` CHECK (`intentos_fallidos` >= 0),
   CONSTRAINT `fk_usuario_rol` FOREIGN KEY (`id_rol_usuario`) REFERENCES `rol_usuario` (`id_rol_usuario`) ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT `fk_usuario_tdoc` FOREIGN KEY (`t_doc`) REFERENCES `tipo_documento` (`t_doc`) ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -353,3 +356,18 @@ INSERT INTO `tipo_movimiento` (`id_m`, `nom_movimiento`) VALUES
 INSERT INTO `tipo_pedido` (`id_tipo`, `tipo_pedido`) VALUES
 ('P-P', 'Personalizado'),
 ('P-E', 'Estandar');
+
+--{
+--  "id_usuario": "Adm-01",
+--  "nom_1": "Valentina",
+--  "nom_2": null,
+--  "ape_1": "Ruiz",
+--  "ape_2": "Castro",
+--  "correo": "valruiz@gmail.com",
+--  "telefono": 3123456789,
+--  "contrasena": "vale123",
+--  "codigo": "12345",
+--  "id_rol_usuario": "1",
+--  "t_doc": "CC",
+--  "estado": 1
+--}

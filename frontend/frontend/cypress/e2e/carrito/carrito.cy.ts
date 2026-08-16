@@ -1,4 +1,4 @@
-// RF-006.1 a RF-006.5
+// RF-006.1 a RF-006.5 - Gestion de carrito
 const FRONT_URL = Cypress.env('FRONT_URL') || 'http://localhost:5173';
 
 describe('RF-006.1 - Agregar producto al carrito', () => {
@@ -33,7 +33,7 @@ describe('RF-006.2 - Visualizar carrito de compra', () => {
         cy.visit(`${FRONT_URL}/carrito`);
 
         cy.get('.carrito-producto-subtotal').then(($subtotales) => {
-        const suma = [...$subtotales].reduce((acc, el) => {
+        const suma = Array.from($subtotales).reduce((acc, el) => {
             const num = parseInt(el.innerText.replace(/[^\d]/g, ''), 10);
             return acc + num;
         }, 0);
@@ -71,7 +71,6 @@ describe('RF-006.3 - Modificar cantidad del carrito', () => {
     });
 
     it('CP-006: no debe permitir incrementar por encima del stock disponible', () => {
-
         cy.get('.carrito-producto-stock').invoke('text').then((texto) => {
         const stockDisponible = parseInt(texto.replace(/[^\d]/g, ''), 10);
         for (let i = 1; i < stockDisponible; i++) {
@@ -94,13 +93,13 @@ describe('RF-006.4 - Quitar producto del carrito', () => {
     it('CP-009: debe eliminar el producto específico indicado del carrito', () => {
         cy.get('.carrito-producto-card').should('have.length', 2);
         cy.get('.eliminar').first().click();
-        cy.on('window:confirm', () => true); // acepta el window.confirm()
+        cy.on('window:confirm', () => true);
         cy.get('.carrito-producto-card').should('have.length', 1);
     });
 
     it('CP-010: al cancelar la eliminación, el producto debe permanecer en el carrito', () => {
         cy.get('.carrito-producto-card').should('have.length', 2);
-        cy.on('window:confirm', () => false); // cancela el window.confirm()
+        cy.on('window:confirm', () => false);
         cy.get('.eliminar').first().click();
         cy.get('.carrito-producto-card').should('have.length', 2);
     });
@@ -126,3 +125,5 @@ describe('RF-006.5 - Vaciar carrito', () => {
         cy.get('.carrito-producto-card').should('have.length.at.least', 1);
     });
 });
+
+export {};

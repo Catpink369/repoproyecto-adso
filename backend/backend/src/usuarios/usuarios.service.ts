@@ -39,8 +39,7 @@ export class UsuariosService {
         ape_1: dto.ape_1,
         ape_2: dto.ape_2 ?? null,
         correo: dto.correo,
-        // telefono es BigInt en el schema, hay que castear explícitamente
-        telefono: BigInt(dto.telefono),
+        telefono: Number(dto.telefono),
         contrasena: hashedPassword,
         codigo: hashedCodigo,
         codigo_visible: codigoVisible,
@@ -113,9 +112,8 @@ export class UsuariosService {
 
     const data: any = { ...dto };
 
-    // telefono también es BigInt aquí si viene en el update
-    if (dto.telefono !== undefined) {
-      data.telefono = BigInt(dto.telefono);
+    if (dto.telefono !== undefined && dto.telefono !== null) {
+      data.telefono = Number(dto.telefono);
     }
 
     // hashear contraseña si se está actualizando
@@ -255,23 +253,31 @@ export class UsuariosService {
   // TOGGLE ESTADO (ACTIVO/INACTIVO)
   // --------------------------------------------------------
   async toggleEstado(id: string) {
-    const usuario = await this.prisma.usuario.findUnique({
-      where: { id_usuario: id },
-      select: { estado: true } 
-    });
+  const usuario = await this.prisma.usuario.findUnique({
+    where: { id_usuario: id },
+    select: { 
+      id_usuario: true,
+      correo: true,
+      estado: true 
+    } 
+  });
 
-    if (!usuario) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
-    // Determinar el nuevo valor (si es 1 pasa a 0, si es 0 pasa a 1)
-    const nuevoEstado = usuario.estado === 1 ? 0 : 1;
-
-    return this.prisma.usuario.update({
-      where: { id_usuario: id },
-      data: { estado: nuevoEstado },
-    });
+  if (!usuario) {
+    throw new NotFoundException('Usuario no encontrado');
   }
+
+  if (usuario.correo === 'valruiz@gmail.com') {
+    throw new BadRequestException('El administrador principal (valruiz@gmail.com) no puede ser desactivado.');
+  }
+
+  //Determina el nuevo estado: si es 1 (activo), lo cambia a 0 (inactivo) y viceversa
+  const nuevoEstado = usuario.estado === 1 ? 0 : 1;
+
+  return this.prisma.usuario.update({
+    where: { id_usuario: id },
+    data: { estado: nuevoEstado },
+  });
+}
 
 // --------------------------------------------------------
 // GUARDAR TOKEN FCM

@@ -69,7 +69,7 @@ export default function CambiarDatosAdmin() {
                 ape_1: formData.ape_1,
                 ape_2: formData.ape_2 || null,
                 correo: formData.correo,
-                telefono: parseInt(formData.telefono),
+                telefono: String(formData.telefono),
                 t_doc: formData.t_doc
             });
 

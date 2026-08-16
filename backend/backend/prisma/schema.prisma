@@ -244,32 +244,34 @@ model tipo_pedido {
 }
 
 model usuario {
-  id_usuario     String                @id @db.VarChar(15)
-  nom_1          String                @db.VarChar(50)
-  nom_2          String?               @db.VarChar(50)
-  ape_1          String                @db.VarChar(50)
-  ape_2          String?               @db.VarChar(50)
-  correo         String                @db.VarChar(40)
-  telefono       BigInt
-  contrasena     String                @db.VarChar(255)
-  codigo         String?               @unique(map: "uk_usuario_codigo") @db.VarChar(255)
-  id_rol_usuario String                @db.VarChar(20)
-  t_doc          tipo_documento_t_doc
-  img_perfil     String?               @db.VarChar(255)
-  codigo_visible String?               @db.VarChar(20)
-  reset_codigo   String?               @db.VarChar(255)
-  reset_expira   DateTime?             @db.DateTime(0)
-  estado         Int?                  @default(1)
-  fcm_token      String?               @db.VarChar(255)
+  id_usuario       String               @id @db.VarChar(15)
+  nom_1            String               @db.VarChar(50)
+  nom_2            String?              @db.VarChar(50)
+  ape_1            String               @db.VarChar(50)
+  ape_2            String?              @db.VarChar(50)
+  correo           String               @db.VarChar(40)
+  telefono         BigInt
+  contrasena       String               @db.VarChar(255)
+  codigo           String?              @unique(map: "codigo") @db.VarChar(255)
+  id_rol_usuario   String               @db.VarChar(20)
+  t_doc            tipo_documento_t_doc
+  img_perfil       String?              @db.VarChar(255)
+  codigo_visible   String?              @db.VarChar(20)
+  reset_codigo     String?              @db.VarChar(255)
+  reset_expira     DateTime?            @db.DateTime(0)
+  estado           Int                  @default(1)
+  fcm_token        String?              @db.VarChar(255)
+  bloqueado_hasta  DateTime?            @db.DateTime(3)
+  intentos_fallidos Int                 @default(0)
 
-  rol_usuario    rol_usuario    @relation(fields: [id_rol_usuario], references: [id_rol_usuario])
+  rol            rol_usuario    @relation(fields: [id_rol_usuario], references: [id_rol_usuario])
   tipo_documento tipo_documento @relation(fields: [t_doc], references: [t_doc])
-  movimientos    movimiento[]
   pedidos        pedido[]
-  notificaciones notificacion[]
+  movimientos    movimiento[]
+  notificaciones  notificacion[]
 
-  @@index([id_rol_usuario], map: "fk_usuario_rol")
-  @@index([t_doc], map: "fk_usuario_tdoc")
+  @@index([id_rol_usuario], map: "id_rol_usuario")
+  @@index([t_doc], map: "t_doc")
 }
 
 enum estado_pago_id_estado {

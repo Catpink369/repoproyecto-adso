@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 16-08-2026 a las 04:17:37
+-- Tiempo de generación: 16-08-2026 a las 22:23:28
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -384,15 +384,17 @@ CREATE TABLE `usuario` (
   `reset_codigo` varchar(255) DEFAULT NULL,
   `reset_expira` datetime DEFAULT NULL,
   `estado` int(11) DEFAULT 1,
-  `fcm_token` varchar(255) DEFAULT NULL
+  `fcm_token` varchar(255) DEFAULT NULL,
+  `bloqueado_hasta` datetime(3) DEFAULT NULL,
+  `intentos_fallidos` int(11) NOT NULL DEFAULT 0
 ) ;
 
 --
 -- Volcado de datos para la tabla `usuario`
 --
 
-INSERT INTO `usuario` (`id_usuario`, `nom_1`, `nom_2`, `ape_1`, `ape_2`, `correo`, `telefono`, `contrasena`, `codigo`, `id_rol_usuario`, `t_doc`, `img_perfil`, `codigo_visible`, `reset_codigo`, `reset_expira`, `estado`, `fcm_token`) VALUES
-('Adm-01', 'Valentina', NULL, 'Ruiz', 'Castro', 'valruiz@gmail.com', 3123456789, '$2b$10$ZpyBdvjxoxOFc9H1WE.9v.sSNaEvHqRH1ThGiMvDAYy/StkwtxK6a', '$2b$10$jQpj1gMJypBF/d2zQEGz20dfRT1vBzhMUj2nrkHxV./I/tNMqymke', '1', 'CC', '/uploads/perfiles/Adm-01-1782018735677.jpg', '12345', NULL, NULL, 1, NULL);
+INSERT INTO `usuario` (`id_usuario`, `nom_1`, `nom_2`, `ape_1`, `ape_2`, `correo`, `telefono`, `contrasena`, `codigo`, `id_rol_usuario`, `t_doc`, `img_perfil`, `codigo_visible`, `reset_codigo`, `reset_expira`, `estado`, `fcm_token`, `bloqueado_hasta`, `intentos_fallidos`) VALUES
+('Adm-01', 'Valentina', NULL, 'Ruiz', 'Castro', 'valruiz@gmail.com', 3123456789, '$2b$10$MQ8Rq2ay0hTSjhQD5tNGDeL3XRc8n9plA65vZMF1iGQE3BvxAr84.', '$2b$10$ZH6itzBvzfIkJA21fSR2Y.MYNgKo152SH10kysBJlK9WfJDRkdO46', '1', 'CC', NULL, '12345', NULL, NULL, 1, NULL, NULL, 0);
 
 --
 -- Índices para tablas volcadas
