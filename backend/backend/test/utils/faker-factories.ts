@@ -12,8 +12,8 @@ import {
 import * as bcrypt from 'bcrypt';
 
 let _prisma: PrismaClient | null = null;
-function getPrisma(): PrismaClient { // getprisma no abre conexión hasta que se llama explícitamente
-    if (!_prisma) {
+function getPrisma(): PrismaClient { 
+    if (!_prisma) { // getprisma no abre conexión hasta que se llama explícitamente
         _prisma = new PrismaClient();
     }
     return _prisma;
@@ -320,11 +320,11 @@ function getPrisma(): PrismaClient { // getprisma no abre conexión hasta que se
     }
 
     contarProductos(): number {
-        return this.items.reduce((acc, i) => acc + i.cantidad, 0);
+        return this.items.reduce((acc, i) => acc + i.cantidad, 0); // acc = acumulador, i = item
     }
 
     calcularTotal(): number {
-        return this.items.reduce((acc, i) => acc + i.precio_unitario * i.cantidad, 0);
+        return this.items.reduce((acc, i) => acc + i.precio_unitario * i.cantidad, 0); 
     }
 
     estaVacio(): boolean {
@@ -356,9 +356,9 @@ function getPrisma(): PrismaClient { // getprisma no abre conexión hasta que se
 
     // RF-006.4 - Quitar producto del carrito (CP-009 / CP-010)
     eliminarProducto(id_producto: number): boolean {
-        const antes = this.items.length;
-        this.items = this.items.filter((i) => i.id_producto !== id_producto);
-        return this.items.length < antes;
+        const antes = this.items.length; 
+        this.items = this.items.filter((i) => i.id_producto !== id_producto); 
+        return this.items.length < antes; 
     }
 
     // RF-006.5 - Vaciar carrito (CP-011 al CP-013)

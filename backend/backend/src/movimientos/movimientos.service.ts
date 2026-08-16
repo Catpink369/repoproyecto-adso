@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { CreateMovimientoDto } from './dto/create-movimiento.dto';
 import { UpdateMovimientoDto } from './dto/update-movimiento.dto';
 
@@ -8,28 +9,49 @@ export class MovimientosService {
   constructor(private prisma: PrismaService) {}
 
   // -------------------------------------------------------
+  // VALIDA QUE "DESDE" NO SEA POSTERIOR A "HASTA"
+  // -------------------------------------------------------
+  private validarRangoFechas(desde?: string, hasta?: string) {
+    if (!desde || !hasta) return;
+    const fechaDesde = new Date(desde);
+    const fechaHasta = new Date(hasta);
+    if (isNaN(fechaDesde.getTime())) {
+      throw new BadRequestException(`La fecha "Desde" (${desde}) no tiene un formato válido.`);
+    }
+    if (isNaN(fechaHasta.getTime())) {
+      throw new BadRequestException(`La fecha "Hasta" (${hasta}) no tiene un formato válido.`);
+    }
+    if (fechaDesde > fechaHasta) {
+      throw new BadRequestException(
+        `La fecha "Desde" (${desde}) no puede ser posterior a la fecha "Hasta" (${hasta}).`,
+      );
+    }
+  }
+
+  private construirFiltroFecha(campo: string, desde?: string, hasta?: string): Prisma.Sql {
+    const condiciones: Prisma.Sql[] = [];
+    if (desde) condiciones.push(Prisma.sql`${Prisma.raw(campo)} >= ${desde}`);
+    if (hasta) condiciones.push(Prisma.sql`${Prisma.raw(campo)} <= DATE_ADD(${hasta}, INTERVAL 1 DAY)`);
+    return condiciones.length ? Prisma.sql`WHERE ${Prisma.join(condiciones, ' AND ')}` : Prisma.empty;
+  }
+
+  // -------------------------------------------------------
   // OBTENER TODOS LOS MOVIMIENTOS CON INFO COMPLETA
   // -------------------------------------------------------
   async findAll(query: any) {
     console.log('service - todos los movimientos:', JSON.stringify(query));
 
+    const { desde, hasta } = query ?? {};
+    this.validarRangoFechas(desde, hasta);
+    const where = this.construirFiltroFecha('m.fecha_m', desde, hasta);
+
     return this.prisma.$queryRaw<any[]>`
       SELECT 
-        m.id_movimiento,
-        m.Cantidad_m,
-        m.fecha_m,
-        m.observaciones,
-        CASE m.id_m 
-          WHEN 'M-E' THEN 'entrada'
-          WHEN 'M-S' THEN 'salida'
-        END AS tipo,
-        m.id_m,
-        tm.nom_movimiento AS tipo_movimiento,
-        p.nom_producto,
-        p.ruta_imagen,
-        u.id_usuario,
-        CONCAT(u.nom_1, ' ', u.ape_1) AS nombre_usuario,
-        r.nombre_rol,
+        m.id_movimiento, m.Cantidad_m, m.fecha_m, m.observaciones,
+        CASE m.id_m WHEN 'M-E' THEN 'entrada' WHEN 'M-S' THEN 'salida' END AS tipo,
+        m.id_m, tm.nom_movimiento AS tipo_movimiento,
+        p.nom_producto, p.ruta_imagen,
+        u.id_usuario, CONCAT(u.nom_1, ' ', u.ape_1) AS nombre_usuario, r.nombre_rol,
         CASE 
           WHEN m.observaciones LIKE '%Pedido #%' THEN 'Venta Online'
           WHEN m.observaciones LIKE '%Realizado por:%' THEN 'Manual (Admin)'
@@ -40,6 +62,7 @@ export class MovimientosService {
       JOIN producto p ON m.id_producto = p.id_producto
       JOIN usuario u ON m.id_usuario = u.id_usuario
       JOIN rol_usuario r ON u.id_rol_usuario = r.id_rol_usuario
+      ${where}
       ORDER BY m.fecha_m DESC
     `;
   }
@@ -77,22 +100,12 @@ export class MovimientosService {
   // -------------------------------------------------------
   // CREAR MOVIMIENTO + ACTUALIZAR STOCK DEL PRODUCTO
   // -------------------------------------------------------
-  // IMPORTANTE: antes este método solo creaba el registro en
-  // `movimiento` y nunca tocaba `producto.stock_actual`. Eso
-  // causaba que el stock quedara desincronizado (incluso negativo)
-  // respecto al historial de movimientos.
-  //
-  // Ahora todo corre dentro de una transacción: si la actualización
-  // de stock falla (ej. producto no existe), el movimiento tampoco
-  // se crea — no queremos un movimiento "huérfano" sin su efecto
-  // correspondiente en el inventario.
   async create(dto: CreateMovimientoDto) {
     console.log('service - crear movimiento:', JSON.stringify(dto));
 
     const idProducto = Number(dto.id_producto);
     const idMovimiento = dto.id_m === 'M-E' ? 'M_E' : 'M_S';
 
-    // M_E (entrada) suma al stock, M_S (salida) resta.
     const signo = idMovimiento === 'M_E' ? 1 : -1;
     const delta = signo * dto.Cantidad_m;
 
@@ -107,8 +120,6 @@ export class MovimientosService {
         );
       }
 
-      // Evita que una salida deje el stock en negativo por una
-      // condición de carrera (ej. doble tap del botón "Sumar/Restar").
       if (idMovimiento === 'M_S' && producto.stock_actual + delta < 0) {
         throw new BadRequestException(
           `No hay suficiente stock de "${producto.nom_producto}" para registrar esta salida. ` +
@@ -171,30 +182,25 @@ export class MovimientosService {
   // RESUMEN GENERAL (total entradas y salidas)
   // -------------------------------------------------------
   async resumenGeneral(desde?: string, hasta?: string) {
-    const conditions: string[] = [];
-    if (desde) conditions.push(`fecha_m >= '${desde}'`);
-    if (hasta) conditions.push(`fecha_m <= DATE_ADD('${hasta}', INTERVAL 1 DAY)`);
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    const results = await this.prisma.$queryRawUnsafe<any[]>(`
+    this.validarRangoFechas(desde, hasta);
+    const where = this.construirFiltroFecha('fecha_m', desde, hasta);
+    const results = await this.prisma.$queryRaw<any[]>`
       SELECT 
         SUM(CASE WHEN id_m = 'M-E' THEN Cantidad_m ELSE 0 END) as totalEntradas,
         SUM(CASE WHEN id_m = 'M-S' THEN Cantidad_m ELSE 0 END) as totalSalidas
       FROM movimiento ${where}
-    `);
-    return results[0] || { totalEntradas: 0, totalSalidas: 0 };
+    `;
+    const fila = results[0] ?? {};
+    return { totalEntradas: fila.totalEntradas ?? 0, totalSalidas: fila.totalSalidas ?? 0 };
   }
 
   // -------------------------------------------------------
   // MOVIMIENTOS POR DÍA
   // -------------------------------------------------------
   async porDia(desde?: string, hasta?: string) {
-    const conditions: string[] = [];
-    if (desde) conditions.push(`fecha_m >= '${desde}'`);
-    if (hasta) conditions.push(`fecha_m <= DATE_ADD('${hasta}', INTERVAL 1 DAY)`);
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    return this.prisma.$queryRawUnsafe<any[]>(`
+    this.validarRangoFechas(desde, hasta);
+    const where = this.construirFiltroFecha('fecha_m', desde, hasta);
+    return this.prisma.$queryRaw<any[]>`
       SELECT 
         DATE_FORMAT(fecha_m, '%Y-%m-%d') as fecha,
         SUM(CASE WHEN id_m = 'M-E' THEN Cantidad_m ELSE 0 END) as entradas,
@@ -202,43 +208,37 @@ export class MovimientosService {
       FROM movimiento ${where}
       GROUP BY DATE_FORMAT(fecha_m, '%Y-%m-%d')
       ORDER BY fecha
-    `);
+    `;
   }
 
   // -------------------------------------------------------
   // MOVIMIENTOS POR TIPO (gráfico circular)
   // -------------------------------------------------------
   async porTipo(desde?: string, hasta?: string) {
-    const conditions: string[] = [];
-    if (desde) conditions.push(`fecha_m >= '${desde}'`);
-    if (hasta) conditions.push(`fecha_m <= DATE_ADD('${hasta}', INTERVAL 1 DAY)`);
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    return this.prisma.$queryRawUnsafe<any[]>(`
+    this.validarRangoFechas(desde, hasta);
+    const where = this.construirFiltroFecha('fecha_m', desde, hasta);
+    return this.prisma.$queryRaw<any[]>`
       SELECT 
         CASE WHEN id_m = 'M-E' THEN 'Entrada' WHEN id_m = 'M-S' THEN 'Salida' END as tipo,
-        COUNT(*) as cantidad,
-        SUM(Cantidad_m) as total_unidades
+        COUNT(*) as cantidad, SUM(Cantidad_m) as total_unidades
       FROM movimiento ${where}
       GROUP BY id_m
-    `);
+    `;
   }
 
   // -------------------------------------------------------
   // TOP PRODUCTOS MÁS MOVIDOS
   // -------------------------------------------------------
   async topProductos(desde?: string, hasta?: string, limit = 10) {
-    const conditions: string[] = ['p.estado = 1'];
-    if (desde) conditions.push(`m.fecha_m >= '${desde}'`);
-    if (hasta) conditions.push(`m.fecha_m <= DATE_ADD('${hasta}', INTERVAL 1 DAY)`);
-    const where = `WHERE ${conditions.join(' AND ')}`;
+    this.validarRangoFechas(desde, hasta);
+    const condiciones: Prisma.Sql[] = [Prisma.sql`p.estado = 1`];
+    if (desde) condiciones.push(Prisma.sql`m.fecha_m >= ${desde}`);
+    if (hasta) condiciones.push(Prisma.sql`m.fecha_m <= DATE_ADD(${hasta}, INTERVAL 1 DAY)`);
+    const where = Prisma.sql`WHERE ${Prisma.join(condiciones, ' AND ')}`;
 
-    return this.prisma.$queryRawUnsafe<any[]>(`
+    return this.prisma.$queryRaw<any[]>`
       SELECT 
-        p.id_producto,
-        p.nom_producto as producto,
-        p.stock_actual,
-        p.stock_minimo,
+        p.id_producto, p.nom_producto as producto, p.stock_actual, p.stock_minimo,
         COUNT(m.id_movimiento) as total_movimientos,
         SUM(CASE WHEN m.id_m = 'M-E' THEN m.Cantidad_m ELSE 0 END) as entradas,
         SUM(CASE WHEN m.id_m = 'M-S' THEN m.Cantidad_m ELSE 0 END) as salidas
@@ -248,7 +248,7 @@ export class MovimientosService {
       GROUP BY p.id_producto, p.nom_producto, p.stock_actual, p.stock_minimo
       ORDER BY total_movimientos DESC
       LIMIT ${limit}
-    `);
+    `;
   }
 
   // -------------------------------------------------------

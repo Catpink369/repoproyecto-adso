@@ -25,11 +25,9 @@ export class MovimientosController {
   async findAll(@Query() query: any) {
     try {
       return await this.movimientosService.findAll(query);
-    } catch (error: any){
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new InternalServerErrorException('Error interno al obtener la lista de movimientos ');
+    } catch (error: any) {
+      if (error instanceof BadRequestException) throw error;
+      throw new InternalServerErrorException('Error interno al obtener la lista de movimientos.');
     }
   }
 

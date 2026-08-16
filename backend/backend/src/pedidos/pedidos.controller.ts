@@ -6,6 +6,7 @@ import { ApiBearerAuth, ApiSecurity, ApiOperation, ApiResponse } from '@nestjs/s
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { GetUser } from '../auth/decorators/get-user.decorator';
 import { Roles as RolesDecorator } from '../auth/decorators/roles.decorator';
 import { Roles } from '../auth/enums/roles.enum';
 import { EnableCors } from '../auth/decorators/cors.decorator';
@@ -36,7 +37,6 @@ export class PedidosController {
     try {
       return await this.pedidosService.create(dto);
     } catch (error: any) {
-      // ← AGREGA ESTAS LÍNEAS
       console.error('ERROR COMPLETO:', JSON.stringify({
         message: error.message,
         code: error.code,
@@ -88,9 +88,9 @@ export class PedidosController {
   @ApiResponse({ status: 404, description: 'No se encontraron pedidos para el usuario.' })
   @ApiResponse({ status: 500, description: 'Error interno al obtener los pedidos del usuario.' })
 
-  async findByUsuario(@Param('id_usuario') id_usuario: string) {
+  async findByUsuario(@Param('id_usuario') id_usuario: string, @Query('tipo') tipo?: 'estandar' | 'personalizado') {
     try {
-      const pedidos = await this.pedidosService.findByUsuario(id_usuario);
+      const pedidos = await this.pedidosService.findByUsuario(id_usuario, tipo);
 
       if (!pedidos) {
         throw new NotFoundException(`No se encontraron pedidos para el usuario con ID ${id_usuario}.`);
@@ -118,19 +118,28 @@ export class PedidosController {
   @ApiResponse({ status: 404, description: 'Pedido no encontrado por ID.' })
   @ApiResponse({ status: 500, description: 'Error interno al obtener el pedido.' })
 
-  async findOne(@Param('id_pedido', ParseIntPipe) id_pedido: number) {
+  async findOne(
+  @Param('id_pedido', ParseIntPipe) id_pedido: number,
+  @GetUser() user: any,
+  ) {
     try {
       const pedido = await this.pedidosService.findOne(id_pedido);
-
       if (!pedido) {
         throw new NotFoundException(`Pedido con ID ${id_pedido} no encontrado.`);
       }
-      return pedido;
+      if (user.id_rol_usuario === '2' && pedido.id_usuario !== user.id_usuario) {
+      throw new ForbiddenException('No autorizado');
+    }
+    return pedido;
     } catch (error: any) {
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+      ) {
         throw error;
       }
-      throw new InternalServerErrorException('Error interno al obtener el pedido.');  
+      throw new InternalServerErrorException('Error interno al obtener el pedido.');
     }
   }
 

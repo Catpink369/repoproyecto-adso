@@ -118,7 +118,7 @@ export class PedidosService {
           sub_total: subtotal,
           total_ticket: total,
           id_pedido: pedido.id_pedido,
-          id_estado: 'E_pd',
+          id_estado: 'E_pt',
           id_met_pago: 'Mtd_PD',
         },
       });
@@ -149,10 +149,13 @@ export class PedidosService {
   // -------------------------------------------------------
   // OBTENER PEDIDOS DE UN USUARIO
   // -------------------------------------------------------
-  async findByUsuario(id_usuario: string) {
-    console.log('service - pedidos por usuario:', JSON.stringify({ id_usuario }));
+  async findByUsuario(id_usuario: string, tipo?: 'estandar' | 'personalizado') {
+    console.log('service - pedidos por usuario:', JSON.stringify({ id_usuario, tipo }));
+    
+    const idTipoFiltro = tipo === 'estandar' ? 'P_E' : tipo === 'personalizado' ? 'P_P' : undefined;
+
     return this.prisma.pedido.findMany({
-      where: { id_usuario },
+      where: { id_usuario, ...(idTipoFiltro && { id_tipo: idTipoFiltro }) },
       orderBy: { fecha: 'desc' },
       include: {
         ticket_compra: {
@@ -167,11 +170,8 @@ export class PedidosService {
               select: {
                 nom_producto: true,
                 precio_unitario: true,
-                ruta_imagen: true,
-              },
-            },
-          },
-        },
+                ruta_imagen: true, } } } },
+        pedido_personalizado: true,
       },
     });
   }
@@ -266,7 +266,8 @@ export class PedidosService {
   async update(id_pedido: number, dto: UpdatePedidoDto) {
     const pedido = await this.findOne(id_pedido);
 
-    if (dto.estado && this.ESTADOS_INMUTABLES.includes(pedido.estado)) {
+    // Bloquea el cambio de método sobre pedidos ya finalizados
+    if ((dto.estado || dto.metodo_pago) && this.ESTADOS_INMUTABLES.includes(pedido.estado)) {
       throw new BadRequestException(
         `No se puede modificar un pedido que ya está en estado "${pedido.estado}".`,
       );
@@ -291,9 +292,10 @@ export class PedidosService {
 
     if (dto.metodo_pago) {
       const idMetPago = metodoPagoMap[dto.metodo_pago] ?? 'Mtd_PD';
+      const idEstadoPago = dto.metodo_pago === 'Por_definir' ? 'E_pt' : 'E_pd';
       await this.prisma.ticket_compra.updateMany({
         where: { id_pedido },
-        data: { id_met_pago: idMetPago as any },
+        data: { id_met_pago: idMetPago as any, id_estado: idEstadoPago as any },
       });
     }
 

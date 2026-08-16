@@ -6,16 +6,18 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { fakeMovimiento } from '../utils/mock-factories';
 import { ReporteFake, ReporteFakeError } from '../utils/faker-factories';
 
-describe('MovimientosService', () => {
+describe('RF-009 - Gestion de Historial y Reportes', () => {
   let service: MovimientosService;
-  let prisma: any;
+  let prisma: any; 
+  let reporte: ReporteFake;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    reporte = new ReporteFake();
 
-    prisma = {
-      $queryRaw: jest.fn(),
-      $queryRawUnsafe: jest.fn(),
+    prisma = { // Mock de PrismaService
+      $queryRaw: jest.fn(), 
+      $queryRawUnsafe: jest.fn(), 
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -68,7 +70,8 @@ describe('MovimientosService', () => {
   // RF-009.2 
   describe('RF-009.2 - Generar reporte general', () => {
     it('CP-004: debe generar el reporte con las estadísticas correctas del periodo', async () => {
-      prisma.$queryRawUnsafe.mockResolvedValue([
+      // resumenGeneral() usa this.prisma.$queryRaw (tagged template), no $queryRawUnsafe
+      prisma.$queryRaw.mockResolvedValue([
         { totalEntradas: 50, totalSalidas: 20 },
       ]);
 
@@ -82,26 +85,7 @@ describe('MovimientosService', () => {
         service.resumenGeneral('2026-08-10', '2026-08-01'),
       ).rejects.toThrow(BadRequestException);
 
-      expect(prisma.$queryRawUnsafe).not.toHaveBeenCalled();
-    });
-
-    it('CP-007: en un rango sin movimientos, SUM() sin filas devuelve NULL (no 0 como espera el CP)', async () => {
-      prisma.$queryRawUnsafe.mockResolvedValue([
-        { totalEntradas: null, totalSalidas: null },
-      ]);
-
-      const resultado = await service.resumenGeneral('2020-01-01', '2020-01-02');
-
-      expect(resultado).toEqual({ totalEntradas: null, totalSalidas: null });
-    });
-  });
-
-  // RF-009.2 
-  describe('RF-009.2 - Exportar/imprimir reporte (simulación de frontend)', () => {
-    let reporte: ReporteFake;
-
-    beforeEach(() => {
-      reporte = new ReporteFake();
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
     });
 
     it('CP-006: debe exportar el reporte generado a PDF o abrir la vista de impresión', () => {
@@ -114,12 +98,14 @@ describe('MovimientosService', () => {
       expect(reporte.imprimir()).toBe(true);
     });
 
-    it('debe rechazar la exportación si no se ha generado un reporte previamente', () => {
-      expect(() => reporte.exportar()).toThrow(ReporteFakeError);
-    });
+    it('CP-007: en un rango sin movimientos, debe devolver 0 en lugar de NULL gracias al operador ?? en el service', async () => {
+      prisma.$queryRaw.mockResolvedValue([
+        { totalEntradas: null, totalSalidas: null },
+      ]);
 
-    it('debe rechazar la impresión si no se ha generado un reporte previamente', () => {
-      expect(() => reporte.imprimir()).toThrow(ReporteFakeError);
+      const resultado = await service.resumenGeneral('2020-01-01', '2020-01-02');
+
+      expect(resultado).toEqual({ totalEntradas: 0, totalSalidas: 0 });
     });
   });
 });

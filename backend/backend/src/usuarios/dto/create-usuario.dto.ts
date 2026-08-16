@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsString, IsEmail, IsOptional, MaxLength, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString, IsEmail, IsOptional, MaxLength, MinLength, IsInt, IsPositive } from 'class-validator';
+import { Type } from 'class-transformer';
 //import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUsuarioDto {
@@ -20,7 +21,7 @@ export class CreateUsuarioDto {
     @IsOptional()
     @MaxLength(50, { message: 'El segundo nombre no puede tener más de 50 caracteres' })
     nom_2?: string;
-    
+
     //@ApiProperty({ example: 'Pérez', description: 'Primer apellido del usuario', maxLength: 50 }) //datos para Swagger
     @IsString()
     @IsNotEmpty({ message: 'El primer apellido es obligatorio' })
@@ -40,9 +41,11 @@ export class CreateUsuarioDto {
     correo: string;
 
     //@ApiProperty({ example: 1234567890, description: 'Número de teléfono del usuario' }) //datos para Swagger
-    @IsString()
+    @Type(() => Number)
+    @IsInt({ message: 'El teléfono debe ser un número entero' })
+    @IsPositive({ message: 'El teléfono debe ser un número positivo' })
     @IsNotEmpty({ message: 'El teléfono es obligatorio' })
-    telefono: string;
+    telefono: number;
 
     //@ApiProperty({ example: 'password123', description: 'Contraseña del usuario', minLength: 6 }) //datos para Swagger
     @IsString()

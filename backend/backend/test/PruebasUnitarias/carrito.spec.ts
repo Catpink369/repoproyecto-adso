@@ -2,14 +2,14 @@
 import { CarritoFake, CarritoFakeError } from '../utils/faker-factories';
 import { fakeProducto } from '../utils/mock-factories';
 
-describe('RF-006 - simulación de frontend', () => {
+describe('RF-006 - Gestion de Carrito', () => {
   let carrito: CarritoFake;
 
   beforeEach(() => {
     carrito = new CarritoFake();
   });
 
-  function productoParaCarrito(overrides: Partial<any> = {}) {
+  function productoParaCarrito(overrides: Partial<any> = {}) { 
     const p = fakeProducto(overrides);
     return {
       id_producto: p.id_producto,
@@ -19,8 +19,8 @@ describe('RF-006 - simulación de frontend', () => {
     };
   }
 
-  // RF-006.1 - Agregar producto al carrito
-  describe('agregarProducto', () => {
+  // RF-006.1 
+  describe('RF-006.1 - Agregar producto al carrito', () => {
     
     it('CP-001: debe agregar un producto estándar al carrito y el contador debe incrementarse', () => {
       const producto = productoParaCarrito({ stock_actual: 10 });
@@ -55,8 +55,8 @@ describe('RF-006 - simulación de frontend', () => {
     });
   });
 
-  // RF-006.2 - Visualizar carrito de compra
-  describe('visualizar carrito', () => {
+  // RF-006.2 
+  describe('RF-006.2 - Visualizar carrito de compra', () => {
     it('CP-003: debe calcular correctamente la sumatoria del precio total de todos los productos', () => {
       carrito.agregarProducto(
         productoParaCarrito({ id_producto: 1, precio_unitario: 10000, stock_actual: 10 }),
@@ -77,8 +77,8 @@ describe('RF-006 - simulación de frontend', () => {
     });
   });
 
-  // RF-006.3 - Modificar cantidad del carrito
-  describe('modificarCantidad', () => {
+  // RF-006.3 
+  describe('RF-006.3 - Modificar cantidad del carrito', () => {
     it('CP-005: debe impedir que la cantidad se establezca en menos de 1 unidad', () => {
       const producto = productoParaCarrito({ id_producto: 1, stock_actual: 10 });
       carrito.agregarProducto(producto, 1);
@@ -112,8 +112,8 @@ describe('RF-006 - simulación de frontend', () => {
     });
   });
 
-  // RF-006.4 - Quitar producto del carrito
-  describe('eliminarProducto', () => {
+  // RF-006.4 
+  describe('RF-006.4 - Quitar producto del carrito', () => {
     it('CP-009: debe eliminar el producto específico indicado del carrito', () => {
       carrito.agregarProducto(productoParaCarrito({ id_producto: 1, stock_actual: 10 }), 1);
       carrito.agregarProducto(productoParaCarrito({ id_producto: 2, stock_actual: 10 }), 1);
@@ -133,8 +133,8 @@ describe('RF-006 - simulación de frontend', () => {
     });
   });
 
-  // RF-006.5 - Vaciar carrito
-  describe('vaciar', () => {
+  // RF-006.5 
+  describe('RF-006.5 - Vaciar carrito', () => {
     it('CP-011: debe vaciar el carrito cuando contiene productos', () => {
       carrito.agregarProducto(productoParaCarrito({ id_producto: 1, stock_actual: 10 }), 2);
       carrito.agregarProducto(productoParaCarrito({ id_producto: 2, stock_actual: 10 }), 1);

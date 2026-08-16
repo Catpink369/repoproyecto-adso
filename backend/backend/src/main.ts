@@ -7,6 +7,11 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import cookieParser from 'cookie-parser';
 
+// para que BigInt se pueda serializar a JSON 
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.use(cookieParser());
@@ -45,11 +50,6 @@ async function bootstrap() {
       showRequestDuration: true, // Muestra la duración de las solicitudes
     },
   });
-  
-  // Fix BigInt serialization
-  (BigInt.prototype as any).toJSON = function () {
-    return this.toString();
-  };
 
   app.useGlobalPipes(new ValidationPipe({
     transform: true, // Transforma los datos entrantes a los tipos definidos en los DTOs

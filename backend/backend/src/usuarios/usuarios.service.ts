@@ -39,7 +39,8 @@ export class UsuariosService {
         ape_1: dto.ape_1,
         ape_2: dto.ape_2 ?? null,
         correo: dto.correo,
-        telefono: Number(dto.telefono),
+        // telefono es BigInt en el schema, hay que castear explícitamente
+        telefono: BigInt(dto.telefono),
         contrasena: hashedPassword,
         codigo: hashedCodigo,
         codigo_visible: codigoVisible,
@@ -111,6 +112,11 @@ export class UsuariosService {
     await this.findOne(id_usuario);
 
     const data: any = { ...dto };
+
+    // telefono también es BigInt aquí si viene en el update
+    if (dto.telefono !== undefined) {
+      data.telefono = BigInt(dto.telefono);
+    }
 
     // hashear contraseña si se está actualizando
     if (dto.contrasena) {

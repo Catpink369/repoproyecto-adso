@@ -65,7 +65,6 @@ export function fakeUsuario(overrides: Partial<any> = {}) {
     };
     }
 
-    /** Pedido con las relaciones que devuelve PedidosService.findOne()/findAll()/findByUsuario(). */
     export function fakePedidoDetalleCompleto(overrides: Partial<any> = {}) {
     return {
         id_pedido: faker.number.int({ min: 1, max: 9999 }),

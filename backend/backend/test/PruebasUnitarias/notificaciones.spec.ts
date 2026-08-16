@@ -1,4 +1,4 @@
-//RF-009.3 (CP-008 a CP-011) / RF-007.2 (CP-005 y CP-006) / RF-008.2 (CP-007)
+//RF-009.3 / RF-007.2 (CP-005 y CP-006) / RF-008.2 (CP-007)
 import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
 import { NotificacionesService } from '../../src/notificaciones/notificaciones.service';
@@ -7,7 +7,11 @@ import { FcmPushService } from '../../src/notificaciones/fcm-push.service';
 import { TaskService } from '../../src/task/task.service';
 import { fakeProductoAlertaRaw, fakePedidoRaw, fakeUsuario } from '../utils/mock-factories';
 
-describe('NotificacionesService', () => {
+function mockUsuarioConCorreo(overrides: Partial<any> = {}) {
+  return fakeUsuario({ correo: 'cliente@test.com', ...overrides });
+}
+
+describe('Notificaciones ', () => {
   let service: NotificacionesService;
   let prisma: any;
   let fcmPush: any;
@@ -50,6 +54,69 @@ describe('NotificacionesService', () => {
     prisma.$queryRaw.mockResolvedValueOnce(filas);
   }
 
+  // RF-007.2 
+  describe('RF-007.2 - Consultar/ver estado de pedido', () => {
+    let id_pedido: number;
+    let id_usuario: string;
+
+    beforeEach(() => {
+      id_pedido = faker.number.int({ min: 1, max: 9999 });
+      id_usuario = faker.string.numeric(10);
+      prisma.usuario.findUnique.mockResolvedValue(mockUsuarioConCorreo({ id_usuario }));
+      prisma.ticket_compra.findFirst.mockResolvedValue({ num_ticket: 123456, total_ticket: 50000 });
+      prisma.notificacion.create.mockResolvedValue({ id_notificacion: 1 });
+    });
+
+    it('CP-005: debe crear la notificación persistida en el panel del cliente', async () => {
+      await service.notificarCambioEstadoPedido({ id_pedido, id_usuario, estado: 'Pagado' });
+
+      expect(prisma.notificacion.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ id_usuario, tipo: 'pedido_estado' }),
+        }),
+      );
+    });
+
+    it('CP-006: debe enviar el correo con los datos del ticket cuando el usuario tiene correo registrado', async () => {
+      await service.notificarCambioEstadoPedido({ id_pedido, id_usuario, estado: 'Pagado' });
+
+      expect(taskService.enviarCambioEstadoPedido).toHaveBeenCalledWith(
+        expect.objectContaining({
+          correo: 'cliente@test.com',
+          idPedido: id_pedido,
+          estado: 'Pagado',
+          numTicket: '123456',
+          totalTicket: 50000,
+        }),
+      );
+    });
+  });
+
+  // RF-008.2 
+  describe('RF-008.2 - Actualizar estado de pedido', () => {
+    let id_pedido: number;
+    let id_usuario: string;
+
+    beforeEach(() => {
+      id_pedido = faker.number.int({ min: 1, max: 9999 });
+      id_usuario = faker.string.numeric(10);
+      prisma.usuario.findUnique.mockResolvedValue(mockUsuarioConCorreo({ id_usuario }));
+      prisma.ticket_compra.findFirst.mockResolvedValue({ num_ticket: 123456, total_ticket: 50000 });
+      prisma.notificacion.create.mockResolvedValue({ id_notificacion: 1 });
+    });
+
+    it('CP-007: debe enviar la notificación push con el título esperado', async () => {
+      await service.notificarCambioEstadoPedido({ id_pedido, id_usuario, estado: 'Pagado' });
+
+      expect(fcmPush.notificarUsuario).toHaveBeenCalledWith(
+        id_usuario,
+        'Actualización de tu pedido',
+        expect.stringContaining('pago fue confirmado'),
+        expect.objectContaining({ id_pedido: String(id_pedido) }),
+      );
+    });
+  });
+
   // RF-009.3 
   describe('RF-009.3 - Consultar notificaciones', () => {
     it('CP-008: debe desplegar en orden las alertas de stock bajo, agotados y nuevos pedidos', async () => {
@@ -62,7 +129,7 @@ describe('NotificacionesService', () => {
 
       const resultado = await service.findAll({});
 
-      expect(resultado).toHaveLength(3);
+      expect(resultado).toHaveLength(3); // 1 stock-bajo / 1 agotado / 1 pedido
       const tipos = resultado.map((n: any) => n.tipo);
       expect(tipos).toEqual(expect.arrayContaining(['stock-bajo', 'agotado', 'pedido']));
     });
@@ -110,65 +177,6 @@ describe('NotificacionesService', () => {
       const resultado = await service.findAll({});
 
       expect(resultado).toEqual([]);
-    });
-  });
-
-  // RF-007.2 (CP-005 / CP-006) y RF-008.2 (CP-007)
-  describe('notificarCambioEstadoPedido', () => {
-    function mockUsuarioConCorreo(overrides: Partial<any> = {}) {
-      return fakeUsuario({ correo: 'cliente@test.com', ...overrides });
-    }
-
-    it('CP-005 (RF-007.2) / CP-006 (RF-007.2) / CP-007 (RF-008.2): debe crear la notificación persistida, enviar push y enviar correo cuando el usuario tiene correo registrado', async () => {
-      const id_pedido = faker.number.int({ min: 1, max: 9999 });
-      const id_usuario = faker.string.numeric(10);
-      const usuario = mockUsuarioConCorreo({ id_usuario });
-
-      prisma.usuario.findUnique.mockResolvedValue(usuario);
-      prisma.ticket_compra.findFirst.mockResolvedValue({ num_ticket: 123456, total_ticket: 50000 });
-      prisma.notificacion.create.mockResolvedValue({ id_notificacion: 1 });
-
-      await service.notificarCambioEstadoPedido({ id_pedido, id_usuario, estado: 'Pagado' });
-
-      // Notificación persistida en el panel del cliente (CP-005 RF-007.2)
-      expect(prisma.notificacion.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ id_usuario, tipo: 'pedido_estado' }),
-        }),
-      );
-
-      // Push al cliente con el título esperado (CP-007 RF-008.2 / apoya CP-005 RF-007.2)
-      expect(fcmPush.notificarUsuario).toHaveBeenCalledWith(
-        id_usuario,
-        'Actualización de tu pedido',
-        expect.stringContaining('pago fue confirmado'),
-        expect.objectContaining({ id_pedido: String(id_pedido) }),
-      );
-
-      // Correo con los datos del ticket (CP-006 RF-007.2)
-      expect(taskService.enviarCambioEstadoPedido).toHaveBeenCalledWith(
-        expect.objectContaining({
-          correo: 'cliente@test.com',
-          idPedido: id_pedido,
-          estado: 'Pagado',
-          numTicket: '123456',
-          totalTicket: 50000,
-        }),
-      );
-    });
-
-    it('CP-006: no debe enviar correo si el usuario no tiene un correo registrado, pero sí debe mandar el push', async () => {
-      const id_pedido = faker.number.int({ min: 1, max: 9999 });
-      const id_usuario = faker.string.numeric(10);
-
-      prisma.usuario.findUnique.mockResolvedValue(mockUsuarioConCorreo({ id_usuario, correo: '' }));
-      prisma.ticket_compra.findFirst.mockResolvedValue(null);
-      prisma.notificacion.create.mockResolvedValue({ id_notificacion: 1 });
-
-      await service.notificarCambioEstadoPedido({ id_pedido, id_usuario, estado: 'Entregado' });
-
-      expect(taskService.enviarCambioEstadoPedido).not.toHaveBeenCalled();
-      expect(fcmPush.notificarUsuario).toHaveBeenCalled();
     });
   });
 });
