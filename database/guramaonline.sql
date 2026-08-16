@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 16-08-2026 a las 04:05:39
+-- Tiempo de generación: 16-08-2026 a las 04:17:37
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -227,7 +227,7 @@ CREATE TABLE `pedido` (
   `estado` varchar(20) NOT NULL,
   `id_usuario` varchar(15) NOT NULL,
   `id_tipo` enum('P-P','P-E') NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ;
 
 -- --------------------------------------------------------
 
@@ -392,7 +392,7 @@ CREATE TABLE `usuario` (
 --
 
 INSERT INTO `usuario` (`id_usuario`, `nom_1`, `nom_2`, `ape_1`, `ape_2`, `correo`, `telefono`, `contrasena`, `codigo`, `id_rol_usuario`, `t_doc`, `img_perfil`, `codigo_visible`, `reset_codigo`, `reset_expira`, `estado`, `fcm_token`) VALUES
-('Adm-01', 'Valentina', NULL, 'Ruiz', 'Castro', 'valruiz@gmail.com', 3123456789, '$2b$10$ZpyBdvjxoxOFc9H1WE.9v.sSNaEvHqRH1ThGiMvDAYy/StkwtxK6a', '$2b$10$jQpj1gMJypBF/d2zQEGz20dfRT1vBzhMUj2nrkHxV./I/tNMqymke', '1', 'CC', '/uploads/perfiles/Adm-01-1782018735677.jpg', '12345', NULL, NULL, 1, 'eRpaElB1R1KzljGREGPDff:APA91bExB6KBn3qA2BbDEijky5tyF5n8VQLGLu3AIjg7WJlmpKPBAE06zcFMDwoYyzeMQXKknk_n-WsZgqAmxZIKzMcQk5Q-nneAXmFoDhCCiPkDDaofzrM');
+('Adm-01', 'Valentina', NULL, 'Ruiz', 'Castro', 'valruiz@gmail.com', 3123456789, '$2b$10$ZpyBdvjxoxOFc9H1WE.9v.sSNaEvHqRH1ThGiMvDAYy/StkwtxK6a', '$2b$10$jQpj1gMJypBF/d2zQEGz20dfRT1vBzhMUj2nrkHxV./I/tNMqymke', '1', 'CC', '/uploads/perfiles/Adm-01-1782018735677.jpg', '12345', NULL, NULL, 1, NULL);
 
 --
 -- Índices para tablas volcadas

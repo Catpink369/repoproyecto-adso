@@ -11,13 +11,29 @@ model categoria {
   id_categoria Int                @id @default(autoincrement())
   nombre_c     categoria_nombre_c
   descripcion  String?            @db.VarChar(60)
-  productos    producto[]
+
+  productos producto[]
 }
 
 model clasificacion {
-  id_clasificacion Int                      @id @default(autoincrement())
+  id_clasificacion Int                       @id @default(autoincrement())
   nombre_clas      clasificacion_nombre_clas
-  productos        producto[]
+
+  productos producto[]
+}
+
+model detalle_pedido_personalizado {
+  id_detalle      Int     @id @default(autoincrement())
+  id_ped_personal Int
+  id_material     Int
+  cantidad        Decimal @db.Decimal(10, 2)
+  subtotal        Decimal @db.Decimal(10, 2)
+
+  pedido_personalizado pedido_personalizado @relation(fields: [id_ped_personal], references: [id_ped_personal])
+  material             material             @relation(fields: [id_material], references: [id_material])
+
+  @@index([id_material], map: "fk_det_pers_material")
+  @@index([id_ped_personal], map: "fk_det_pers_pedido")
 }
 
 model detalles_pedido {
@@ -30,20 +46,63 @@ model detalles_pedido {
   pedido   pedido   @relation(fields: [id_pedido], references: [id_pedido])
   producto producto @relation(fields: [id_producto], references: [id_producto])
 
-  @@index([id_pedido], map: "id_pedido")
-  @@index([id_producto], map: "id_producto")
+  @@index([id_pedido], map: "fk_detalles_pedido")
+  @@index([id_producto], map: "fk_detalles_producto")
 }
 
 model estado_pago {
   id_estado  estado_pago_id_estado  @id
   nom_metodo estado_pago_nom_metodo
-  tickets    ticket_compra[]
+
+  ticket_compra ticket_compra[]
+}
+
+model material {
+  id_material     Int             @id @default(autoincrement())
+  nombre          String          @db.VarChar(60)
+  tipo            material_tipo
+  unidad          material_unidad
+  precio_unitario Decimal         @db.Decimal(10, 2)
+  stock_actual    Int             @default(0)
+  stock_minimo    Int             @default(5)
+  ruta_imagen     String?         @db.VarChar(255)
+  estado          Boolean?        @default(true)
+
+  material_color               material_color[]
+  material_diseno               material_diseno[]
+  movimientos                   movimiento[]
+  detalle_pedido_personalizado  detalle_pedido_personalizado[]
+}
+
+model material_color {
+  id_color    Int     @id @default(autoincrement())
+  id_material Int
+  nombre      String  @db.VarChar(40)
+  codigo_hex  String? @db.VarChar(7)
+  estado      Boolean @default(true)
+
+  material material @relation(fields: [id_material], references: [id_material])
+
+  @@index([id_material], map: "fk_color_material")
+}
+
+model material_diseno {
+  id_diseno   Int     @id @default(autoincrement())
+  id_material Int
+  nombre      String  @db.VarChar(60)
+  ruta_imagen String? @db.VarChar(255)
+  estado      Boolean @default(true)
+
+  material material @relation(fields: [id_material], references: [id_material])
+
+  @@index([id_material], map: "fk_diseno_material")
 }
 
 model metodo_pago {
   id_met_pago metodo_pago_id_met_pago @id
   nom_metodo  metodo_pago_nom_metodo
-  tickets     ticket_compra[]
+
+  ticket_compra ticket_compra[]
 }
 
 model movimiento {
@@ -59,11 +118,26 @@ model movimiento {
   tipo_movimiento tipo_movimiento @relation(fields: [id_m], references: [id_m])
   producto        producto        @relation(fields: [id_producto], references: [id_producto])
   usuario         usuario         @relation(fields: [id_usuario], references: [id_usuario])
+  material        material?       @relation(fields: [id_material], references: [id_material])
 
-  @@index([id_m], map: "id_m")
-  @@index([id_producto], map: "id_producto")
-  @@index([id_usuario], map: "id_usuario")
-  @@index([id_material], map: "id_material")
+  @@index([id_material], map: "fk_movimiento_material")
+  @@index([id_producto], map: "fk_movimiento_producto")
+  @@index([id_m], map: "fk_movimiento_tipo")
+  @@index([id_usuario], map: "fk_movimiento_usuario")
+}
+
+model notificacion {
+  id_notificacion Int      @id @default(autoincrement())
+  id_usuario      String   @db.VarChar(15)
+  titulo          String   @db.VarChar(150)
+  mensaje         String   @db.VarChar(500)
+  tipo            String   @default("general") @db.VarChar(50)
+  leida           Boolean  @default(false)
+  fecha           DateTime @default(now()) @db.DateTime(0)
+
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario])
+
+  @@index([id_usuario, leida], map: "idx_notificacion_usuario_leida")
 }
 
 model pedido {
@@ -79,121 +153,8 @@ model pedido {
   ticket_compra        ticket_compra?
   pedido_personalizado pedido_personalizado[]
 
-  @@index([id_usuario], map: "id_usuario")
-  @@index([id_tipo], map: "id_tipo")
-}
-
-model tipo_pedido {
-  id_tipo     tipo_pedido_id_tipo     @id
-  tipo_pedido tipo_pedido_tipo_pedido
-  pedidos     pedido[]
-}
-
-model producto {
-  id_producto      Int              @id @default(autoincrement())
-  nom_producto     String           @db.VarChar(60)
-  precio_unitario  Decimal          @db.Decimal(10, 2)
-  stock_actual     Int
-  stock_minimo     Int
-  ultima_actualiz  DateTime         @db.DateTime(0)
-  color            String?          @db.VarChar(20)
-  talla            String?          @db.VarChar(20)
-  tama_o           String?          @map("tamaño") @db.VarChar(20)
-  descripcion      String           @db.VarChar(255)
-  id_categoria     Int
-  id_clasificacion Int
-  ruta_imagen      String?          @db.VarChar(255)
-  estado           Boolean?         @default(true)
-
-  categoria     categoria        @relation(fields: [id_categoria], references: [id_categoria])
-  clasificacion clasificacion    @relation(fields: [id_clasificacion], references: [id_clasificacion])
-  detalles      detalles_pedido[]
-  movimientos   movimiento[]
-
-  @@index([id_categoria], map: "id_categoria")
-  @@index([id_clasificacion], map: "id_clasificacion")
-}
-
-model ticket_compra {
-  id_ticket_c   Int                     @id @default(autoincrement())
-  num_ticket    Int                     @unique(map: "num_ticket")
-  fecha_emision DateTime                @db.DateTime(0)
-  sub_total     Decimal                 @db.Decimal(10, 0)
-  total_ticket  Decimal                 @db.Decimal(10, 0)
-  id_pedido     Int                     @unique
-  id_estado   estado_pago_id_estado
-  id_met_pago   metodo_pago_id_met_pago
-
-  estado_pago estado_pago @relation(fields: [id_estado], references: [id_estado])
-  metodo_pago metodo_pago @relation(fields: [id_met_pago], references: [id_met_pago])
-  pedido      pedido      @relation(fields: [id_pedido], references: [id_pedido])
-
-  @@index([id_estado], map: "id_estado")
-  @@index([id_pedido], map: "id_pedido")
-  @@index([id_met_pago], map: "ticket_compra_ibfk_3")
-}
-
-model usuario {
-  id_usuario     String               @id @db.VarChar(15)
-  nom_1          String               @db.VarChar(50)
-  nom_2          String?              @db.VarChar(50)
-  ape_1          String               @db.VarChar(50)
-  ape_2          String?              @db.VarChar(50)
-  correo         String               @db.VarChar(40)
-  telefono       BigInt
-  contrasena     String               @db.VarChar(255)
-  codigo         String?              @unique(map: "codigo") @db.VarChar(255)
-  id_rol_usuario String               @db.VarChar(20)
-  t_doc          tipo_documento_t_doc
-  img_perfil     String?              @db.VarChar(255)
-  codigo_visible String?              @db.VarChar(20)
-  reset_codigo   String?              @db.VarChar(255)
-  reset_expira   DateTime?            @db.DateTime(0)
-  estado         Int                  @default(1)
-  fcm_token      String?              @db.VarChar(255)
-
-  rol            rol_usuario    @relation(fields: [id_rol_usuario], references: [id_rol_usuario])
-  tipo_documento tipo_documento @relation(fields: [t_doc], references: [t_doc])
-  pedidos        pedido[]
-  movimientos    movimiento[]
-  notificaciones  notificacion[]
-
-  @@index([id_rol_usuario], map: "id_rol_usuario")
-  @@index([t_doc], map: "t_doc")
-}
-
-model rol_usuario {
-  id_rol_usuario String    @id @db.VarChar(20)
-  nombre_rol     String    @db.VarChar(25)
-  usuarios       usuario[]
-}
-
-model tipo_documento {
-  t_doc    tipo_documento_t_doc    @id
-  desc_doc tipo_documento_desc_doc
-  usuarios usuario[]
-}
-
-model tipo_movimiento {
-  id_m           tipo_movimiento_id_m           @id
-  nom_movimiento tipo_movimiento_nom_movimiento
-  movimientos    movimiento[]
-}
-
-model material {
-  id_material     Int             @id @default(autoincrement())
-  nombre          String          @db.VarChar(60)
-  tipo            material_tipo
-  unidad          material_unidad
-  precio_unitario Decimal         @db.Decimal(10, 2)
-  stock_actual    Int             @default(0)
-  stock_minimo    Int             @default(5)
-  ruta_imagen     String?         @db.VarChar(255)
-  estado          Boolean?        @default(true)
-
-  detalles_personalizados detalle_pedido_personalizado[]
-  colores                 material_color[]
-  disenos                 material_diseno[]
+  @@index([id_tipo], map: "fk_pedido_tipo")
+  @@index([id_usuario], map: "fk_pedido_usuario")
 }
 
 model pedido_personalizado {
@@ -201,68 +162,115 @@ model pedido_personalizado {
   id_pedido       Int
   tipo_producto   pedido_personalizado_tipo_producto
   tamanio         String                             @db.VarChar(30)
-  precio_total    Decimal                            @db.Decimal(10, 2)
+  precio_total    Decimal                             @db.Decimal(10, 2)
 
-  pedido   pedido                                @relation(fields: [id_pedido], references: [id_pedido])
+  pedido   pedido                          @relation(fields: [id_pedido], references: [id_pedido])
   detalles detalle_pedido_personalizado[]
 
-  @@index([id_pedido], map: "id_pedido")
+  @@index([id_pedido], map: "fk_personalizado_pedido")
 }
 
-model detalle_pedido_personalizado {
-  id_detalle      Int     @id @default(autoincrement())
-  id_ped_personal Int
-  id_material     Int
-  cantidad        Decimal @db.Decimal(10, 2)
-  subtotal        Decimal @db.Decimal(10, 2)
+model producto {
+  id_producto      Int      @id @default(autoincrement())
+  nom_producto     String   @db.VarChar(60)
+  precio_unitario  Decimal  @db.Decimal(10, 2)
+  stock_actual     Int
+  stock_minimo     Int
+  ultima_actualiz  DateTime @db.DateTime(0)
+  color            String?  @db.VarChar(20)
+  talla            String?  @db.VarChar(20)
+  tama_o           String?  @map("tamaño") @db.VarChar(20)
+  descripcion      String   @db.VarChar(255)
+  id_categoria     Int
+  id_clasificacion Int
+  ruta_imagen      String?  @db.VarChar(255)
+  estado           Boolean? @default(true)
 
-  material             material             @relation(fields: [id_material], references: [id_material])
-  pedido_personalizado pedido_personalizado @relation(fields: [id_ped_personal], references: [id_ped_personal])
+  categoria       categoria         @relation(fields: [id_categoria], references: [id_categoria])
+  clasificacion   clasificacion     @relation(fields: [id_clasificacion], references: [id_clasificacion])
+  movimientos     movimiento[]
+  detalles_pedido detalles_pedido[]
 
-  @@index([id_material], map: "id_material")
-  @@index([id_ped_personal], map: "id_ped_personal")
+  @@index([id_categoria], map: "fk_producto_categoria")
+  @@index([id_clasificacion], map: "fk_producto_clasificacion")
 }
 
-model material_color {
-  id_color    Int     @id @default(autoincrement())
-  id_material Int
-  nombre      String  @db.VarChar(40)
-  codigo_hex  String? @db.VarChar(7)
-  estado      Boolean @default(true)
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model rol_usuario {
+  id_rol_usuario String @id @db.VarChar(20)
+  nombre_rol     String @db.VarChar(25)
 
-  material material @relation(fields: [id_material], references: [id_material])
-
-  @@index([id_material], map: "idx_color_material")
+  usuarios usuario[]
 }
 
-model material_diseno {
-  id_diseno   Int     @id @default(autoincrement())
-  id_material Int
-  nombre      String  @db.VarChar(60)
-  ruta_imagen String? @db.VarChar(255)
-  estado      Boolean @default(true)
+model ticket_compra {
+  id_ticket_c   Int                      @id @default(autoincrement())
+  num_ticket    Int                      @unique(map: "num_ticket")
+  fecha_emision DateTime                 @db.DateTime(0)
+  sub_total     Decimal                  @db.Decimal(10, 0)
+  total_ticket  Decimal                  @db.Decimal(10, 0)
+  id_pedido     Int                      @unique(map: "id_pedido")
+  id_estado     estado_pago_id_estado
+  id_met_pago   metodo_pago_id_met_pago
 
-  material material @relation(fields: [id_material], references: [id_material])
+  pedido      pedido      @relation(fields: [id_pedido], references: [id_pedido])
+  estado_pago estado_pago @relation(fields: [id_estado], references: [id_estado])
+  metodo_pago metodo_pago @relation(fields: [id_met_pago], references: [id_met_pago])
 
-  @@index([id_material], map: "idx_diseno_material")
+  @@index([id_estado], map: "fk_ticket_estado")
+  @@index([id_met_pago], map: "fk_ticket_metodo")
 }
 
-model notificacion {
-  id_notificacion  Int      @id @default(autoincrement())
-  id_usuario       String   @db.VarChar(15)
-  titulo           String   @db.VarChar(150)
-  mensaje          String   @db.VarChar(500)
-  tipo             String   @default("general") @db.VarChar(50)
-  leida            Boolean  @default(false)
-  fecha            DateTime @default(now())
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tipo_documento {
+  t_doc    tipo_documento_t_doc    @id
+  desc_doc tipo_documento_desc_doc
 
-  usuario          usuario  @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
-
-  @@index([id_usuario])
-  @@index([id_usuario, leida])
+  usuarios usuario[]
 }
 
-// ─── ENUMS ────────────────────────────────────────────────────────────────────
+model tipo_movimiento {
+  id_m           tipo_movimiento_id_m           @id
+  nom_movimiento tipo_movimiento_nom_movimiento
+
+  movimientos movimiento[]
+}
+
+model tipo_pedido {
+  id_tipo     tipo_pedido_id_tipo     @id
+  tipo_pedido tipo_pedido_tipo_pedido
+
+  pedidos pedido[]
+}
+
+model usuario {
+  id_usuario     String                @id @db.VarChar(15)
+  nom_1          String                @db.VarChar(50)
+  nom_2          String?               @db.VarChar(50)
+  ape_1          String                @db.VarChar(50)
+  ape_2          String?               @db.VarChar(50)
+  correo         String                @db.VarChar(40)
+  telefono       BigInt
+  contrasena     String                @db.VarChar(255)
+  codigo         String?               @unique(map: "uk_usuario_codigo") @db.VarChar(255)
+  id_rol_usuario String                @db.VarChar(20)
+  t_doc          tipo_documento_t_doc
+  img_perfil     String?               @db.VarChar(255)
+  codigo_visible String?               @db.VarChar(20)
+  reset_codigo   String?               @db.VarChar(255)
+  reset_expira   DateTime?             @db.DateTime(0)
+  estado         Int?                  @default(1)
+  fcm_token      String?               @db.VarChar(255)
+
+  rol_usuario    rol_usuario    @relation(fields: [id_rol_usuario], references: [id_rol_usuario])
+  tipo_documento tipo_documento @relation(fields: [t_doc], references: [t_doc])
+  movimientos    movimiento[]
+  pedidos        pedido[]
+  notificaciones notificacion[]
+
+  @@index([id_rol_usuario], map: "fk_usuario_rol")
+  @@index([t_doc], map: "fk_usuario_tdoc")
+}
 
 enum estado_pago_id_estado {
   E_pt @map("E-pt")
@@ -310,6 +318,13 @@ enum clasificacion_nombre_clas {
   Ultimas_unidades @map("Ultimas unidades")
 }
 
+enum estado_pago_nom_metodo {
+  Pendiente
+  Pagado
+  finalizado
+  entregado
+}
+
 enum metodo_pago_nom_metodo {
   Efectivo
   Nequi
@@ -337,21 +352,9 @@ enum tipo_pedido_tipo_pedido {
 enum material_tipo {
   Tela
   Bordado
-  Diseno    @map("Diseño")
+  Dise_o    @map("Diseño")
   Relleno
   Accesorio
-}
-
-enum material_unidad {
-  metro
-  unidad
-}
-
-enum estado_pago_nom_metodo {
-  Pendiente
-  Pagado
-  finalizado
-  entregado
 }
 
 enum pedido_personalizado_tipo_producto {
@@ -359,8 +362,7 @@ enum pedido_personalizado_tipo_producto {
   Cubrelecho
 }
 
-enum ticket_compra_id_estado {
-  E_pt @map("E-pt")
-  E_pd @map("E-pd")
-  E_e  @map("E-e")
+enum material_unidad {
+  metro
+  unidad
 }

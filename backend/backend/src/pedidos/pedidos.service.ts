@@ -14,6 +14,27 @@ export class PedidosService {
   ) {}
 
   // -------------------------------------------------------
+  // Cuántas veces reintentar la creación si el número de
+  // ticket (aleatorio) choca con uno existente (ticket_compra.num_ticket UNIQUE).
+  // -------------------------------------------------------
+  private readonly MAX_INTENTOS_TICKET = 5;
+
+  private generarNumTicket(): number {
+    return Math.floor(100000 + Math.random() * 900000);
+  }
+
+  // Prisma normaliza los errores de BD a códigos propios (P2002 = unicidad,
+  // P2003 = FK). '23505' es el SQLSTATE crudo de Postgres y nunca aparece
+  // aquí porque la BD real es MySQL — por eso los catches antiguos con
+  // '23505' jamás se disparaban.
+  private esColisionUnica(error: any, campo?: string): boolean {
+    if (error?.code !== 'P2002') return false;
+    if (!campo) return true;
+    const target = error?.meta?.target;
+    return Array.isArray(target) ? target.includes(campo) : String(target ?? '').includes(campo);
+  }
+
+  // -------------------------------------------------------
   // CREAR PEDIDO COMPLETO CON TICKET (transacción)
   // -------------------------------------------------------
   async create(dto: CreatePedidoDto) {
@@ -36,101 +57,126 @@ export class PedidosService {
       idProductosVistos.add(item.id_producto);
     }
 
-    const resultado = await this.prisma.$transaction(async (tx) => {
-      const pedido = await tx.pedido.create({
-        data: {
-          fecha: new Date(),
-          estado: 'Pendiente',
-          id_usuario,
-          id_tipo: 'P_E',
-        },
-      });
+    let resultado: {
+      id_pedido: number;
+      num_ticket: number;
+      id_ticket: number;
+      productos_procesados: number;
+      detalles: { producto: string; cantidad: number; stock_restante: number }[];
+    } | undefined;
 
-      const resultados: { producto: string; cantidad: number; stock_restante: number }[] = [];
+    for (let intento = 1; intento <= this.MAX_INTENTOS_TICKET; intento++) {
+      try {
+        resultado = await this.prisma.$transaction(async (tx) => {
+          const pedido = await tx.pedido.create({
+            data: {
+              fecha: new Date(),
+              estado: 'Pendiente',
+              id_usuario,
+              id_tipo: 'P_E', // Prisma sanea el guion de la BD ('P-E') a guion bajo en el enum generado
+            },
+          });
 
-      for (const item of items) {
-        const { id_producto, cantidad, precio } = item;
+          const resultados: { producto: string; cantidad: number; stock_restante: number }[] = [];
 
-        const producto = await tx.producto.findFirst({
-          where: { id_producto, estado: true },
-        });
+          for (const item of items) {
+            const { id_producto, cantidad, precio } = item;
 
-        if (!producto) {
-          throw new NotFoundException(`Producto ${id_producto} no encontrado`);
-        }
+            const producto = await tx.producto.findFirst({
+              where: { id_producto, estado: true },
+            });
 
-        if (producto.stock_actual < cantidad) {
-          throw new BadRequestException(
-            `Stock insuficiente para "${producto.nom_producto}". Disponible: ${producto.stock_actual}, Solicitado: ${cantidad}`,
-          );
-        }
+            if (!producto) {
+              throw new NotFoundException(`Producto ${id_producto} no encontrado`);
+            }
 
-        // Guard extra: nunca permitir stock negativo
-        const nuevoStock = producto.stock_actual - cantidad;
-        if (nuevoStock < 0) {
-          throw new BadRequestException(
-            `La operación dejaría el stock de "${producto.nom_producto}" en negativo. Operación cancelada.`,
-          );
-        }
+            if (producto.stock_actual < cantidad) {
+              throw new BadRequestException(
+                `Stock insuficiente para "${producto.nom_producto}". Disponible: ${producto.stock_actual}, Solicitado: ${cantidad}`,
+              );
+            }
 
-        await tx.producto.update({
-          where: { id_producto },
-          data: {
-            stock_actual: nuevoStock,   // valor absoluto, nunca negativo
-            ultima_actualiz: new Date(),
-          },
-        });
+            // Guard extra: nunca permitir stock negativo
+            const nuevoStock = producto.stock_actual - cantidad;
+            if (nuevoStock < 0) {
+              throw new BadRequestException(
+                `La operación dejaría el stock de "${producto.nom_producto}" en negativo. Operación cancelada.`,
+              );
+            }
 
-        await tx.detalles_pedido.create({
-          data: {
-            descrip_detalles: `${producto.nom_producto} - $${precio}`,
-            cantidad,
+            await tx.producto.update({
+              where: { id_producto },
+              data: {
+                stock_actual: nuevoStock, // valor absoluto, nunca negativo
+                ultima_actualiz: new Date(),
+              },
+            });
+
+            await tx.detalles_pedido.create({
+              data: {
+                descrip_detalles: `${producto.nom_producto} - $${precio}`,
+                cantidad,
+                id_pedido: pedido.id_pedido,
+                id_producto,
+              },
+            });
+
+            await tx.movimiento.create({
+              data: {
+                Cantidad_m: cantidad,
+                fecha_m: new Date(),
+                observaciones: `Venta Online - Pedido #${pedido.id_pedido}`,
+                id_m: 'M_S', // Prisma sanea el guion de la BD ('M-S') a guion bajo en el enum generado
+                id_producto,
+                id_usuario,
+              },
+            });
+
+            resultados.push({
+              producto: producto.nom_producto,
+              cantidad,
+              stock_restante: nuevoStock,
+            });
+          }
+
+          const num_ticket = this.generarNumTicket();
+
+          const ticket = await tx.ticket_compra.create({
+            data: {
+              num_ticket,
+              fecha_emision: new Date(),
+              sub_total: subtotal,
+              total_ticket: total,
+              id_pedido: pedido.id_pedido,
+              id_estado: 'E_pt', // Prisma sanea el guion de la BD ('E-pt') a guion bajo en el enum generado
+              id_met_pago: 'Mtd_PD', // el pedido siempre nace "Por definir" (RN-002 RF-008)
+            },
+          });
+
+          return {
             id_pedido: pedido.id_pedido,
-            id_producto,
-          },
+            num_ticket,
+            id_ticket: ticket.id_ticket_c,
+            productos_procesados: resultados.length,
+            detalles: resultados,
+          };
         });
 
-        await tx.movimiento.create({
-          data: {
-            Cantidad_m: cantidad,
-            fecha_m: new Date(),
-            observaciones: `Venta Online - Pedido #${pedido.id_pedido}`,
-            id_m: 'M_S',
-            id_producto,
-            id_usuario,
-          },
-        });
-
-        // FIX: usar nuevoStock (ya calculado) en lugar de restar de nuevo
-        resultados.push({
-          producto: producto.nom_producto,
-          cantidad,
-          stock_restante: nuevoStock,
-        });
+        break; // transacción exitosa, salir del loop de reintentos
+      } catch (error: any) {
+        // Choque de num_ticket (colisión aleatoria de 6 dígitos): reintentar
+        // con un nuevo número. Cualquier otro error se relanza tal cual,
+        // sin dejar el pedido en un estado inconsistente (RNF-009).
+        if (this.esColisionUnica(error, 'num_ticket') && intento < this.MAX_INTENTOS_TICKET) {
+          continue;
+        }
+        throw error;
       }
+    }
 
-      const num_ticket = Math.floor(100000 + Math.random() * 900000);
-
-      const ticket = await tx.ticket_compra.create({
-        data: {
-          num_ticket,
-          fecha_emision: new Date(),
-          sub_total: subtotal,
-          total_ticket: total,
-          id_pedido: pedido.id_pedido,
-          id_estado: 'E_pt',
-          id_met_pago: 'Mtd_PD',
-        },
-      });
-
-      return {
-        id_pedido: pedido.id_pedido,
-        num_ticket,
-        id_ticket: ticket.id_ticket_c,
-        productos_procesados: resultados.length,
-        detalles: resultados,
-      };
-    });
+    if (!resultado) {
+      throw new BadRequestException('No se pudo generar un número de ticket único. Intenta nuevamente.');
+    }
 
     // ── Notificar a admins DESPUÉS de que la transacción cerró exitosamente
     await this.fcmPush.notificarAdmins(
@@ -151,7 +197,7 @@ export class PedidosService {
   // -------------------------------------------------------
   async findByUsuario(id_usuario: string, tipo?: 'estandar' | 'personalizado') {
     console.log('service - pedidos por usuario:', JSON.stringify({ id_usuario, tipo }));
-    
+
     const idTipoFiltro = tipo === 'estandar' ? 'P_E' : tipo === 'personalizado' ? 'P_P' : undefined;
 
     return this.prisma.pedido.findMany({
@@ -170,7 +216,11 @@ export class PedidosService {
               select: {
                 nom_producto: true,
                 precio_unitario: true,
-                ruta_imagen: true, } } } },
+                ruta_imagen: true,
+              },
+            },
+          },
+        },
         pedido_personalizado: true,
       },
     });
@@ -263,6 +313,28 @@ export class PedidosService {
   // modificar (ni cambiar de estado ni anular). RF-007.3 / CP-010.
   private readonly ESTADOS_INMUTABLES = ['Entregado', 'Finalizado', 'Anulado'];
 
+  // Flujo secuencial válido (RF-008.2 RN-002 / FA-01). Solo se permite
+  // avanzar UN paso a la vez, en este orden. "Anulado" es un flujo aparte
+  // (RF-007.3) y se permite desde cualquier estado no inmutable.
+  private readonly FLUJO_ESTADOS = ['Pendiente', 'Pagado', 'En preparación', 'Entregado', 'Finalizado'];
+
+  private validarTransicionEstado(estadoActual: string, estadoNuevo: string) {
+    if (estadoNuevo === 'Anulado') return; // gestionado de forma independiente (RF-007.3)
+
+    const idxNuevo = this.FLUJO_ESTADOS.indexOf(estadoNuevo);
+    if (idxNuevo === -1) {
+      throw new BadRequestException(`El estado "${estadoNuevo}" no es válido.`);
+    }
+
+    const idxActual = this.FLUJO_ESTADOS.indexOf(estadoActual);
+    if (idxActual === -1 || idxNuevo !== idxActual + 1) {
+      throw new BadRequestException(
+        `Transición no permitida: no se puede pasar de "${estadoActual}" a "${estadoNuevo}". ` +
+          `El flujo válido es ${this.FLUJO_ESTADOS.join(' → ')}.`,
+      );
+    }
+  }
+
   async update(id_pedido: number, dto: UpdatePedidoDto) {
     const pedido = await this.findOne(id_pedido);
 
@@ -271,6 +343,11 @@ export class PedidosService {
       throw new BadRequestException(
         `No se puede modificar un pedido que ya está en estado "${pedido.estado}".`,
       );
+    }
+
+    // Valida que la transición de estado siga el flujo permitido (RF-008.2)
+    if (dto.estado) {
+      this.validarTransicionEstado(pedido.estado, dto.estado);
     }
 
     const metodoPagoMap: Record<string, string> = {

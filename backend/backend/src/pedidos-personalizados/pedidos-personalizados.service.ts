@@ -1,3 +1,10 @@
+import { CreateMaterialDto } from './dto/create-material.dto';
+import { UpdateMaterialDto } from './dto/update-material.dto';
+import { CreatePedidoPersonalizadoDto } from './dto/create-pedidos-personalizado.dto';
+import { CreateMaterialColorDto } from './dto/create-material-color.dto';
+import { UpdateMaterialColorDto } from './dto/update-material-color.dto';
+import { CreateMaterialDisenoDto } from './dto/create-material-diseno.dto';
+import { UpdateMaterialDisenoDto } from './dto/update-material-diseno.dto';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -61,25 +68,110 @@ export class PedidosPersonalizadosService {
       select: { id_diseno: true, nombre: true, ruta_imagen: true },
     });
   }
+
+  // --------------------------------------------------------
+  // COLORES DE MATERIAL — CRUD (antes solo existía lectura)
+  // --------------------------------------------------------
+  async crearColorMaterial(id_material: number, dto: CreateMaterialColorDto) {
+    const material = await this.prisma.material.findUnique({ where: { id_material } });
+    if (!material) throw new NotFoundException(`Material ${id_material} no encontrado`);
+
+    return this.prisma.material_color.create({
+      data: {
+        id_material,
+        nombre: dto.nombre,
+        codigo_hex: dto.codigo_hex,
+        estado: true,
+      },
+    });
+  }
+
+  async actualizarColorMaterial(id_color: number, dto: UpdateMaterialColorDto) {
+    const color = await this.prisma.material_color.findUnique({ where: { id_color } });
+    if (!color) throw new NotFoundException(`Color ${id_color} no encontrado`);
+
+    return this.prisma.material_color.update({
+      where: { id_color },
+      data: { ...dto },
+    });
+  }
+
+  // Borrado lógico: un color puede estar referenciado en pedidos ya hechos
+  // (a futuro, cuando se persista la selección de color en el detalle del
+  // pedido), así que nunca se elimina físicamente.
+  async eliminarColorMaterial(id_color: number) {
+    const color = await this.prisma.material_color.findUnique({ where: { id_color } });
+    if (!color) throw new NotFoundException(`Color ${id_color} no encontrado`);
+
+    return this.prisma.material_color.update({
+      where: { id_color },
+      data: { estado: false },
+    });
+  }
+
+  // --------------------------------------------------------
+  // DISEÑOS DE MATERIAL — CRUD (antes solo existía lectura)
+  // --------------------------------------------------------
+  async crearDisenoMaterial(id_material: number, dto: CreateMaterialDisenoDto) {
+    const material = await this.prisma.material.findUnique({ where: { id_material } });
+    if (!material) throw new NotFoundException(`Material ${id_material} no encontrado`);
+
+    return this.prisma.material_diseno.create({
+      data: {
+        id_material,
+        nombre: dto.nombre,
+        estado: true,
+      },
+    });
+  }
+
+  async actualizarDisenoMaterial(id_diseno: number, dto: UpdateMaterialDisenoDto) {
+    const diseno = await this.prisma.material_diseno.findUnique({ where: { id_diseno } });
+    if (!diseno) throw new NotFoundException(`Diseño ${id_diseno} no encontrado`);
+
+    return this.prisma.material_diseno.update({
+      where: { id_diseno },
+      data: { ...dto },
+    });
+  }
+
+  async actualizarImagenDiseno(id_diseno: number, file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No se recibió ningún archivo');
+
+    const diseno = await this.prisma.material_diseno.findUnique({ where: { id_diseno } });
+    if (!diseno) throw new NotFoundException(`Diseño ${id_diseno} no encontrado`);
+
+    const ruta_imagen = `/uploads/materiales/${file.filename}`;
+
+    await this.prisma.material_diseno.update({
+      where: { id_diseno },
+      data: { ruta_imagen },
+    });
+
+    return { statusCode: 200, message: 'Imagen actualizada', ruta_imagen };
+  }
+
+  async eliminarDisenoMaterial(id_diseno: number) {
+    const diseno = await this.prisma.material_diseno.findUnique({ where: { id_diseno } });
+    if (!diseno) throw new NotFoundException(`Diseño ${id_diseno} no encontrado`);
+
+    return this.prisma.material_diseno.update({
+      where: { id_diseno },
+      data: { estado: false },
+    });
+  }
   // --------------------------------------------------------
   // CREAR MATERIAL
   // --------------------------------------------------------
-  async crearMaterial(dto: {
-      nombre: string;
-      tipo: string;
-      unidad: string;
-      precio_unitario: number;
-      stock_actual: number;
-      stock_minimo: number;
-  }) {
+  async crearMaterial(dto: CreateMaterialDto) {
       return this.prisma.material.create({
           data: {
               nombre: dto.nombre,
               tipo: dto.tipo as any,
               unidad: dto.unidad as any,
               precio_unitario: dto.precio_unitario,
-              stock_actual: dto.stock_actual,
-              stock_minimo: dto.stock_minimo,
+              stock_actual: dto.stock_actual ?? 0,
+              stock_minimo: dto.stock_minimo ?? 5,
               estado: true,
           },
       });
@@ -88,14 +180,7 @@ export class PedidosPersonalizadosService {
   // --------------------------------------------------------
   // ACTUALIZAR MATERIAL
   // --------------------------------------------------------
-  async actualizarMaterial(id: number, dto: {
-      nombre?: string;
-      tipo?: string;
-      unidad?: string;
-      precio_unitario?: number;
-      stock_actual?: number;
-      stock_minimo?: number;
-  }) {
+  async actualizarMaterial(id: number, dto: UpdateMaterialDto) {
       const material = await this.prisma.material.findUnique({
           where: { id_material: id }
       });
@@ -133,21 +218,46 @@ export class PedidosPersonalizadosService {
   }
 
   // --------------------------------------------------------
+  // Reintentos por colisión de num_ticket (aleatorio, ticket_compra.num_ticket UNIQUE)
+  // --------------------------------------------------------
+  private readonly MAX_INTENTOS_TICKET = 5;
+
+  private generarNumTicket(): number {
+    return Math.floor(100000 + Math.random() * 900000);
+  }
+
+  // Prisma normaliza los errores de BD a P2002 (unicidad), no al SQLSTATE
+  // crudo de Postgres ('23505'), porque la BD real es MySQL.
+  private esColisionUnica(error: any, campo?: string): boolean {
+    if (error?.code !== 'P2002') return false;
+    if (!campo) return true;
+    const target = error?.meta?.target;
+    return Array.isArray(target) ? target.includes(campo) : String(target ?? '').includes(campo);
+  }
+
+  // --------------------------------------------------------
   // CREAR PEDIDO PERSONALIZADO
   // --------------------------------------------------------
-  async crearPedido(dto: {
-  id_usuario: string;
-  tipo_producto: string;
-  tamanio: string;
-  metodo_pago?: string;
-  materiales: { id_material: number; cantidad: number }[];
-  }) {
+  async crearPedido(dto: CreatePedidoPersonalizadoDto) {
     // Buscar usuario
     const usuario = await this.prisma.usuario.findUnique({
       where: { id_usuario: dto.id_usuario },
       select: { nom_1: true, ape_1: true, correo: true, telefono: true, id_usuario: true },
     });
     if (!usuario) throw new NotFoundException('Usuario no encontrado');
+
+    // ── Guard: material duplicado en el mismo pedido (paridad con
+    // pedidos.service.ts). Evita procesar y descontar el stock dos veces
+    // para el mismo id_material si el array viene con entradas repetidas.
+    const idMaterialesVistos = new Set<number>();
+    for (const item of dto.materiales) {
+      if (idMaterialesVistos.has(item.id_material)) {
+        throw new BadRequestException(
+          `El material ${item.id_material} está duplicado en el pedido. No se procesó nada.`,
+        );
+      }
+      idMaterialesVistos.add(item.id_material);
+    }
 
     // verificar stock de cada material
     for (const item of dto.materiales) {
@@ -183,53 +293,86 @@ export class PedidosPersonalizadosService {
       });
     }
 
-    // crear todo en una transacción
-    const result = await this.prisma.$transaction(async (tx) => {
-      const pedido = await tx.pedido.create({
-        data: {
-          fecha: new Date(),
-          estado: 'Pendiente',
-          id_usuario: dto.id_usuario,
-          id_tipo: 'P_P',
-        },
-      });
+    // crear todo en una transacción, reintentando si el num_ticket choca
+    let result: { pedido: any; pedidoPersonal: any; num_ticket: number } | undefined;
 
-      const pedidoPersonal = await tx.pedido_personalizado.create({
-        data: {
-          id_pedido: pedido.id_pedido,
-          tipo_producto: (dto.tipo_producto === 'Sábana' ? 'Sabana' : dto.tipo_producto) as any,
-          tamanio: dto.tamanio,
-          precio_total,
-          detalles: {
-            create: detalles.map(({ id_material, cantidad, subtotal }) => ({
-              id_material, cantidad, subtotal,
-            })),
-          },
-        },
-      });
+    for (let intento = 1; intento <= this.MAX_INTENTOS_TICKET; intento++) {
+      try {
+        result = await this.prisma.$transaction(async (tx) => {
+          const pedido = await tx.pedido.create({
+            data: {
+              fecha: new Date(),
+              estado: 'Pendiente',
+              id_usuario: dto.id_usuario,
+              id_tipo: 'P_P', // Prisma sanea el guion de la BD ('P-P') a guion bajo en el enum generado
+            },
+          });
 
-      const numTicket = Math.floor(100000 + Math.random() * 900000);
-      await tx.ticket_compra.create({
-        data: {
-          num_ticket: numTicket,
-          fecha_emision: new Date(),
-          sub_total: precio_total,
-          total_ticket: precio_total,
-          id_pedido: pedido.id_pedido,
-          id_estado: 'E_pt',
-          id_met_pago: (dto.metodo_pago ?? 'Mtd_PD') as any,
-        },
-      });
+          const pedidoPersonal = await tx.pedido_personalizado.create({
+            data: {
+              id_pedido: pedido.id_pedido,
+              tipo_producto: (dto.tipo_producto === 'Sábana' ? 'Sabana' : dto.tipo_producto) as any,
+              tamanio: dto.tamanio,
+              precio_total,
+              detalles: {
+                create: detalles.map(({ id_material, cantidad, subtotal }) => ({
+                  id_material, cantidad, subtotal,
+                })),
+              },
+            },
+          });
 
-      for (const item of detalles) {
-        await tx.material.update({
-          where: { id_material: item.id_material },
-          data: { stock_actual: { decrement: item.cantidad } },
+          const numTicket = this.generarNumTicket();
+          await tx.ticket_compra.create({
+            data: {
+              num_ticket: numTicket,
+              fecha_emision: new Date(),
+              sub_total: precio_total,
+              total_ticket: precio_total,
+              id_pedido: pedido.id_pedido,
+              id_estado: 'E_pt', // Prisma sanea el guion de la BD ('E-pt') a guion bajo en el enum generado
+              // El cliente no elige método al personalizar (RN-002 RF-008); si
+              // llega uno igual debe venir ya en formato de catálogo (Mtd-XX).
+              id_met_pago: (dto.metodo_pago ?? 'Mtd_PD') as any,
+            },
+          });
+
+          for (const item of detalles) {
+            // Guard extra: nunca permitir stock negativo (paridad con
+            // pedidos.service.ts). El decrement relativo de Prisma no
+            // valida esto por sí solo.
+            const materialActual = await tx.material.findUnique({
+              where: { id_material: item.id_material },
+              select: { stock_actual: true, nombre: true },
+            });
+            const stockRestante = (materialActual?.stock_actual ?? 0) - item.cantidad;
+            if (stockRestante < 0) {
+              throw new BadRequestException(
+                `La operación dejaría el stock de "${materialActual?.nombre ?? item.id_material}" en negativo. Operación cancelada.`,
+              );
+            }
+
+            await tx.material.update({
+              where: { id_material: item.id_material },
+              data: { stock_actual: stockRestante },
+            });
+          }
+
+          return { pedido, pedidoPersonal, num_ticket: numTicket };
         });
-      }
 
-      return { pedido, pedidoPersonal, num_ticket: numTicket };
-    });
+        break;
+      } catch (error: any) {
+        if (this.esColisionUnica(error, 'num_ticket') && intento < this.MAX_INTENTOS_TICKET) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    if (!result) {
+      throw new BadRequestException('No se pudo generar un número de ticket único. Intenta nuevamente.');
+    }
 
     console.log('service - crear pedido personalizado:', JSON.stringify(dto));
 

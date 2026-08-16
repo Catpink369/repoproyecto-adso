@@ -159,7 +159,7 @@ export default function PedidosRealizados() {
             setEditandoId(null);
         } catch (error) {
             console.error('Error al actualizar estado:', error);
-            alert('Error al actualizar el estado');
+            alert(error?.response?.data?.message || error?.message || 'Error al actualizar el estado');
         }
     };
 

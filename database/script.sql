@@ -1,3 +1,14 @@
+-- =====================================================================
+-- GURAMA ONLINE — Script completo (schema real + validaciones de negocio)
+-- =====================================================================
+-- Reconstruye la BD desde cero cada vez que se corre (DROP + CREATE),
+-- así que nunca hay riesgo de "duplicate constraint" al re-ejecutarlo.
+--
+-- ÚNICA excepción de dato quemado: el usuario Adm-01, necesario para
+-- poder entrar al sistema la primera vez. Se puede borrar después de
+-- crear un admin real desde la propia app.
+-- =====================================================================
+
 CREATE DATABASE IF NOT EXISTS `guramaonline` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `guramaonline`;
 
@@ -65,6 +76,7 @@ CREATE TABLE `usuario` (
   KEY `fk_usuario_rol` (`id_rol_usuario`),
   KEY `fk_usuario_tdoc` (`t_doc`),
   CONSTRAINT `chk_usuario_correo` CHECK (`correo` LIKE '%@%.%'),
+  CONSTRAINT `chk_usuario_estado_valido` CHECK (`estado` IN (0, 1)),
   CONSTRAINT `fk_usuario_rol` FOREIGN KEY (`id_rol_usuario`) REFERENCES `rol_usuario` (`id_rol_usuario`) ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT `fk_usuario_tdoc` FOREIGN KEY (`t_doc`) REFERENCES `tipo_documento` (`t_doc`) ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -202,6 +214,12 @@ CREATE TABLE `pedido` (
   `id_usuario` VARCHAR(15) NOT NULL,
   `id_tipo` ENUM('P-P', 'P-E') NOT NULL,
   PRIMARY KEY (`id_pedido`),
+  -- Único punto nuevo respecto al script original: restringe los valores
+  -- reales que usa pedidos.service.ts, ya integrado en el CREATE (no como
+  -- ALTER TABLE aparte, para evitar el error de "duplicate" al re-correr).
+  CONSTRAINT `chk_pedido_estado_valido` CHECK (
+    `estado` IN ('Pendiente','Pagado','En preparación','Entregado','Finalizado','Anulado')
+  ),
   CONSTRAINT `fk_pedido_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT `fk_pedido_tipo` FOREIGN KEY (`id_tipo`) REFERENCES `tipo_pedido` (`id_tipo`) ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -286,6 +304,10 @@ INSERT INTO `tipo_documento` (`t_doc`, `desc_doc`) VALUES
 ('CE', 'Cédula de extranjería'),
 ('TI', 'Tarjeta de identidad');
 
+-- ── ÚNICA excepción de dato quemado en todo el script ──────────────────
+-- Necesario para poder iniciar sesión la primera vez que se levanta el
+-- sistema. Bórralo después de crear un administrador real desde la app
+-- (DELETE FROM usuario WHERE id_usuario = 'Adm-01';).
 INSERT INTO `usuario` (
   `id_usuario`, `nom_1`, `nom_2`, `ape_1`, `ape_2`, `correo`, `telefono`, 
   `contrasena`, `codigo`, `id_rol_usuario`, `t_doc`, `img_perfil`, `codigo_visible`, `fcm_token`
@@ -294,7 +316,8 @@ INSERT INTO `usuario` (
   '$2b$10$ZpyBdvjxoxOFc9H1WE.9v.sSNaEvHqRH1ThGiMvDAYy/StkwtxK6a',
   '$2b$10$jQpj1gMJypBF/d2zQEGz20dfRT1vBzhMUj2nrkHxV./I/tNMqymke',
   '1', 'CC', '/uploads/perfiles/Adm-01-1782018735677.jpg', '12345',
-  'eRpaElB1R1KzljGREGPDff:APA91bExB6KBn3qA2BbDEijky5tyF5n8VQLGLu3AIjg7WJlmpKPBAE06zcFMDwoYyzeMQXKknk_n-WsZgqAmxZIKzMcQk5Q-nneAXmFoDhCCiPkDDaofzrM'
+  NULL  -- el token FCM real se genera solo cuando el admin inicia sesión desde la app;
+        -- no hace falta (ni conviene) quemarlo aquí.
 );
 
 INSERT INTO `categoria` (`id_categoria`, `nombre_c`, `descripcion`) VALUES

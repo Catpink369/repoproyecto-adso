@@ -44,8 +44,8 @@ export class PedidosController {
         stack: error.stack?.split('\n').slice(0, 5),
       }));
       
-      if (error.code === '23505' || error.code === 11000) {
-        throw new ConflictException('Este numero de pedido ya ha sido registrado.');
+      if (error.code === 'P2002') {
+        throw new ConflictException('Este numero de pedido ya ha sido registrado. Intenta nuevamente.');
       }
       if (
         error instanceof NotFoundException ||
@@ -88,8 +88,20 @@ export class PedidosController {
   @ApiResponse({ status: 404, description: 'No se encontraron pedidos para el usuario.' })
   @ApiResponse({ status: 500, description: 'Error interno al obtener los pedidos del usuario.' })
 
-  async findByUsuario(@Param('id_usuario') id_usuario: string, @Query('tipo') tipo?: 'estandar' | 'personalizado') {
+  async findByUsuario(
+    @Param('id_usuario') id_usuario: string,
+    @Query('tipo') tipo: 'estandar' | 'personalizado' | undefined,
+    @GetUser() user: any,
+  ) {
     try {
+      // CP-008 (RF-007.2): un cliente (rol '2') solo puede consultar SUS
+      // propios pedidos. Antes este endpoint no validaba propiedad y
+      // cualquier cliente autenticado podía ver el historial de otro
+      // cambiando el id_usuario en la URL/query.
+      if (user.id_rol_usuario === '2' && id_usuario !== user.id_usuario) {
+        throw new ForbiddenException('No autorizado');
+      }
+
       const pedidos = await this.pedidosService.findByUsuario(id_usuario, tipo);
 
       if (!pedidos) {
@@ -204,7 +216,8 @@ export class PedidosController {
       ) {
         throw error;
       }
-      if (error.code === '23505') {
+      
+      if (error.code === 'P2003') {
         throw new ConflictException('No se puede eliminar el pedido debido a dependencias o estado actual.');
       }
       throw new InternalServerErrorException('Error interno al eliminar el pedido.');

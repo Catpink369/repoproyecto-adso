@@ -51,6 +51,19 @@ const TicketCompra = () => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
+        // CP-004 (RF-007.1): un usuario sin sesión iniciada no puede registrar
+        // un pedido, ni siquiera accediendo directamente a esta pantalla por
+        // URL con datos de pago ya guardados en sessionStorage. Antes, si no
+        // había usuario, se armaba el pedido con id_usuario='GUEST' en vez de
+        // redirigir al login.
+        const datosUsuario = secureStorage.getItem('user', sessionStorage) || secureStorage.getItem('user', localStorage);
+        if (!datosUsuario || !datosUsuario.id_usuario) {
+            sessionStorage.removeItem('paymentData');
+            sessionStorage.removeItem('pedidoProcesado');
+            navigate('/login');
+            return;
+        }
+
         const storedData  = sessionStorage.getItem('paymentData');
         const yaProcesado = sessionStorage.getItem('pedidoProcesado');
         if (storedData && !yaProcesado) {
@@ -70,8 +83,11 @@ const TicketCompra = () => {
         setLoading(true);
         setError(null);
         try {
-            const datosUsuario = secureStorage.getItem('user', sessionStorage) || secureStorage.getItem('user', localStorage) || {};
-            const id_usuario = datosUsuario.id_usuario || 'GUEST';
+            const datosUsuario = secureStorage.getItem('user', sessionStorage) || secureStorage.getItem('user', localStorage);
+            if (!datosUsuario || !datosUsuario.id_usuario) {
+                throw new Error('Debes iniciar sesión para generar un pedido');
+            }
+            const id_usuario = datosUsuario.id_usuario;
 
             if (!pedidoData.cartItems || pedidoData.cartItems.length === 0)
                 throw new Error('No hay productos en el pedido');

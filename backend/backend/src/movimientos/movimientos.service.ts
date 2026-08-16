@@ -36,6 +36,18 @@ export class MovimientosService {
   }
 
   // -------------------------------------------------------
+  // NORMALIZA EL TIPO DE MOVIMIENTO ('M-E'/'M_E' -> 'M_E', 'M-S'/'M_S' -> 'M_S')
+  // -------------------------------------------------------
+  private normalizarTipoMovimiento(idM: string): 'M_E' | 'M_S' {
+    const valor = (idM ?? '').trim().toUpperCase().replace('_', '-');
+    if (valor === 'M-E') return 'M_E';
+    if (valor === 'M-S') return 'M_S';
+    throw new BadRequestException(
+      `Tipo de movimiento "${idM}" no reconocido. Use 'M-E' o 'M_E' para una entrada, o 'M-S' o 'M_S' para una salida.`,
+    );
+  }
+
+  // -------------------------------------------------------
   // OBTENER TODOS LOS MOVIMIENTOS CON INFO COMPLETA
   // -------------------------------------------------------
   async findAll(query: any) {
@@ -87,8 +99,9 @@ export class MovimientosService {
   // -------------------------------------------------------
   async findByTipo(tipo: string) {
     console.log('service - movimientos por tipo:', tipo);
+    const idMovimiento = this.normalizarTipoMovimiento(tipo);
     return this.prisma.movimiento.findMany({
-      where: { id_m: tipo as any },
+      where: { id_m: idMovimiento as any },
       orderBy: { fecha_m: 'desc' },
       include: {
         producto: { select: { nom_producto: true, ruta_imagen: true } },
@@ -104,7 +117,7 @@ export class MovimientosService {
     console.log('service - crear movimiento:', JSON.stringify(dto));
 
     const idProducto = Number(dto.id_producto);
-    const idMovimiento = dto.id_m === 'M-E' ? 'M_E' : 'M_S';
+    const idMovimiento = this.normalizarTipoMovimiento(dto.id_m);
 
     const signo = idMovimiento === 'M_E' ? 1 : -1;
     const delta = signo * dto.Cantidad_m;

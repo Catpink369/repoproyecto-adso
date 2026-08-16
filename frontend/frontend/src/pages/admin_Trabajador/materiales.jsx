@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../../components/Sidebar_p-a.jsx';
 import '../../components/css/styles.css';
-import { apiGet, apiPost, apiPatch } from '../../context/api.js';
+import { apiGet, apiPost, apiPatch, apiDelete } from '../../context/api.js';
 
 const API_URL = 'http://localhost:3000';
 const TIPOS = ['Todos', 'Tela', 'Bordado', 'Diseño', 'Relleno', 'Accesorio'];
@@ -38,6 +38,20 @@ const Materiales = () => {
     const [imagenEdit, setImagenEdit]               = useState(null);
     const [guardandoEdit, setGuardandoEdit]         = useState(false);
     const fileEditRef                               = useRef(null);
+
+    // ── Colores y diseños del material que se está editando ──────────
+    const [colores, setColores]                     = useState([]);
+    const [disenos, setDisenos]                     = useState([]);
+    const [cargandoColoresDisenos, setCargandoColoresDisenos] = useState(false);
+
+    const [nuevoColorNombre, setNuevoColorNombre]   = useState('');
+    const [nuevoColorHex, setNuevoColorHex]         = useState('#c45a77');
+    const [guardandoColor, setGuardandoColor]       = useState(false);
+
+    const [nuevoDisenoNombre, setNuevoDisenoNombre] = useState('');
+    const [nuevoDisenoImagen, setNuevoDisenoImagen] = useState(null);
+    const [guardandoDiseno, setGuardandoDiseno]     = useState(false);
+    const fileDisenoRef                             = useRef(null);
 
     const cargarMateriales = async () => {
         try {
@@ -120,6 +134,106 @@ const Materiales = () => {
             stock_minimo:    m.stock_minimo ?? 5,
         });
         setImagenEdit(null);
+        setNuevoColorNombre('');
+        setNuevoColorHex('#c45a77');
+        setNuevoDisenoNombre('');
+        setNuevoDisenoImagen(null);
+        if (m.tipo === 'Tela') {
+            cargarColoresDisenos(m.id_material);
+        } else {
+            setColores([]);
+            setDisenos([]);
+        }
+    };
+
+    // ── Colores y diseños: cargar ─────────────────────────
+    const cargarColoresDisenos = async (id_material) => {
+        setCargandoColoresDisenos(true);
+        try {
+            const [cols, dis] = await Promise.all([
+                apiGet(`/pedidos-personalizados/materiales/${id_material}/colores`),
+                apiGet(`/pedidos-personalizados/materiales/${id_material}/disenos`),
+            ]);
+            setColores(Array.isArray(cols) ? cols : []);
+            setDisenos(Array.isArray(dis) ? dis : []);
+        } catch (err) {
+            console.error('Error al cargar colores/diseños:', err);
+        } finally {
+            setCargandoColoresDisenos(false);
+        }
+    };
+
+    // ── Colores: crear / eliminar ─────────────────────────
+    const handleAgregarColor = async (e) => {
+        e.preventDefault();
+        if (!nuevoColorNombre.trim()) { alert('El color necesita un nombre.'); return; }
+        setGuardandoColor(true);
+        try {
+            await apiPost(`/pedidos-personalizados/materiales/${editando.id_material}/colores`, {
+                nombre: nuevoColorNombre.trim(),
+                codigo_hex: nuevoColorHex,
+            });
+            setNuevoColorNombre('');
+            setNuevoColorHex('#c45a77');
+            await cargarColoresDisenos(editando.id_material);
+        } catch (err) {
+            alert(err?.response?.data?.message || 'Error al registrar el color.');
+        } finally {
+            setGuardandoColor(false);
+        }
+    };
+
+    const handleEliminarColor = async (id_color) => {
+        if (!window.confirm('¿Desactivar este color? Ya no aparecerá para elegir en pedidos nuevos.')) return;
+        try {
+            await apiDelete(`/pedidos-personalizados/materiales/colores/${id_color}`);
+            await cargarColoresDisenos(editando.id_material);
+        } catch (err) {
+            alert(err?.response?.data?.message || 'Error al desactivar el color.');
+        }
+    };
+
+    // ── Diseños: crear / eliminar ─────────────────────────
+    const handleAgregarDiseno = async (e) => {
+        e.preventDefault();
+        if (!nuevoDisenoNombre.trim()) { alert('El diseño necesita un nombre.'); return; }
+        setGuardandoDiseno(true);
+        try {
+            const creado = await apiPost(`/pedidos-personalizados/materiales/${editando.id_material}/disenos`, {
+                nombre: nuevoDisenoNombre.trim(),
+            });
+
+            if (nuevoDisenoImagen && creado?.id_diseno) {
+                const fd = new FormData();
+                fd.append('imagen', nuevoDisenoImagen);
+                await fetch(`${API_URL}/pedidos-personalizados/materiales/disenos/${creado.id_diseno}/imagen`, {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': import.meta.env.VITE_API_KEY,
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                    body: fd,
+                });
+            }
+
+            setNuevoDisenoNombre('');
+            setNuevoDisenoImagen(null);
+            await cargarColoresDisenos(editando.id_material);
+        } catch (err) {
+            alert(err?.response?.data?.message || 'Error al registrar el diseño.');
+        } finally {
+            setGuardandoDiseno(false);
+        }
+    };
+
+    const handleEliminarDiseno = async (id_diseno) => {
+        if (!window.confirm('¿Desactivar este diseño? Ya no aparecerá para elegir en pedidos nuevos.')) return;
+        try {
+            await apiDelete(`/pedidos-personalizados/materiales/disenos/${id_diseno}`);
+            await cargarColoresDisenos(editando.id_material);
+        } catch (err) {
+            alert(err?.response?.data?.message || 'Error al desactivar el diseño.');
+        }
     };
 
     const handleGuardarEdicion = async (e) => {
@@ -278,7 +392,11 @@ const Materiales = () => {
                                     <div className="campo">
                                         <label>Tipo *</label>
                                         <select value={editForm.tipo}
-                                            onChange={e => setEditForm(p => ({ ...p, tipo: e.target.value }))}>
+                                            onChange={e => {
+                                                const tipo = e.target.value;
+                                                setEditForm(p => ({ ...p, tipo }));
+                                                if (tipo === 'Tela') cargarColoresDisenos(editando.id_material);
+                                            }}>
                                             {['Tela','Bordado','Diseño','Relleno','Accesorio'].map(t => <option key={t}>{t}</option>)}
                                         </select>
                                     </div>
@@ -346,6 +464,126 @@ const Materiales = () => {
                                         </button>
                                     </div>
                                 </form>
+
+                                {/* ── Colores y diseños (solo para Tela) ───────────────── */}
+                                {editForm.tipo === 'Tela' && (
+                                    <div style={{ marginTop: '26px', borderTop: '2px solid #e0d0e0', paddingTop: '18px' }}>
+                                        <h3 style={{ color: '#5a3d54', marginBottom: '14px' }}>
+                                            Colores y diseños de esta tela
+                                        </h3>
+                                        <p style={{ fontSize: '13px', color: '#9a7a8a', marginTop: '-8px', marginBottom: '16px' }}>
+                                            Esto es lo que el cliente podrá elegir al personalizar una sábana o cubrelecho con esta tela.
+                                        </p>
+
+                                        {cargandoColoresDisenos ? (
+                                            <p style={{ color: '#9a7a8a' }}>Cargando colores y diseños...</p>
+                                        ) : (
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '22px' }}>
+
+                                                {/* ── Colores ── */}
+                                                <div>
+                                                    <h4 style={{ marginBottom: '10px', color: '#5a3d54' }}>Colores</h4>
+
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                                                        {colores.length === 0 && (
+                                                            <p style={{ fontSize: '13px', color: '#9a7a8a' }}>
+                                                                Aún no hay colores registrados para esta tela.
+                                                            </p>
+                                                        )}
+                                                        {colores.map(c => (
+                                                            <div key={c.id_color} style={{
+                                                                display: 'flex', alignItems: 'center', gap: '8px',
+                                                                padding: '6px 10px', borderRadius: '20px',
+                                                                border: '1.5px solid #e8d5e0', background: '#fdf8fb',
+                                                                fontSize: '13px', color: '#5a3d54',
+                                                            }}>
+                                                                {c.codigo_hex && (
+                                                                    <span style={{
+                                                                        width: '16px', height: '16px', borderRadius: '50%',
+                                                                        background: c.codigo_hex, display: 'inline-block',
+                                                                        border: '1px solid rgba(0,0,0,0.1)',
+                                                                    }} />
+                                                                )}
+                                                                {c.nombre}
+                                                                <button type="button" onClick={() => handleEliminarColor(c.id_color)}
+                                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e74c3c', fontSize: '14px' }}
+                                                                    title="Desactivar color">
+                                                                    ✕
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    <form onSubmit={handleAgregarColor} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                        <input type="color" value={nuevoColorHex}
+                                                            onChange={e => setNuevoColorHex(e.target.value)}
+                                                            style={{ width: '38px', height: '34px', padding: '2px', border: '1.5px solid #e8d5e0', borderRadius: '6px', cursor: 'pointer' }} />
+                                                        <input type="text" placeholder="Nombre del color" value={nuevoColorNombre}
+                                                            onChange={e => setNuevoColorNombre(e.target.value)}
+                                                            style={{ flex: 1, minWidth: 0 }} />
+                                                        <button type="submit" className="btn-guardar" disabled={guardandoColor} style={{ whiteSpace: 'nowrap' }}>
+                                                            {guardandoColor ? '...' : '+ Agregar'}
+                                                        </button>
+                                                    </form>
+                                                </div>
+
+                                                {/* ── Diseños ── */}
+                                                <div>
+                                                    <h4 style={{ marginBottom: '10px', color: '#5a3d54' }}>Diseños / estampados</h4>
+
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
+                                                        {disenos.length === 0 && (
+                                                            <p style={{ fontSize: '13px', color: '#9a7a8a' }}>
+                                                                Aún no hay diseños registrados para esta tela.
+                                                            </p>
+                                                        )}
+                                                        {disenos.map(d => (
+                                                            <div key={d.id_diseno} style={{
+                                                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                                                                width: '76px',
+                                                            }}>
+                                                                {d.ruta_imagen ? (
+                                                                    <img src={`${API_URL}${d.ruta_imagen}`} alt={d.nombre}
+                                                                        style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e8d5e0' }} />
+                                                                ) : (
+                                                                    <div style={{
+                                                                        width: '60px', height: '60px', borderRadius: '8px',
+                                                                        border: '2px dashed #e8d5e0', display: 'flex',
+                                                                        alignItems: 'center', justifyContent: 'center',
+                                                                        fontSize: '10px', color: '#9a7a8a', textAlign: 'center',
+                                                                    }}>
+                                                                        Sin imagen
+                                                                    </div>
+                                                                )}
+                                                                <span style={{ fontSize: '11px', color: '#5a3d54', textAlign: 'center' }}>{d.nombre}</span>
+                                                                <button type="button" onClick={() => handleEliminarDiseno(d.id_diseno)}
+                                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e74c3c', fontSize: '11px' }}>
+                                                                    Desactivar
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    <form onSubmit={handleAgregarDiseno} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                        <input type="text" placeholder="Nombre del diseño" value={nuevoDisenoNombre}
+                                                            onChange={e => setNuevoDisenoNombre(e.target.value)} />
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <input type="file" accept="image/*" ref={fileDisenoRef} style={{ display: 'none' }}
+                                                                onChange={e => setNuevoDisenoImagen(e.target.files[0])} />
+                                                            <button type="button" className="btn-categoria" onClick={() => fileDisenoRef.current.click()}>
+                                                                <i className="fa-solid fa-image"></i> {nuevoDisenoImagen ? nuevoDisenoImagen.name : 'Foto del diseño'}
+                                                            </button>
+                                                            <button type="submit" className="btn-guardar" disabled={guardandoDiseno} style={{ whiteSpace: 'nowrap' }}>
+                                                                {guardandoDiseno ? '...' : '+ Agregar'}
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

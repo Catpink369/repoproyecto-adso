@@ -1,43 +1,40 @@
-import { IsNotEmpty, IsString, IsArray, IsNumber, IsOptional, ValidateNested, Min } from 'class-validator';
+import { IsNotEmpty, IsString, IsArray, ArrayNotEmpty, IsNumber, IsOptional, IsIn, MaxLength, ValidateNested, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class MaterialItemDto {
     @IsNumber()
     @IsNotEmpty()
     @Type(() => Number)
-    id_material: number;
+    id_material!: number;
 
     @IsNumber()
     @Min(0.1)
     @Type(() => Number)
-    cantidad: number;
+    cantidad!: number;
     }
 
     export class CreatePedidoPersonalizadoDto {
     @IsString()
     @IsNotEmpty()
-    @Type(() => String)
-    id_usuario: string;
+    id_usuario!: string;
+
+    @IsIn(['Sabana', 'Sábana', 'Cubrelecho'], {
+        message: 'tipo_producto debe ser Sabana o Cubrelecho.',
+    })
+    tipo_producto!: string;
 
     @IsString()
     @IsNotEmpty()
-    @Type(() => String)
-    tipo_producto: string;
+    @MaxLength(30, { message: 'tamanio no puede superar los 30 caracteres.' })
+    tamanio!: string;
 
-    @IsString()
-    @IsNotEmpty()
-    @Type(() => String)
-    tamanio: string;
-
-    // El cliente no elige método de pago al personalizar; queda "Por definir"
-    // hasta que el admin/trabajador lo asigne al cotizar el pedido.
     @IsString()
     @IsOptional()
-    @Type(() => String)
     metodo_pago?: string;
 
     @IsArray()
+    @ArrayNotEmpty({ message: 'Debes seleccionar al menos un material.' })
     @ValidateNested({ each: true })
     @Type(() => MaterialItemDto)
-    materiales: MaterialItemDto[];
+    materiales!: MaterialItemDto[];
 }

@@ -1,3 +1,10 @@
+import { CreateMaterialDto } from './dto/create-material.dto';
+import { UpdateMaterialDto } from './dto/update-material.dto';
+import { CreatePedidoPersonalizadoDto } from './dto/create-pedidos-personalizado.dto';
+import { CreateMaterialColorDto } from './dto/create-material-color.dto';
+import { UpdateMaterialColorDto } from './dto/update-material-color.dto';
+import { CreateMaterialDisenoDto } from './dto/create-material-diseno.dto';
+import { UpdateMaterialDisenoDto } from './dto/update-material-diseno.dto';
 import { Controller, Get, Post, Query, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, HttpCode,  NotFoundException, ConflictException, BadRequestException, UnauthorizedException, ForbiddenException, InternalServerErrorException, HttpStatus, ParseIntPipe, UnprocessableEntityException} from '@nestjs/common';
 import { PedidosPersonalizadosService } from './pedidos-personalizados.service';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -52,23 +59,169 @@ export class PedidosPersonalizadosController {
     @Public()
     @Get('materiales/:id/colores')
     async getColores(@Param('id') id: string) {
-    try {
-        return await this.service.getColoresMaterial(+id);
-    } catch (error) {
-        throw new InternalServerErrorException('Error al obtener colores');
-    }
+        try {
+            return await this.service.getColoresMaterial(+id);
+        } catch (error) {
+            throw new InternalServerErrorException('Error al obtener colores');
+        }
     }
 
     // GET /pedidos-personalizados/materiales/:id/disenos
     @Public()
     @Get('materiales/:id/disenos')
     async getDisenos(@Param('id') id: string) {
-    try {
-        return await this.service.getDisenosMaterial(+id);
-    } catch (error) {
-        throw new InternalServerErrorException('Error al obtener diseños');
+        try {
+            return await this.service.getDisenosMaterial(+id);
+        } catch (error) {
+            throw new InternalServerErrorException('Error al obtener diseños');
+        }
     }
+
+    // ── COLORES DE MATERIAL ──────────────────────────────────
+
+    // POST /pedidos-personalizados/materiales/:id/colores
+    @Post('materiales/:id/colores')
+    @HttpCode(HttpStatus.CREATED)
+    @ApiOperation({ summary: 'Registrar un color para un material' })
+    @ApiResponse({ status: 201, description: 'Color registrado exitosamente.' })
+    @ApiResponse({ status: 400, description: 'Datos de color inválidos.' })
+    @ApiResponse({ status: 404, description: 'Material no encontrado.' })
+    @ApiResponse({ status: 500, description: 'Error al registrar color.' })
+    async crearColor(@Param('id') id: string, @Body() dto: CreateMaterialColorDto) {
+        try {
+            return await this.service.crearColorMaterial(+id, dto);
+        } catch (error: any) {
+            if (error instanceof NotFoundException || error instanceof BadRequestException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Error al registrar el color');
+        }
     }
+
+    // PATCH /pedidos-personalizados/materiales/colores/:idColor
+    @Patch('materiales/colores/:idColor')
+    @ApiOperation({ summary: 'Actualizar un color existente' })
+    @ApiResponse({ status: 200, description: 'Color actualizado exitosamente.' })
+    @ApiResponse({ status: 404, description: 'Color no encontrado.' })
+    async actualizarColor(@Param('idColor') idColor: string, @Body() dto: UpdateMaterialColorDto) {
+        try {
+            return await this.service.actualizarColorMaterial(+idColor, dto);
+        } catch (error: any) {
+            if (error instanceof NotFoundException || error instanceof BadRequestException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Error al actualizar el color');
+        }
+    }
+
+    // DELETE /pedidos-personalizados/materiales/colores/:idColor  (baja lógica)
+    @Delete('materiales/colores/:idColor')
+    @ApiOperation({ summary: 'Desactivar un color (borrado lógico)' })
+    @ApiResponse({ status: 200, description: 'Color desactivado exitosamente.' })
+    @ApiResponse({ status: 404, description: 'Color no encontrado.' })
+    async eliminarColor(@Param('idColor') idColor: string) {
+        try {
+            return await this.service.eliminarColorMaterial(+idColor);
+        } catch (error: any) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Error al desactivar el color');
+        }
+    }
+
+    // ── DISEÑOS DE MATERIAL ───────────────────────────────────
+
+    // POST /pedidos-personalizados/materiales/:id/disenos
+    @Post('materiales/:id/disenos')
+    @HttpCode(HttpStatus.CREATED)
+    @ApiOperation({ summary: 'Registrar un diseño para un material' })
+    @ApiResponse({ status: 201, description: 'Diseño registrado exitosamente.' })
+    @ApiResponse({ status: 400, description: 'Datos de diseño inválidos.' })
+    @ApiResponse({ status: 404, description: 'Material no encontrado.' })
+    async crearDiseno(@Param('id') id: string, @Body() dto: CreateMaterialDisenoDto) {
+        try {
+            return await this.service.crearDisenoMaterial(+id, dto);
+        } catch (error: any) {
+            if (error instanceof NotFoundException || error instanceof BadRequestException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Error al registrar el diseño');
+        }
+    }
+
+    // PATCH /pedidos-personalizados/materiales/disenos/:idDiseno
+    @Patch('materiales/disenos/:idDiseno')
+    @ApiOperation({ summary: 'Actualizar un diseño existente' })
+    @ApiResponse({ status: 200, description: 'Diseño actualizado exitosamente.' })
+    @ApiResponse({ status: 404, description: 'Diseño no encontrado.' })
+    async actualizarDiseno(@Param('idDiseno') idDiseno: string, @Body() dto: UpdateMaterialDisenoDto) {
+        try {
+            return await this.service.actualizarDisenoMaterial(+idDiseno, dto);
+        } catch (error: any) {
+            if (error instanceof NotFoundException || error instanceof BadRequestException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Error al actualizar el diseño');
+        }
+    }
+
+    // POST /pedidos-personalizados/materiales/disenos/:idDiseno/imagen
+    @Post('materiales/disenos/:idDiseno/imagen')
+    @UseInterceptors(FileInterceptor('imagen', {
+        storage: diskStorage({
+            destination: (req, file, cb) => {
+                const carpeta = './uploads/materiales';
+                mkdirSync(carpeta, { recursive: true });
+                cb(null, carpeta);
+            },
+            filename: (req, file, cb) => {
+                const nombre = `diseno-${req.params.idDiseno}-${Date.now()}${extname(file.originalname)}`;
+                cb(null, nombre);
+            },
+        }),
+        fileFilter: (req, file, cb) => {
+            if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
+                return cb(new Error('Solo imagines'), false);
+            }
+            cb(null, true);
+        },
+        limits: { fileSize: 5 * 1024 * 1024 },
+    }))
+    @ApiOperation({ summary: 'Subir imagen para un diseño' })
+    @ApiResponse({ status: 200, description: 'Imagen subida exitosamente.' })
+    @ApiResponse({ status: 400, description: 'Archivo inválido.' })
+    @ApiResponse({ status: 404, description: 'Diseño no encontrado.' })
+    async subirImagenDiseno(@Param('idDiseno') idDiseno: string, @UploadedFile() file: Express.Multer.File) {
+        if (!file) {
+            throw new BadRequestException('Es necesario subir un archivo de imagen');
+        }
+        try {
+            return await this.service.actualizarImagenDiseno(+idDiseno, file);
+        } catch (error: any) {
+            if (error instanceof NotFoundException || error instanceof BadRequestException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Error al subir la imagen del diseño');
+        }
+    }
+
+    // DELETE /pedidos-personalizados/materiales/disenos/:idDiseno  (baja lógica)
+    @Delete('materiales/disenos/:idDiseno')
+    @ApiOperation({ summary: 'Desactivar un diseño (borrado lógico)' })
+    @ApiResponse({ status: 200, description: 'Diseño desactivado exitosamente.' })
+    @ApiResponse({ status: 404, description: 'Diseño no encontrado.' })
+    async eliminarDiseno(@Param('idDiseno') idDiseno: string) {
+        try {
+            return await this.service.eliminarDisenoMaterial(+idDiseno);
+        } catch (error: any) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Error al desactivar el diseño');
+        }
+    }
+
     // POST /pedidos-personalizados/materiales
     @Post('materiales')
     @HttpCode(HttpStatus.CREATED)
@@ -78,18 +231,12 @@ export class PedidosPersonalizadosController {
     @ApiResponse({ status: 409, description: 'Conflicto: Ya existe un material con ese nombre.' })
     @ApiResponse({ status: 500, description: 'Error al crear material.' })
 
-    async crearMaterial(@Body() dto: {
-        nombre: string;
-        tipo: string;
-        unidad: string;
-        precio_unitario: number;
-        stock_actual: number;
-        stock_minimo: number;
-    }) {
+    async crearMaterial(@Body() dto: CreateMaterialDto) {
         try {
             return await this.service.crearMaterial(dto);
         } catch (error: any) {
-            if (error.code === '23505' || error.code === 11000) {
+
+            if (error.code === 'P2002') {
                 throw new ConflictException('Ya existe un material con ese nombre');
             }
 
@@ -113,14 +260,7 @@ export class PedidosPersonalizadosController {
 
     async actualizarMaterial(
         @Param('id') id: string,
-        @Body() dto: {
-            nombre?: string;
-            tipo?: string;
-            unidad?: string;
-            precio_unitario?: number;
-            stock_actual?: number;
-            stock_minimo?: number;
-        }
+        @Body() dto: UpdateMaterialDto,
     ) {
         try {
             const materialActualizado = await this.service.actualizarMaterial(+id, dto);
@@ -137,7 +277,7 @@ export class PedidosPersonalizadosController {
                 throw error;
             }
 
-            if (error.code === '23505' || error.code === 11000) {
+            if (error.code === 'P2002') {
                 throw new ConflictException('Ya existe un material con ese nombre');
             }
             throw new InternalServerErrorException('Error al actualizar material');
@@ -166,6 +306,7 @@ export class PedidosPersonalizadosController {
         },
         limits: { fileSize: 5 * 1024 * 1024 },
     }))
+
     @ApiOperation({ summary: 'Subir imagen para un material' })
     @ApiResponse({ status: 200, description: 'Imagen subida exitosamente.' })
     @ApiResponse({ status: 400, description: 'Archivo inválido.' })
@@ -207,13 +348,7 @@ export class PedidosPersonalizadosController {
     @ApiResponse({ status: 422, description: 'Stock insuficiente para uno o mas materiales seleccionados.' })
     @ApiResponse({ status: 500, description: 'Error al crear pedido personalizado.' })
 
-    async crearPedido(@Body() dto: {
-        id_usuario: string;
-        tipo_producto: string;
-        tamanio: string;
-        metodo_pago: string;
-        materiales: { id_material: number; cantidad: number }[];
-    }) {
+    async crearPedido(@Body() dto: CreatePedidoPersonalizadoDto) {
         try {
             return await this.service.crearPedido(dto);
         } catch (error: any) {
@@ -225,6 +360,10 @@ export class PedidosPersonalizadosController {
             }
             if (error.message?.includes('Stock') || error.status === 422) {
                 throw new UnprocessableEntityException('No hay suficiente stock de los materiales seleccionados.');
+            }
+
+            if (error.code === 'P2002') {
+                throw new ConflictException('No se pudo generar un número de ticket único. Intenta nuevamente.');
             }
             throw new InternalServerErrorException('Error al crear pedido personalizado');
         }
@@ -239,23 +378,11 @@ export class PedidosPersonalizadosController {
     @ApiResponse({ status: 403, description: 'Prohibido - Permisos insuficiente.' })
     @ApiResponse({ status: 500, description: 'Error al consultar pedidos personalizados.' })
 
-    /*async findAll(@Query() query: any) {
-        try {
-            return await this.service.findAll(query);
-        } catch (error: any ) {
-            if (error instanceof BadRequestException) {
-                throw error;
-            }
-            throw new InternalServerErrorException('Error al obtener pedidos personalizados');
-        }
-    }*/
-    // En pedidos-personalizados.controller.ts
-    @Get()
     async findAll(@Query() query: any) {
         try {
             return await this.service.findAll(query);
         } catch (error: any) {
-            console.error('ERROR findAll personalizados:', error.message, error.stack);  // 👈
+            console.error('ERROR findAll personalizados:', error.message, error.stack);
             throw new InternalServerErrorException('Error al obtener pedidos personalizados');
         }
     }
