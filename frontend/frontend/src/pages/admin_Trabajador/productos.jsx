@@ -14,7 +14,6 @@ export default function Productos(){
     const [error, setError] = useState(null);
     const navigate = useNavigate(); 
 
-    // Estados para filtros
     const [busqueda, setBusqueda] = useState('');
     const [mostrarFiltros, setMostrarFiltros] = useState(false);
     const [filtros, setFiltros] = useState({
@@ -26,26 +25,34 @@ export default function Productos(){
         precioMax: ''
     });
 
-    // Estado para ordenamiento
     const [ordenamiento, setOrdenamiento] = useState({
         campo: 'id_producto',
-        direccion: 'desc' // 'asc' o 'desc'
+        direccion: 'desc'
     });
 
-    // Función para determinar si un producto tiene stock bajo
     const isStockBajo = (producto) => {
         return producto.stock_actual <= producto.stock_minimo;
     };
 
-    // Función para obtener el texto de clasificación
+    // Función para obtener la clasificación reemplazando '_' por espacios
     const getClasificacionTexto = (producto) => {
         if (isStockBajo(producto)) {
-            return ' Últimas Unidades';
+            return 'Últimas Unidades';
         }
-        return producto.clasificacion?.nombre_clas || producto.id_clasificacion;
+        const textoClasificacion = producto.clasificacion?.nombre_clas || producto.id_clasificacion || '';
+        return typeof textoClasificacion === 'string' 
+            ? textoClasificacion.replace(/_/g, ' ') 
+            : textoClasificacion;
     };
 
-    // Cargar productos
+    const formatearRutaImagen = (ruta) => {
+        if (!ruta) return null;
+        if (ruta.startsWith('http://') || ruta.startsWith('https://')) return ruta;
+        const rutaNormalizada = ruta.replace(/\\/g, '/');
+        const rutaLimpia = rutaNormalizada.startsWith('/') ? rutaNormalizada : `/${rutaNormalizada}`;
+        return `http://localhost:3000${rutaLimpia}`;
+    };
+
     const fetchProductos = async () => {
         try {
             setCargando(true);
@@ -61,7 +68,6 @@ export default function Productos(){
         }
     };
 
-    // Cargar categorías
     const fetchCategorias = async () => {
         try {
             const response = await apiGet('/categorias');
@@ -76,7 +82,6 @@ export default function Productos(){
         fetchCategorias();
     }, []);
 
-    // Aplicar filtros y ordenamiento
     useEffect(() => {
         aplicarFiltrosYOrdenamiento();
     }, [busqueda, filtros, productos, ordenamiento]);
@@ -84,7 +89,6 @@ export default function Productos(){
     const aplicarFiltrosYOrdenamiento = () => {
         let resultado = [...productos];
 
-        // Aplicar filtros
         if (busqueda.trim() !== '') {
             const searchLower = busqueda.toLowerCase();
             resultado = resultado.filter(p => 
@@ -133,7 +137,6 @@ export default function Productos(){
             });
         }
 
-        // Aplicar ordenamiento
         resultado.sort((a, b) => {
             let valorA, valorB;
 
@@ -258,7 +261,6 @@ export default function Productos(){
                 <HeaderProductos /> 
 
                 <section className="cuadro-blanco">
-                    {/* Barra de búsqueda y filtros */}
                     <div className="acciones" style={{ 
                         display: 'flex', 
                         gap: '10px', 
@@ -266,7 +268,6 @@ export default function Productos(){
                         flexWrap: 'wrap',
                         marginBottom: '20px'
                     }}>
-                        {/* Búsqueda */}
                         <div style={{ flex: '1', minWidth: '250px', position: 'relative' }}>
                             <input 
                                 type="text" 
@@ -294,11 +295,11 @@ export default function Productos(){
                                         color: '#999'
                                     }}
                                 >
+                                    ×
                                 </button>
                             )}
                         </div>
 
-                        {/* Botón de filtros */}
                         <button 
                             className="btn-categoria"
                             onClick={() => setMostrarFiltros(!mostrarFiltros)}
@@ -329,7 +330,6 @@ export default function Productos(){
                             )}
                         </button>
 
-                        {/* Dropdown de ordenamiento */}
                         <select 
                             value={`${ordenamiento.campo}-${ordenamiento.direccion}`}
                             onChange={(e) => {
@@ -358,7 +358,6 @@ export default function Productos(){
                             <option value="nombre_c-desc">Categoría Z-A</option>
                         </select>
 
-                        {/* Botón registrar */}
                         <Link to="/registro_prod" style={{ marginLeft: 'auto' }}>
                             <button className="btn-registrar">
                                 <i className="fa-solid fa-plus"></i> Registrar nuevo Producto
@@ -366,7 +365,6 @@ export default function Productos(){
                         </Link>
                     </div>
 
-                    {/* Panel de filtros desplegable */}
                     {mostrarFiltros && (
                         <div style={{
                             background: '#f8f9fa',
@@ -384,7 +382,6 @@ export default function Productos(){
                                 gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
                                 gap: '15px'
                             }}>
-                                {/* Filtro por categoría */}
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
                                         Categoría
@@ -408,7 +405,6 @@ export default function Productos(){
                                     </select>
                                 </div>
 
-                                {/* Filtro de stock bajo - ACTUALIZADO */}
                                 <div className="campo-grupo" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                         <input 
@@ -423,7 +419,6 @@ export default function Productos(){
                                     </label>
                                 </div>
 
-                                {/* Rango de precios */}
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
                                         Rango de Precio
@@ -461,7 +456,6 @@ export default function Productos(){
                                     </div>
                                 </div>
 
-                                {/* Rango de fechas */}
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
                                         Rango de Fechas (Última actualización)
@@ -496,7 +490,6 @@ export default function Productos(){
                         </div>
                     )}
 
-                    {/* Resultados */}
                     <div style={{ 
                         marginBottom: '15px', 
                         color: '#6c757d',
@@ -505,7 +498,6 @@ export default function Productos(){
                         Mostrando <strong>{productosFiltrados.length}</strong> de <strong>{productos.length}</strong> productos
                     </div>
 
-                    {/* Tabla de productos */}
                     <div style={{ overflowX: 'auto' }}>
                         <table className="tabla">
                             <thead> 
@@ -543,78 +535,82 @@ export default function Productos(){
                                         </td>
                                     </tr>
                                 ) : (
-                                    productosFiltrados.map((producto) => (
-                                        <tr key={producto.id_producto}>
-                                            <td>{producto.id_producto}</td>
+                                    productosFiltrados.map((producto) => {
+                                        const srcImagen = formatearRutaImagen(producto.ruta_imagen);
+                                        return (
+                                            <tr key={producto.id_producto}>
+                                                <td>{producto.id_producto}</td>
 
-                                            <td>
-                                                {producto.ruta_imagen ? (
-                                                    <img 
-                                                        src={`http://localhost:3000${producto.ruta_imagen}`}
-                                                        alt={producto.nom_producto} 
+                                                <td>
+                                                    {srcImagen ? (
+                                                        <img 
+                                                            src={srcImagen}
+                                                            alt={producto.nom_producto} 
+                                                            style={{ 
+                                                                width: '50px', 
+                                                                height: '50px', 
+                                                                objectFit: 'cover',
+                                                                borderRadius: '4px'
+                                                            }}
+                                                            onError={(e) => { e.target.src = '/placeholder.png'; }}
+                                                        />
+                                                    ) : (
+                                                        <span style={{ color: '#999' }}>Sin imagen</span>
+                                                    )}
+                                                </td>
+
+                                                <td>{producto.nom_producto}</td>
+                                                <td>{producto.categoria?.nombre_c || producto.id_categoria}</td>
+                                                <td>
+                                                    <span style={{
+                                                        padding: '4px 8px',
+                                                        borderRadius: '4px',
+                                                        backgroundColor: isStockBajo(producto) ? '#ffebee' : '#e8f5e9',
+                                                        color: isStockBajo(producto) ? '#c62828' : '#2e7d32',
+                                                        fontWeight: 'bold',
+                                                        fontSize: '12px'
+                                                    }}>
+                                                        {getClasificacionTexto(producto)}
+                                                    </span>
+                                                </td>
+
+                                                <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {producto.descripcion || '-'}
+                                                </td>
+                                                <td>${parseFloat(producto.precio_unitario).toFixed(2)}</td>
+                                                <td>
+                                                    <span style={{
+                                                        padding: '4px 8px',
+                                                        borderRadius: '4px',
+                                                        backgroundColor: producto.stock_actual <= producto.stock_minimo ? '#ffebee' : '#e8f5e9',
+                                                        color: producto.stock_actual <= producto.stock_minimo ? '#c62828' : '#2e7d32',
+                                                        fontWeight: 'bold'
+                                                    }}>
+                                                        {producto.stock_actual}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <button 
+                                                        onClick={() => handleEditar(producto)}
+                                                        className="editar"
                                                         style={{ 
-                                                            width: '50px', 
-                                                            height: '50px', 
-                                                            objectFit: 'cover',
-                                                            borderRadius: '4px'
+                                                            marginRight: '5px',
+                                                            cursor: 'pointer'
                                                         }}
-                                                    />
-                                                ) : (
-                                                    <span style={{ color: '#999' }}>Sin imagen</span>
-                                                )}
-                                            </td>
-
-                                            <td>{producto.nom_producto}</td>
-                                            <td>{producto.categoria?.nombre_c || producto.id_categoria}</td>
-                                            <td>
-                                                <span style={{
-                                                    padding: '4px 8px',
-                                                    borderRadius: '4px',
-                                                    backgroundColor: isStockBajo(producto) ? '#ffebee' : '#e8f5e9',
-                                                    color: isStockBajo(producto) ? '#c62828' : '#2e7d32',
-                                                    fontWeight: 'bold',
-                                                    fontSize: '12px'
-                                                }}>
-                                                    {getClasificacionTexto(producto)}
-                                                </span>
-                                            </td>
-
-                                            <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                {producto.descripcion || '-'}
-                                            </td>
-                                            <td>${parseFloat(producto.precio_unitario).toFixed(2)}</td>
-                                            <td>
-                                                <span style={{
-                                                    padding: '4px 8px',
-                                                    borderRadius: '4px',
-                                                    backgroundColor: producto.stock_actual <= producto.stock_minimo ? '#ffebee' : '#e8f5e9',
-                                                    color: producto.stock_actual <= producto.stock_minimo ? '#c62828' : '#2e7d32',
-                                                    fontWeight: 'bold'
-                                                }}>
-                                                    {producto.stock_actual}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <button 
-                                                    onClick={() => handleEditar(producto)}
-                                                    className="editar"
-                                                    style={{ 
-                                                        marginRight: '5px',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    Editar
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleEliminar(producto.id_producto)}
-                                                    className="eliminar"
-                                                    style={{ cursor: 'pointer' }}
-                                                >
-                                                    Eliminar
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
+                                                    >
+                                                        Editar
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleEliminar(producto.id_producto)}
+                                                        className="eliminar"
+                                                        style={{ cursor: 'pointer' }}
+                                                    >
+                                                        Eliminar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>

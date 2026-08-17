@@ -1,4 +1,4 @@
-// Detalle de prodicto individual - inicio
+// Detalle de producto individual - inicio
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import Headeri from "../components/Header.jsx";
@@ -56,7 +56,7 @@ const ProductoDetalles = () => {
         
         // Si el stock es bajo, mostrar "Últimas Unidades"
         if (isStockBajo()) {
-            return ' Últimas Unidades';
+            return 'Últimas Unidades';
         }
         
         // Si tiene clasificación y NO es "Sin clasificar"
@@ -72,7 +72,7 @@ const ProductoDetalles = () => {
             if (clasificacion.includes('vendido') || clasificacion === 'mas vendidos') {
                 return 'Más Vendido';
             }
-            if (clasificacion === 'ultimas unidades') {
+            if (clasificacion === 'ultimas unidades' || clasificacion === 'últimas unidades') {
                 return 'Últimas Unidades';
             }
             if (clasificacion === 'destacado' || clasificacion === 'destacados') {
@@ -82,8 +82,8 @@ const ProductoDetalles = () => {
                 return 'Edición Limitada';
             }
             
-            // Clasificación personalizada
-            return producto.nombre_clas;
+            // Clasificación personalizada: reemplaza guiones bajos por espacios
+            return producto.nombre_clas.replace(/_/g, ' ');
         }
         
         // Si es "Sin clasificar", no mostrar badge
@@ -198,7 +198,7 @@ const ProductoDetalles = () => {
                             marginBottom: '15px',
                             fontSize: '16px'
                         }}>
-                            <strong>Categoría:</strong> {producto.nombre_c || 'Sin categoría'}
+                            <strong>Categoría:</strong> {producto.nombre_c ? producto.nombre_c.replace(/_/g, ' ') : 'Sin categoría'}
                         </p>
 
                         {/* Descripción */}
@@ -219,13 +219,13 @@ const ProductoDetalles = () => {
                             }}>
                                 <h3 style={{ fontSize: '16px', marginBottom: '10px' }}>Detalles:</h3>
                                 {producto.color && (
-                                    <p><strong>Color:</strong> {producto.color}</p>
+                                    <p><strong>Color:</strong> {producto.color.replace(/_/g, ' ')}</p>
                                 )}
                                 {producto.talla && (
-                                    <p><strong>Talla:</strong> {producto.talla}</p>
+                                    <p><strong>Talla:</strong> {producto.talla.replace(/_/g, ' ')}</p>
                                 )}
                                 {producto.tamaño && (
-                                    <p><strong>Tamaño:</strong> {producto.tamaño}</p>
+                                    <p><strong>Tamaño:</strong> {producto.tamaño.replace(/_/g, ' ')}</p>
                                 )}
                             </div>
                         )}

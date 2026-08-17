@@ -85,7 +85,8 @@ export default function FormularioProductoNuevo() {
     const handleQuitarImagen = () => {
         setImagen(null);
         setImagenPreview(null);
-        document.getElementById('imagen_producto').value = '';
+        const fileInput = document.getElementById('imagen_producto');
+        if (fileInput) fileInput.value = '';
     };
     
     const handleReset = () => {
@@ -102,72 +103,85 @@ export default function FormularioProductoNuevo() {
     };
 
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    setCargando(true);
-    setMensaje({ text: '', type: '' });
+        e.preventDefault();
+        setCargando(true);
+        setMensaje({ text: '', type: '' });
 
-    if (!formData.nom_producto || !formData.precio_unitario || !formData.id_categoria ||
-        !formData.id_clasificacion || !formData.stock_actual || !formData.descripcion ||
-        formData.stock_minimo === '' || formData.stock_minimo === null) {
-        setMensaje({ 
-            text: "Faltan campos obligatorios: Nombre, Precio, Categoría, Clasificación, Stock Inicial, Descripción, o Stock Mínimo.", 
-            type: 'error' 
-        });
-        setCargando(false); 
-        return;
-    }
-
-    if (!formData.id_usuario) {
-        setMensaje({ text: "Error: No se pudo identificar al usuario de la sesión.", type: 'error' });
-        setCargando(false); 
-        return;
-    }
-
-    try { 
-        const productoData = {
-            nom_producto: formData.nom_producto,
-            precio_unitario: parseFloat(formData.precio_unitario),
-            stock_actual: parseInt(formData.stock_actual),
-            stock_minimo: parseInt(formData.stock_minimo),
-            color: formData.color || null,
-            talla: formData.talla || null,
-            tamaño: formData.tamaño || null,
-            descripcion: formData.descripcion,
-            id_categoria: parseInt(formData.id_categoria),
-            id_clasificacion: parseInt(formData.id_clasificacion),
-        };
-
-        const response = await apiPost('/productos', productoData);
-        const idNuevo = response.id_producto;
-
-        if (imagen && idNuevo) {
-            const formDataImagen = new FormData();
-            formDataImagen.append('imagen_producto', imagen);
-
-            await fetch(`http://localhost:3000/productos/${idNuevo}/imagen`, {
-                method: 'POST',
-                headers: {
-                    'x-api-key': import.meta.env.VITE_API_KEY,
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-                body: formDataImagen,
+        if (!formData.nom_producto || !formData.precio_unitario || !formData.id_categoria ||
+            !formData.id_clasificacion || !formData.stock_actual || !formData.descripcion ||
+            formData.stock_minimo === '' || formData.stock_minimo === null) {
+            setMensaje({ 
+                text: "Faltan campos obligatorios: Nombre, Precio, Categoría, Clasificación, Stock Inicial, Descripción, o Stock Mínimo.", 
+                type: 'error' 
             });
+            setCargando(false); 
+            return;
         }
 
-        setMensaje({ 
-            text: `Producto registrado exitosamente. ID: ${idNuevo}`, 
-            type: 'success' 
-        });
-        handleReset();
-        setTimeout(() => navigate('/productos'), 2000);
+        if (!formData.id_usuario) {
+            setMensaje({ text: "Error: No se pudo identificar al usuario de la sesión.", type: 'error' });
+            setCargando(false); 
+            return;
+        }
 
-    } catch (error) {  
-        const errorMessage = error.response?.data?.error || error.message || "Error al registrar el producto.";
-        setMensaje({ text: errorMessage, type: 'error' });
-    } finally {
-        setCargando(false);
-    }
-};
+        try { 
+            const productoData = {
+                nom_producto: formData.nom_producto,
+                precio_unitario: parseFloat(formData.precio_unitario),
+                stock_actual: parseInt(formData.stock_actual),
+                stock_minimo: parseInt(formData.stock_minimo),
+                color: formData.color || null,
+                talla: formData.talla || null,
+                tamaño: formData.tamaño || null,
+                tama_o: formData.tamaño || null,
+                descripcion: formData.descripcion,
+                id_categoria: parseInt(formData.id_categoria),
+                id_clasificacion: parseInt(formData.id_clasificacion),
+            };
+
+            const response = await apiPost('/productos', productoData);
+            const idNuevo = response.id_producto;
+
+            if (imagen && idNuevo) {
+                const formDataImagen = new FormData();
+                formDataImagen.append('imagen_producto', imagen);
+
+                const imagenRes = await fetch(`http://localhost:3000/productos/${idNuevo}/imagen`, {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': import.meta.env.VITE_API_KEY,
+                    },
+                    credentials: 'include',
+                    body: formDataImagen,
+                });
+
+                if (!imagenRes.ok) {
+                    const errorData = await imagenRes.json().catch(() => ({}));
+                    console.error("Error al subir imagen:", errorData);
+                    setMensaje({
+                        text: `Producto registrado (ID: ${idNuevo}), pero la imagen no se pudo subir: ${errorData.message || 'error desconocido'}.`,
+                        type: 'error',
+                    });
+                    setCargando(false);
+                    setTimeout(() => navigate('/productos'), 2500);
+                    return;
+                }
+            }
+
+            setMensaje({ 
+                text: `Producto registrado exitosamente. ID: ${idNuevo}`, 
+                type: 'success' 
+            });
+            handleReset();
+            setTimeout(() => navigate('/productos'), 2000);
+
+        } catch (error) {  
+            const errorMessage = error.response?.data?.error || error.message || "Error al registrar el producto.";
+            setMensaje({ text: errorMessage, type: 'error' });
+        } finally {
+            setCargando(false);
+        }
+    };
 
     const handleCancel = () => navigate('/productos');
     
@@ -186,10 +200,8 @@ export default function FormularioProductoNuevo() {
                 <section className="cuadro-blanco form-producto">
                     <form className="formulario" onSubmit={handleSubmit}>
 
-                        {/* ── LAYOUT DOS COLUMNAS ── */}
                         <div className="form-dos-columnas">
 
-                            {/* ── COLUMNA IZQUIERDA: campos ── */}
                             <div className="form-col-campos">
 
                                 <h2>Información General y Stock Inicial</h2>
@@ -239,7 +251,7 @@ export default function FormularioProductoNuevo() {
                                             <option value="">Seleccione Categoría</option>
                                             {categorias.map(cat => (
                                                 <option key={cat.id_categoria} value={cat.id_categoria}>
-                                                    {cat.nombre_c}
+                                                    {cat.nombre_c?.replace(/_/g, ' ')}
                                                 </option>
                                             ))}
                                         </select>
@@ -252,7 +264,7 @@ export default function FormularioProductoNuevo() {
                                             <option value="">Seleccione Clasificación</option>
                                             {clasificaciones.map(clas => (
                                                 <option key={clas.id_clasificacion} value={clas.id_clasificacion}>
-                                                    {clas.nombre_clas}
+                                                    {clas.nombre_clas?.replace(/_/g, ' ')}
                                                 </option>
                                             ))}
                                         </select>
@@ -282,11 +294,9 @@ export default function FormularioProductoNuevo() {
 
                             </div>
 
-                            {/* ── COLUMNA DERECHA: imagen ── */}
                             <div className="form-col-imagen">
                                 <h2>Imagen del Producto</h2>
 
-                                {/* Preview */}
                                 <div className="imagen-preview-box">
                                     {imagenPreview ? (
                                         <img src={imagenPreview} alt="Vista previa" className="imagen-preview-img" />
@@ -299,14 +309,12 @@ export default function FormularioProductoNuevo() {
                                     )}
                                 </div>
 
-                                {/* Nombre del archivo */}
                                 {imagen && (
                                     <p className="imagen-nombre-archivo">
                                         {imagen.name}
                                     </p>
                                 )}
 
-                                {/* Controles */}
                                 <div className="imagen-controles">
                                     <label htmlFor="imagen_producto" className="btn-elegir-imagen">
                                         Elegir archivo
@@ -332,7 +340,6 @@ export default function FormularioProductoNuevo() {
                                     )}
                                 </div>
 
-                                {/* Descripción va en la columna derecha debajo de la imagen */}
                                 <div className="campo" style={{marginTop: '20px'}}>
                                     <label htmlFor="descripcion">Descripción *</label>
                                     <textarea id="descripcion" name="descripcion"
@@ -346,7 +353,6 @@ export default function FormularioProductoNuevo() {
                             </div>
                         </div>
 
-                        {/* ── OBSERVACIONES — ancho completo ── */}
                         <div className="campo">
                             <label htmlFor="observaciones">Observaciones de Registro</label>
                             <textarea id="observaciones" name="observaciones"
@@ -356,7 +362,6 @@ export default function FormularioProductoNuevo() {
                             </textarea>
                         </div>
 
-                        {/* ── BOTONES ── */}
                         <div className="botones">
                             <button type="submit" className="btn-guardar" disabled={cargando}>
                                 <i className="fa-solid fa-plus"></i>

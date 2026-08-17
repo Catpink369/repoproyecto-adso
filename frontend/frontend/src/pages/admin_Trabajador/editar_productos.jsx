@@ -36,7 +36,14 @@ export default function EditarProducto() {
     const [cargando, setCargando] = useState(false);
     const [cargandoDatos, setCargandoDatos] = useState(true);
 
-    // Cargar datos del producto
+    const formatearRutaImagen = (ruta) => {
+        if (!ruta) return null;
+        if (ruta.startsWith('http://') || ruta.startsWith('https://')) return ruta;
+        const rutaNormalizada = ruta.replace(/\\/g, '/');
+        const rutaLimpia = rutaNormalizada.startsWith('/') ? rutaNormalizada : `/${rutaNormalizada}`;
+        return `http://localhost:3000${rutaLimpia}`;
+    };
+
     useEffect(() => {
         const cargarProducto = async () => {
             if (productoDesdeState) {
@@ -47,14 +54,14 @@ export default function EditarProducto() {
                     stock_minimo:     productoDesdeState.stock_minimo || '',
                     color:            productoDesdeState.color || '',
                     talla:            productoDesdeState.talla || '',
-                    tamaño:           productoDesdeState.tamaño || '',
+                    tamaño:           productoDesdeState.tamaño || productoDesdeState.tama_o || '',
                     descripcion:      productoDesdeState.descripcion || '',
                     id_categoria:     productoDesdeState.id_categoria || '',
                     id_clasificacion: productoDesdeState.id_clasificacion || '',
                     ruta_imagen:      productoDesdeState.ruta_imagen || ''
                 });
                 if (productoDesdeState.ruta_imagen) {
-                    setImagenPreview(`http://localhost:3000${productoDesdeState.ruta_imagen}`);
+                    setImagenPreview(formatearRutaImagen(productoDesdeState.ruta_imagen));
                 }
                 setCargandoDatos(false);
                 return;
@@ -70,14 +77,14 @@ export default function EditarProducto() {
                         stock_minimo:     producto.stock_minimo || '',
                         color:            producto.color || '',
                         talla:            producto.talla || '',
-                        tamaño:           producto.tamaño || '',
+                        tamaño:           producto.tamaño || producto.tama_o || '',
                         descripcion:      producto.descripcion || '',
                         id_categoria:     producto.id_categoria || '',
                         id_clasificacion: producto.id_clasificacion || '',
                         ruta_imagen:      producto.ruta_imagen || ''
                     });
                     if (producto.ruta_imagen) {
-                        setImagenPreview(`http://localhost:3000${producto.ruta_imagen}`);
+                        setImagenPreview(formatearRutaImagen(producto.ruta_imagen));
                     }
                 } catch (error) {
                     console.error("Error al cargar producto:", error);
@@ -89,7 +96,6 @@ export default function EditarProducto() {
         cargarProducto();
     }, [id, productoDesdeState]);
 
-    // Cargar categorías y clasificaciones
     useEffect(() => {
         const fetchExternalData = async () => {
             try {
@@ -135,7 +141,6 @@ export default function EditarProducto() {
         const productoId = id || productoDesdeState?.id_producto;
 
         try {
-            // Actualizar datos del producto
             const productoData = {
                 nom_producto:     formData.nom_producto,
                 precio_unitario:  parseFloat(formData.precio_unitario),
@@ -143,6 +148,7 @@ export default function EditarProducto() {
                 color:            formData.color || null,
                 talla:            formData.talla || null,
                 tamaño:           formData.tamaño || null,
+                tama_o:           formData.tamaño || null,
                 descripcion:      formData.descripcion,
                 id_categoria:     parseInt(formData.id_categoria),
                 id_clasificacion: parseInt(formData.id_clasificacion),
@@ -150,7 +156,6 @@ export default function EditarProducto() {
 
             await apiPatch(`/productos/${productoId}`, productoData);
 
-            // Actualizar imagen si se seleccionó una nueva
             if (imagenNueva) {
                 const formDataImagen = new FormData();
                 formDataImagen.append('imagen_producto', imagenNueva);
@@ -255,7 +260,7 @@ export default function EditarProducto() {
                                     <option value="">Seleccione Categoría</option>
                                     {categorias.map(cat => (
                                         <option key={cat.id_categoria} value={cat.id_categoria}>
-                                            {cat.nombre_c}
+                                            {cat.nombre_c?.replace(/_/g, ' ')}
                                         </option>
                                     ))}
                                 </select>
@@ -267,7 +272,7 @@ export default function EditarProducto() {
                                     <option value="">Seleccione Clasificación</option>
                                     {clasificaciones.map(clas => (
                                         <option key={clas.id_clasificacion} value={clas.id_clasificacion}>
-                                            {clas.nombre_clas}
+                                            {clas.nombre_clas?.replace(/_/g, ' ')}
                                         </option>
                                     ))}
                                 </select>

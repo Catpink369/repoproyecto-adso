@@ -8,6 +8,15 @@ export class ProductosService {
   constructor(private prisma: PrismaService) {}
 
   // --------------------------------------------------------
+  // MÉTODO AUXILIAR PARA OBTENER TAMAÑO (Evita fallos por Unicode / 'ñ')
+  // --------------------------------------------------------
+  private _obtenerTamaño(dto: any): string | null {
+    if (!dto) return null;
+    const key = Object.keys(dto).find((k) => k.startsWith('tama'));
+    return key && dto[key] !== undefined && dto[key] !== null ? dto[key] : null;
+  }
+
+  // --------------------------------------------------------
   // OBTENER TODOS LOS PRODUCTOS ACTIVOS
   // --------------------------------------------------------
   async findAll(query: any) {
@@ -19,10 +28,6 @@ export class ProductosService {
       },
     });
 
-    // Prisma anida la relación (producto.categoria.nombre_c,
-    // producto.clasificacion.nombre_clas). El front (Flutter) espera
-    // estos campos aplanados en la raíz del producto, así que los
-    // exponemos ahí sin perder el objeto anidado original.
     return productos.map((p) => this._aplanarProducto(p));
   }
 
@@ -50,6 +55,7 @@ export class ProductosService {
       ...p,
       nombre_c: p.categoria?.nombre_c ?? null,
       nombre_clas: p.clasificacion?.nombre_clas ?? null,
+      tamaño: p.tama_o ?? null, // Expone 'tamaño' estándar para React
     };
   }
 
@@ -58,6 +64,9 @@ export class ProductosService {
   // --------------------------------------------------------
   async create(dto: CreateProductoDto) {
     console.log('service - crear producto:', JSON.stringify(dto));
+
+    const valorTamaño = this._obtenerTamaño(dto);
+
     return this.prisma.producto.create({
       data: {
         nom_producto: dto.nom_producto,
@@ -67,7 +76,7 @@ export class ProductosService {
         ultima_actualiz: new Date(),
         color: dto.color ?? null,
         talla: dto.talla ?? null,
-        tama_o: dto.tamaño ?? null,
+        tama_o: valorTamaño,
         descripcion: dto.descripcion,
         id_categoria: dto.id_categoria,
         id_clasificacion: dto.id_clasificacion ?? 1,
@@ -86,8 +95,6 @@ export class ProductosService {
     // Verifica que el producto existe, lanza 404 si no
     await this.findOne(id);
 
-    // ✅ Construimos el objeto de datos de forma explícita
-    // para evitar mandar campos undefined o campos que no existen en Prisma
     const data: any = {};
 
     if (dto.nom_producto !== undefined)     data.nom_producto = dto.nom_producto;
@@ -101,8 +108,10 @@ export class ProductosService {
     if (dto.ruta_imagen !== undefined)      data.ruta_imagen = dto.ruta_imagen;
     if (dto.estado !== undefined)           data.estado = dto.estado;
 
-    // ✅ El campo en la BD se llama tama_o, no tamaño
-    if (dto.tamaño !== undefined)           data.tama_o = dto.tamaño;
+    const valorTamaño = this._obtenerTamaño(dto);
+    if (valorTamaño !== null && valorTamaño !== undefined) {
+      data.tama_o = valorTamaño;
+    }
 
     // Siempre actualizamos la fecha
     data.ultima_actualiz = new Date();

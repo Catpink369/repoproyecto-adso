@@ -77,7 +77,7 @@ const Cliente = () => {
     // redirige al catálogo con filtro de ofertas
     const handleVerOfertas = () => {
         setMostrarVentana(false);
-        navigate('/catalogo_c?clasificacion=En_oferta');
+        navigate('/catalogo_c?clasificacion=En%20oferta');
     };
 
     return (
@@ -231,11 +231,11 @@ const Cliente = () => {
                     <img 
                         src={products.length > 0 && products[0].ruta_imagen 
                             ? getImageUrl(products[0].ruta_imagen) 
-                            : 'https://placehold.co/400x300?text=Gurama+Online/400x300?text=Gurama+Online'
+                            : 'https://placehold.co/400x300?text=Gurama+Online/400x400?text=Gurama+Online'
                         } 
                         alt="Amigurumi en promoción"
                         onError={(e) => {
-                            e.target.src = 'https://placehold.co/400x300?text=Gurama+Online/400x300?text=Gurama+Online';
+                            e.target.src = 'https://placehold.co/400x300?text=Gurama+Online/400x400?text=Gurama+Online';
                         }}
                     />
 

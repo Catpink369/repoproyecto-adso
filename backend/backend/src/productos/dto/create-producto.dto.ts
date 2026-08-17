@@ -1,6 +1,5 @@
 import { IsNotEmpty, IsString, IsOptional, IsNumber, IsBoolean, MaxLength, Min } from 'class-validator';
-import { Type } from 'class-transformer';
-
+import { Type, Transform } from 'class-transformer';
 export class CreateProductoDto {
 
     @IsString()
@@ -36,10 +35,13 @@ export class CreateProductoDto {
     @MaxLength(60, { message: 'La talla no puede tener más de 60 caracteres' })
     talla?: string;
 
-    @IsString()
     @IsOptional()
-    @MaxLength(60, { message: 'El tamaño no puede tener más de 60 caracteres' })
+    @IsString()
     tamaño?: string;
+
+    @IsOptional()
+    @IsString()
+    tama_o?: string;
 
     @IsString()
     @IsNotEmpty({ message: 'La descripción es obligatoria' })

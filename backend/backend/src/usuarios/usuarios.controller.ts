@@ -2,6 +2,8 @@ import { Controller, Get, Post, Query, Body, Patch, Param, Delete, UseIntercepto
 import { UsuariosService } from './usuarios.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { Roles } from '../auth/enums/roles.enum';
 import { ApiBearerAuth, ApiSecurity, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -123,13 +125,31 @@ export class UsuariosController {
     return usuario;
   }
 
-  // ── 6. PATCH :id → actualizar usuario
+ // ── 6. PATCH :id → actualizar usuario
   @Patch(':id')
   @ApiOperation({ summary: 'Actualizar usuario' })
   @ApiResponse({ status: 200, description: 'Usuario actualizado correctamente.' })
+  @ApiResponse({ status: 403, description: 'Sin permisos para esta operación.' })
   @ApiResponse({ status: 404, description: 'Usuario no encontrado.' })
-  async update(@Param('id') id: string, @Body() updateUsuarioDto: UpdateUsuarioDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateUsuarioDto: UpdateUsuarioDto,
+    @GetUser() user: any,
+  ) {
     console.log('controller - actualizar usuario:', { id, updateUsuarioDto });
+
+    const esAdmin = user.id_rol_usuario === Roles.ADMIN;
+
+    // Un usuario no-admin solo puede editar su propio perfil
+    if (!esAdmin && user.id_usuario !== id) {
+      throw new ForbiddenException('No tienes permisos para editar este usuario');
+    }
+
+    // Solo un admin puede cambiar el rol de un usuario
+    if (!esAdmin && updateUsuarioDto.id_rol_usuario !== undefined) {
+      throw new ForbiddenException('No tienes permisos para cambiar el rol de un usuario');
+    }
+
     try {
       const usuario = await this.usuariosService.update(id, updateUsuarioDto);
       if (!usuario) throw new NotFoundException(`Usuario con id ${id} no encontrado`);

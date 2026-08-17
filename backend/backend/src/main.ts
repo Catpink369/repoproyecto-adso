@@ -7,7 +7,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import cookieParser from 'cookie-parser';
 
-// para que BigInt se pueda serializar a JSON 
+// Para que BigInt se pueda serializar a JSON
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
 };
@@ -15,12 +15,13 @@ import cookieParser from 'cookie-parser';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.use(cookieParser());
-  // archivos estáticos desde la carpeta "uploads"
-  app.useStaticAssets('C:/Users/angie/backend/uploads', {
-    prefix: '/uploads/', // Accede a las imágenes con /uploads/filename.jpg
+
+  // Archivos estáticos desde la carpeta "uploads"
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads',
   });
 
-  // solicitudes CORS 
+  // Solicitudes CORS
   app.enableCors({
     origin: 'http://localhost:5173', // puerto de Vite/React
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
@@ -34,27 +35,30 @@ async function bootstrap() {
     .setVersion('1.0')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-      'JWT' 
+      'JWT',
     )
-    .addApiKey(         
+    .addApiKey(
       { type: 'apiKey', in: 'header', name: 'x-api-key' },
-      'x-api-key'
+      'x-api-key',
     )
     .build();
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
-    explorer: true, // Habilita el explorador de rutas
+    explorer: true,
     swaggerOptions: {
-      persistAuthorization: true, // Mantiene el token JWT en Swagger UI
-      filter: true, // Habilita el filtrado de rutas
-      showRequestDuration: true, // Muestra la duración de las solicitudes
+      persistAuthorization: true,
+      filter: true,
+      showRequestDuration: true,
     },
   });
 
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true, // Transforma los datos entrantes a los tipos definidos en los DTOs
-    whitelist: false, // Elimina propiedades no definidas en los DTOs
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true, 
+      whitelist: true,
+    }),
+  );
 
   await app.listen(3000);
 }

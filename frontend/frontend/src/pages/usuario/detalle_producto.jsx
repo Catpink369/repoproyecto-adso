@@ -5,7 +5,6 @@ import Footer from '../../components/Footer.jsx';
 import "../../components/css/styles.css";  
 
 import { useCart } from '../../context/logica_carrito.jsx';
-
 import { apiGet } from '../../context/api.js'; 
 
 const ProductoDetalle = () => {
@@ -74,7 +73,7 @@ const ProductoDetalle = () => {
             if (clasificacion.includes('vendido') || clasificacion === 'mas vendidos') {
                 return 'Más Vendido';
             }
-            if (clasificacion === 'ultimas unidades') {
+            if (clasificacion === 'ultimas unidades' || clasificacion === 'últimas unidades') {
                 return 'Últimas Unidades';
             }
             if (clasificacion === 'destacado' || clasificacion === 'destacados') {
@@ -84,8 +83,8 @@ const ProductoDetalle = () => {
                 return 'Edición Limitada';
             }
             
-            // Clasificación personalizada
-            return producto.nombre_clas;
+            // Clasificación personalizada: reemplaza guiones bajos por espacios
+            return producto.nombre_clas.replace(/_/g, ' ');
         }
         
         // Si es "Sin clasificar", no mostrar badge
@@ -115,7 +114,7 @@ const ProductoDetalle = () => {
         return item ? item.cantidad : 0;
     };
 
-    // Función mejorada para agregar al carrito
+    // Función para agregar al carrito
     const handleAddToCartClick = () => {
         if (!producto || producto.stock_actual <= 0) {
             alert('Este producto no tiene stock disponible');
@@ -129,7 +128,7 @@ const ProductoDetalle = () => {
             return;
         }
 
-        // Adaptar formato para el carrito (igual que en Catalogo_c)
+        // Adaptar formato para el carrito
         const productoParaCarrito = {
             id_producto: producto.id_producto,
             nom_producto: producto.nom_producto,
@@ -251,7 +250,7 @@ const ProductoDetalle = () => {
                             marginBottom: '15px',
                             fontSize: '16px'
                         }}>
-                            <strong>Categoría:</strong> {producto.nombre_c || 'Sin categoría'}
+                            <strong>Categoría:</strong> {producto.nombre_c ? producto.nombre_c.replace(/_/g, ' ') : 'Sin categoría'}
                         </p>
 
                         {/* Descripción */}
@@ -272,13 +271,13 @@ const ProductoDetalle = () => {
                             }}>
                                 <h3 style={{ fontSize: '16px', marginBottom: '10px' }}>Detalles:</h3>
                                 {producto.color && (
-                                    <p><strong>Color:</strong> {producto.color}</p>
+                                    <p><strong>Color:</strong> {producto.color.replace(/_/g, ' ')}</p>
                                 )}
                                 {producto.talla && (
-                                    <p><strong>Talla:</strong> {producto.talla}</p>
+                                    <p><strong>Talla:</strong> {producto.talla.replace(/_/g, ' ')}</p>
                                 )}
                                 {producto.tamaño && (
-                                    <p><strong>Tamaño:</strong> {producto.tamaño}</p>
+                                    <p><strong>Tamaño:</strong> {producto.tamaño.replace(/_/g, ' ')}</p>
                                 )}
                             </div>
                         )}

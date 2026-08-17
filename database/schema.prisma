@@ -71,6 +71,7 @@ model material {
   material_color               material_color[]
   material_diseno               material_diseno[]
   movimientos                   movimiento[]
+  movimiento_material           movimiento_material[]
   detalle_pedido_personalizado  detalle_pedido_personalizado[]
 }
 
@@ -126,6 +127,27 @@ model movimiento {
   @@index([id_usuario], map: "fk_movimiento_usuario")
 }
 
+model movimiento_material {
+  id_movimiento_material Int                  @id @default(autoincrement())
+  cantidad_m              Decimal              @db.Decimal(10, 2)
+  fecha_m                 DateTime             @default(now()) @db.DateTime(0)
+  observaciones           String?              @db.VarChar(80)
+  id_m                    tipo_movimiento_id_m
+  id_material             Int
+  id_usuario              String               @db.VarChar(15)
+  id_ped_personal         Int?
+
+  tipo_movimiento      tipo_movimiento       @relation(fields: [id_m], references: [id_m])
+  material              material              @relation(fields: [id_material], references: [id_material])
+  usuario                usuario               @relation(fields: [id_usuario], references: [id_usuario])
+  pedido_personalizado  pedido_personalizado? @relation(fields: [id_ped_personal], references: [id_ped_personal])
+
+  @@index([id_material], map: "fk_movmat_material")
+  @@index([id_m], map: "fk_movmat_tipo")
+  @@index([id_usuario], map: "fk_movmat_usuario")
+  @@index([id_ped_personal], map: "fk_movmat_pedido")
+}
+
 model notificacion {
   id_notificacion Int      @id @default(autoincrement())
   id_usuario      String   @db.VarChar(15)
@@ -166,6 +188,7 @@ model pedido_personalizado {
 
   pedido   pedido                          @relation(fields: [id_pedido], references: [id_pedido])
   detalles detalle_pedido_personalizado[]
+  movimiento_material movimiento_material[]
 
   @@index([id_pedido], map: "fk_personalizado_pedido")
 }
@@ -234,6 +257,7 @@ model tipo_movimiento {
   nom_movimiento tipo_movimiento_nom_movimiento
 
   movimientos movimiento[]
+  movimiento_material movimiento_material[]
 }
 
 model tipo_pedido {
@@ -268,6 +292,7 @@ model usuario {
   tipo_documento tipo_documento @relation(fields: [t_doc], references: [t_doc])
   pedidos        pedido[]
   movimientos    movimiento[]
+  movimiento_material movimiento_material[]
   notificaciones  notificacion[]
 
   @@index([id_rol_usuario], map: "id_rol_usuario")

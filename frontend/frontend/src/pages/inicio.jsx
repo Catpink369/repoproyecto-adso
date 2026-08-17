@@ -79,11 +79,12 @@ function Inicio() {
             if (clasificacion.includes('vendido') || clasificacion === 'mas vendidos') {
                 return { texto: 'Más Vendido', color: '#0b87ecff', mostrar: true };
             }
-            if (clasificacion === 'ultimas unidades') {
+            if (clasificacion === 'ultimas unidades' || clasificacion === 'últimas unidades') {
                 return { texto: 'Últimas Unidades', color: '#eb54bdff', mostrar: true };
             }
             
-            return { texto: producto.nombre_clas, color: '#bbbbbbff', mostrar: true };
+            // Si es una clasificación personalizada, reemplaza guiones bajos por espacios
+            return { texto: producto.nombre_clas.replace(/_/g, ' '), color: '#bbbbbbff', mostrar: true };
         }
 
         return { mostrar: false };
@@ -92,7 +93,7 @@ function Inicio() {
     // Manejar clic en "Ver ofertas" - aplica filtro de ofertas y cierra ventana
     const handleVerOfertas = () => {
         setMostrarVentana(false);
-        setClas_seleccionada('En_oferta');
+        setClas_seleccionada('En oferta');
         setTimeout(() => {
             const catalogo = document.querySelector('.contenido-inicio');
             if (catalogo) {
@@ -115,15 +116,15 @@ function Inicio() {
                 const productos = Array.isArray(response) ? response : response.data || [];
                 setProducts(productos);
                 
-                // Extraer categorías únicas
-                const categoriasUnicas = ['Todo', ...new Set(productos.map(p => p.nombre_c))];
+                // Extraer categorías únicas (reemplazando _ por espacio si existen)
+                const categoriasUnicas = ['Todo', ...new Set(productos.map(p => p.nombre_c?.replace(/_/g, ' ')).filter(Boolean))];
                 setCategorias(categoriasUnicas);
                 
-                // Extraer clasificaciones únicas (excluyendo "Sin clasificar")
+                // Extraer clasificaciones únicas (excluyendo "Sin clasificar" y reemplazando _ por espacio)
                 const clasificacionesUnicas = ['Todas', 'Últimas Unidades', ...new Set(
                     productos
                         .filter(p => p.nombre_clas && p.nombre_clas.toLowerCase() !== 'sin clasificar')
-                        .map(p => p.nombre_clas)
+                        .map(p => p.nombre_clas.replace(/_/g, ' '))
                 )];
                 setClasificaciones(clasificacionesUnicas);
                 
@@ -142,9 +143,14 @@ function Inicio() {
     // Aplicar filtros (Categoría, Clasificación y Búsqueda)
     useEffect(() => {
         const productos_filtrados = products.filter((product) => {
+            // Nombre formateado de categoría y clasificación del producto actual
+            const catProdFormatted = product.nombre_c ? product.nombre_c.replace(/_/g, ' ') : '';
+            const clasProdFormatted = product.nombre_clas ? product.nombre_clas.replace(/_/g, ' ') : '';
+
             // Condición de Categoría
             const conincide_cate = 
                 cat_seleccionada === 'Todo' || 
+                catProdFormatted === cat_seleccionada ||
                 product.nombre_c === cat_seleccionada;
 
             // Condición de Clasificación
@@ -154,7 +160,7 @@ function Inicio() {
                     coincide_clas = isStockBajo(product);
                 } else {
                     // Comparación flexible para clasificaciones
-                    const clasProducto = product.nombre_clas ? product.nombre_clas.toLowerCase() : '';
+                    const clasProducto = clasProdFormatted.toLowerCase();
                     const clasBuscada = clas_seleccionada.toLowerCase();
                     
                     if (clasBuscada === 'nuevo' || clasBuscada === 'nuevos') {
@@ -317,7 +323,7 @@ function Inicio() {
                                             fontSize: '14px',
                                             marginBottom: '8px'
                                         }}>
-                                            {product.nombre_c}
+                                            {product.nombre_c ? product.nombre_c.replace(/_/g, ' ') : ''}
                                         </p>
                                         
                                         <p className="precio">${parseFloat(product.precio_unitario).toLocaleString('es-CO')}</p>

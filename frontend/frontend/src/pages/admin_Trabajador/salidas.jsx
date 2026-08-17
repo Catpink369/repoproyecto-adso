@@ -106,11 +106,11 @@ export default function FormularioSalidaProducto() {
         setCargando(true);
         setMensaje({ text: '', type: '' });
 
-        const observacionesCompletas = `VENTA MANUAL - Cliente: ${formData.nombre_cliente} | Tel: ${formData.telefono_cliente} | Total: $${calcularTotal().toLocaleString('es-CO')} | Pago: ${formData.metodo_pago}${formData.observaciones ? ` | Notas: ${formData.observaciones}` : ''}`;
+        const observacionesFinales = formData.observaciones.trim() || 'Venta manual';
 
         const dataToSend = {
             Cantidad_m: parseInt(formData.cantidad),
-            observaciones: observacionesCompletas,
+            observaciones: observacionesFinales,
             id_m: 'M_S',
             id_producto: parseInt(formData.id_producto),
             id_usuario: userId || 'Adm-01',

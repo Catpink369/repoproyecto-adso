@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 
-//estilos
+// Estilos
 import "../../components/css/styles.css"; 
-// header y footer
+// Header y Footer
 import Header from '../../components/Header_c.jsx'; 
 import Footer from '../../components/Footer.jsx';
 // Importar el hook del carrito
@@ -15,7 +15,8 @@ const Catalogo_c = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const initialSearchTerm = searchParams.get('search') || '';
-    const initialClasificacion = searchParams.get('clasificacion') || 'Todas';
+    // Reemplaza '_' por espacio al inicializar
+    const initialClasificacion = searchParams.get('clasificacion')?.replace(/_/g, ' ') || 'Todas';
     
     // Hook del carrito
     const { addToCart, cartItems, getTotalItems } = useCart();
@@ -31,7 +32,7 @@ const Catalogo_c = () => {
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState(null);
 
-    //Cargar productos desde la API
+    // Cargar productos desde la API
     const fetchProductos = async () => {
         try {
             setCargando(true);
@@ -69,15 +70,15 @@ const Catalogo_c = () => {
         fetchProductos();
     }, []);
 
-    //Aplicar filtro de clasificación desde URL cuando cambian los searchParams
+    // Aplicar filtro de clasificación desde URL cuando cambian los searchParams
     useEffect(() => {
         const clasificacionURL = searchParams.get('clasificacion');
         if (clasificacionURL) {
-            setClas_seleccionada(clasificacionURL);
+            setClas_seleccionada(clasificacionURL.replace(/_/g, ' '));
         }
     }, [searchParams]);
 
-    //Recargar cuando se vuelve a la página
+    // Recargar cuando se vuelve a la página
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (!document.hidden) {
@@ -157,7 +158,7 @@ const Catalogo_c = () => {
         setTimeout(() => toast.remove(), 3000);
     };
 
-    //useEffect para aplicar los filtros
+    // useEffect para aplicar los filtros
     useEffect(() => {
         const productos_filtrados = products.filter((product) => {
             const conincide_cate = 
@@ -232,11 +233,11 @@ const Catalogo_c = () => {
             if (clasificacion.includes('vendido') || clasificacion === 'mas vendidos') {
                 return { texto: 'Más Vendido', color: '#0b87ecff', mostrar: true };
             }
-            if (clasificacion === 'ultimas unidades') {
+            if (clasificacion === 'ultimas unidades' || clasificacion === 'últimas unidades') {
                 return { texto: 'Últimas Unidades', color: '#eb54bdff', mostrar: true };
             }
             
-            return { texto: producto.nombre_clas, color: '#bbbbbbff', mostrar: true };
+            return { texto: producto.nombre_clas.replace(/_/g, ' '), color: '#bbbbbbff', mostrar: true };
         }
 
         return { mostrar: false };
@@ -286,7 +287,7 @@ const Catalogo_c = () => {
 
         <main>
             <section className="contenido-inicio">
-                {/* NUEVO HEADER CON TÍTULO CENTRADO Y BOTÓN A LA DERECHA */}
+                {/* HEADER CON TÍTULO CENTRADO Y BOTÓN A LA DERECHA */}
                 <div className="catalogo-header-wrapper">
                     <div className="catalogo-titulo-carrito-container">
                         <div className="catalogo-titulo-centro">
@@ -309,7 +310,7 @@ const Catalogo_c = () => {
                             </button>
                         </div>
                     </div>
-                </div>             
+                </div>            
 
                 <section className="buscador">
                     <input 
@@ -344,7 +345,7 @@ const Catalogo_c = () => {
                             onClick={() => handleClasificacionFilter(clasificacion)}
                             className={clas_seleccionada === clasificacion ? 'active' : ''}
                         >
-                            {clasificacion}
+                            {clasificacion.replace(/_/g, ' ')}
                         </button>
                     ))}
                 </div>

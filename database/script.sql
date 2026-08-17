@@ -15,6 +15,7 @@ USE `guramaonline`;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS `notificacion`;
+DROP TABLE IF EXISTS `movimiento_material`;
 DROP TABLE IF EXISTS `detalle_pedido_personalizado`;
 DROP TABLE IF EXISTS `pedido_personalizado`;
 DROP TABLE IF EXISTS `material_diseno`;
@@ -280,6 +281,30 @@ CREATE TABLE `detalle_pedido_personalizado` (
   CONSTRAINT `fk_det_pers_material` FOREIGN KEY (`id_material`) REFERENCES `material` (`id_material`) ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Historial de entradas/salidas de MATERIAL (independiente de `movimiento`,
+-- que es solo de productos y tiene id_producto NOT NULL).
+--   - Entradas: se registran a mano (restock de materiales).
+--   - Salidas: NO se registran a mano — el propio backend inserta una fila
+--     M-S automáticamente cada vez que se crea un pedido personalizado
+--     que consume el material (por eso existe id_ped_personal: para poder
+--     saber "esta salida fue por causa de qué pedido").
+CREATE TABLE `movimiento_material` (
+  `id_movimiento_material` INT NOT NULL AUTO_INCREMENT,
+  `cantidad_m` DECIMAL(10, 2) NOT NULL,
+  `fecha_m` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `observaciones` VARCHAR(80) DEFAULT NULL,
+  `id_m` ENUM('M-E', 'M-S') NOT NULL,
+  `id_material` INT NOT NULL,
+  `id_usuario` VARCHAR(15) NOT NULL,
+  `id_ped_personal` INT DEFAULT NULL COMMENT 'Solo se llena en salidas automáticas generadas por un pedido personalizado',
+  PRIMARY KEY (`id_movimiento_material`),
+  CONSTRAINT `chk_movmat_cantidad` CHECK (`cantidad_m` > 0),
+  CONSTRAINT `fk_movmat_tipo` FOREIGN KEY (`id_m`) REFERENCES `tipo_movimiento` (`id_m`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT `fk_movmat_material` FOREIGN KEY (`id_material`) REFERENCES `material` (`id_material`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT `fk_movmat_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT `fk_movmat_pedido` FOREIGN KEY (`id_ped_personal`) REFERENCES `pedido_personalizado` (`id_ped_personal`) ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE `notificacion` (
   `id_notificacion` INT NOT NULL AUTO_INCREMENT,
   `id_usuario` VARCHAR(15) NOT NULL,
@@ -306,22 +331,6 @@ INSERT INTO `tipo_documento` (`t_doc`, `desc_doc`) VALUES
 ('CC', 'Cédula de ciudadanía'),
 ('CE', 'Cédula de extranjería'),
 ('TI', 'Tarjeta de identidad');
-
--- ── ÚNICA excepción de dato quemado en todo el script ──────────────────
--- Necesario para poder iniciar sesión la primera vez que se levanta el
--- sistema. Bórralo después de crear un administrador real desde la app
--- (DELETE FROM usuario WHERE id_usuario = 'Adm-01';).
-INSERT INTO `usuario` (
-  `id_usuario`, `nom_1`, `nom_2`, `ape_1`, `ape_2`, `correo`, `telefono`, 
-  `contrasena`, `codigo`, `id_rol_usuario`, `t_doc`, `img_perfil`, `codigo_visible`, `fcm_token`
-) VALUES (
-  'Adm-01', 'Valentina', NULL, 'Ruiz', 'Castro', 'valruiz@gmail.com', 3123456789,
-  '$2b$10$ZpyBdvjxoxOFc9H1WE.9v.sSNaEvHqRH1ThGiMvDAYy/StkwtxK6a',
-  '$2b$10$jQpj1gMJypBF/d2zQEGz20dfRT1vBzhMUj2nrkHxV./I/tNMqymke',
-  '1', 'CC', '/uploads/perfiles/Adm-01-1782018735677.jpg', '12345',
-  NULL  -- el token FCM real se genera solo cuando el admin inicia sesión desde la app;
-        -- no hace falta (ni conviene) quemarlo aquí.
-);
 
 INSERT INTO `categoria` (`id_categoria`, `nombre_c`, `descripcion`) VALUES
 (1, 'Sabanas', 'Sabanas con encaje en todos los tamaños'),
