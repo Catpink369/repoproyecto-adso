@@ -2,10 +2,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
 import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { UsuariosService } from '../../src/usuarios/usuarios.service';
-import { UsuariosController } from '../../src/usuarios/usuarios.controller';
-import { PrismaService } from '../../src/prisma/prisma.service';
-import { TaskService } from '../../src/task/task.service';
+import { UsuariosService } from '../../../src/usuarios/usuarios.service';
+import { UsuariosController } from '../../../src/usuarios/usuarios.controller';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { TaskService } from '../../../src/task/task.service';
 import * as bcrypt from 'bcrypt';
 
 describe('RF-001 - Gestión de Usuarios', () => {

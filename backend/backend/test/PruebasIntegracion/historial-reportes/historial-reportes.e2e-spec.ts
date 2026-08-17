@@ -1,10 +1,10 @@
-// RF-009.1 a RF-009.3 
+// RF-009.1 a RF-009.3 | El historial del cliente se maneja por medio de notificaciones y correos
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
-import { AppModule } from '../../src/app.module';
-import { loginConCodigo, loginComoCliente } from '../utils/auth-helper';
+import { AppModule } from '../../../src/app.module';
+import { loginConCodigo, loginComoCliente } from '../../utils/auth-helper';
 
 describe('RF-009 — Historial y Reportes (integración)', () => {
   let app: INestApplication;

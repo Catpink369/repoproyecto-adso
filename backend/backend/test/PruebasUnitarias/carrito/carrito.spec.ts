@@ -1,15 +1,15 @@
 //RF-006.1 / RF-006.2 / RF-006.3 / RF-006.4 / RF-006.5
-import { CarritoFake, CarritoFakeError } from '../utils/faker-factories';
-import { fakeProducto } from '../utils/mock-factories';
+import { CarritoFake, CarritoFakeError } from '../../utils/faker-factories';
+import { fakeProducto } from '../../utils/mock-factories';
 
-describe('RF-006 - Gestion de Carrito', () => {
+describe('RF-006 - Gestión de Carrito', () => {
   let carrito: CarritoFake;
 
   beforeEach(() => {
     carrito = new CarritoFake();
   });
 
-  function productoParaCarrito(overrides: Partial<any> = {}) { 
+  function productoParaCarrito(overrides: Partial<any> = {}) {
     const p = fakeProducto(overrides);
     return {
       id_producto: p.id_producto,
@@ -19,12 +19,10 @@ describe('RF-006 - Gestion de Carrito', () => {
     };
   }
 
-  // RF-006.1 
+  // RF-006.1 - Agregar producto al carrito
   describe('RF-006.1 - Agregar producto al carrito', () => {
-    
     it('CP-001: debe agregar un producto estándar al carrito y el contador debe incrementarse', () => {
       const producto = productoParaCarrito({ stock_actual: 10 });
-
       carrito.agregarProducto(producto, 1);
 
       expect(carrito.getItems()).toHaveLength(1);
@@ -40,7 +38,6 @@ describe('RF-006 - Gestion de Carrito', () => {
 
     it('debe acumular la cantidad si el producto ya estaba en el carrito', () => {
       const producto = productoParaCarrito({ stock_actual: 10 });
-
       carrito.agregarProducto(producto, 2);
       carrito.agregarProducto(producto, 3);
 
@@ -55,7 +52,7 @@ describe('RF-006 - Gestion de Carrito', () => {
     });
   });
 
-  // RF-006.2 
+  // RF-006.2 - Visualizar carrito de compra
   describe('RF-006.2 - Visualizar carrito de compra', () => {
     it('CP-003: debe calcular correctamente la sumatoria del precio total de todos los productos', () => {
       carrito.agregarProducto(
@@ -67,7 +64,6 @@ describe('RF-006 - Gestion de Carrito', () => {
         3,
       );
 
-      // 2*10000 + 3*5000 = 20000 + 15000 = 35000
       expect(carrito.calcularTotal()).toBe(35000);
     });
 
@@ -77,7 +73,7 @@ describe('RF-006 - Gestion de Carrito', () => {
     });
   });
 
-  // RF-006.3 
+  // RF-006.3 - Modificar cantidad del carrito
   describe('RF-006.3 - Modificar cantidad del carrito', () => {
     it('CP-005: debe impedir que la cantidad se establezca en menos de 1 unidad', () => {
       const producto = productoParaCarrito({ id_producto: 1, stock_actual: 10 });
@@ -98,7 +94,6 @@ describe('RF-006 - Gestion de Carrito', () => {
       carrito.agregarProducto(producto, 2);
 
       const item = carrito.modificarCantidad(1, 4);
-
       expect(item.cantidad).toBe(4);
     });
 
@@ -107,12 +102,11 @@ describe('RF-006 - Gestion de Carrito', () => {
       carrito.agregarProducto(producto, 4);
 
       const item = carrito.modificarCantidad(1, 2);
-
       expect(item.cantidad).toBe(2);
     });
   });
 
-  // RF-006.4 
+  // RF-006.4 - Quitar producto del carrito
   describe('RF-006.4 - Quitar producto del carrito', () => {
     it('CP-009: debe eliminar el producto específico indicado del carrito', () => {
       carrito.agregarProducto(productoParaCarrito({ id_producto: 1, stock_actual: 10 }), 1);
@@ -124,38 +118,33 @@ describe('RF-006 - Gestion de Carrito', () => {
       expect(carrito.getItems().map((i) => i.id_producto)).toEqual([2]);
     });
 
-    it('CP-010: al cancelar la eliminación (no invocar el método), el producto debe permanecer en el carrito', () => {
+    it('CP-010: al cancelar la eliminación, el producto debe permanecer en el carrito', () => {
       carrito.agregarProducto(productoParaCarrito({ id_producto: 1, stock_actual: 10 }), 1);
-
       const itemsAntes = carrito.getItems();
 
       expect(carrito.getItems()).toEqual(itemsAntes);
     });
   });
 
-  // RF-006.5 
+  // RF-006.5 - Vaciar carrito
   describe('RF-006.5 - Vaciar carrito', () => {
     it('CP-011: debe vaciar el carrito cuando contiene productos', () => {
       carrito.agregarProducto(productoParaCarrito({ id_producto: 1, stock_actual: 10 }), 2);
       carrito.agregarProducto(productoParaCarrito({ id_producto: 2, stock_actual: 10 }), 1);
 
       carrito.vaciar();
-
       expect(carrito.estaVacio()).toBe(true);
     });
 
-    it('CP-012: al cancelar el vaciado (no invocar el método), el carrito debe mantener sus productos', () => {
+    it('CP-012: al cancelar el vaciado, el carrito debe mantener sus productos', () => {
       carrito.agregarProducto(productoParaCarrito({ id_producto: 1, stock_actual: 10 }), 2);
-
       const itemsAntes = carrito.getItems();
-      // Si el Usuario cancela accion, no se vacia
 
       expect(carrito.getItems()).toEqual(itemsAntes);
     });
 
     it('CP-013: debe rechazar el intento de vaciar un carrito que ya está vacío', () => {
       expect(carrito.estaVacio()).toBe(true);
-
       expect(() => carrito.vaciar()).toThrow(CarritoFakeError);
     });
   });

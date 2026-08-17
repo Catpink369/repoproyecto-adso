@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 17-08-2026 a las 05:43:55
+-- Tiempo de generación: 17-08-2026 a las 06:36:57
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -77,7 +77,7 @@ CREATE TABLE `detalles_pedido` (
   `cantidad` int(11) NOT NULL COMMENT 'Número de unidades de un producto dentro del pedido.',
   `id_pedido` int(4) NOT NULL COMMENT 'PK_FK Relación con el pedido al que pertenece el detalle.',
   `id_producto` int(3) NOT NULL COMMENT 'PK_FK Relación con el producto al que pertenece el detalle.'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ;
 
 -- --------------------------------------------------------
 
@@ -91,7 +91,7 @@ CREATE TABLE `detalle_pedido_personalizado` (
   `id_material` int(11) NOT NULL,
   `cantidad` decimal(10,2) NOT NULL,
   `subtotal` decimal(10,2) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ;
 
 -- --------------------------------------------------------
 
@@ -130,7 +130,7 @@ CREATE TABLE `material` (
   `stock_minimo` int(11) NOT NULL DEFAULT 5 COMMENT 'Cantidad mínima que debe haber en inventario para no generar alerta.',
   `ruta_imagen` varchar(255) DEFAULT NULL COMMENT 'Guarda la imagen del material',
   `estado` tinyint(1) DEFAULT 1 COMMENT 'eliminación lógica, en lugar de borrar el producto de la BD, se marca como estado = 0 (false)'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ;
 
 --
 -- Volcado de datos para la tabla `material`
@@ -161,7 +161,7 @@ CREATE TABLE `material_color` (
   `nombre` varchar(40) NOT NULL,
   `codigo_hex` varchar(7) DEFAULT NULL,
   `estado` tinyint(1) NOT NULL DEFAULT 1
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ;
 
 --
 -- Volcado de datos para la tabla `material_color`
@@ -266,7 +266,7 @@ CREATE TABLE `movimiento` (
   `id_producto` int(3) NOT NULL COMMENT 'PK_FK relaciona un producto con el movimiento',
   `id_usuario` varchar(15) NOT NULL COMMENT 'FK relaciona al movimieto con el usuario (admin/trabajador) que lo realiza',
   `id_material` int(11) DEFAULT NULL COMMENT 'PK_FK relaciona un material con el movimiento'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ;
 
 --
 -- Volcado de datos para la tabla `movimiento`
@@ -296,6 +296,23 @@ SET ultima_actualiz = NOW()
 WHERE id_producto = NEW.id_producto
 $$
 DELIMITER ;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `movimiento_material`
+--
+
+CREATE TABLE `movimiento_material` (
+  `id_movimiento_material` int(11) NOT NULL,
+  `cantidad_m` decimal(10,2) NOT NULL,
+  `fecha_m` datetime NOT NULL DEFAULT current_timestamp(),
+  `observaciones` varchar(80) DEFAULT NULL,
+  `id_m` enum('M-E','M-S') NOT NULL,
+  `id_material` int(11) NOT NULL,
+  `id_usuario` varchar(15) NOT NULL,
+  `id_ped_personal` int(11) DEFAULT NULL COMMENT 'Solo se llena en salidas automáticas generadas por un pedido personalizado'
+) ;
 
 -- --------------------------------------------------------
 
@@ -334,7 +351,7 @@ CREATE TABLE `pedido` (
   `estado` varchar(20) NOT NULL COMMENT 'Estado actual del pedido (ejemplo: En proceso, pendiente, entregado).',
   `id_usuario` varchar(15) NOT NULL COMMENT 'FK Usuario que realiza el pedido.',
   `id_tipo` enum('P-P','P-E') NOT NULL COMMENT 'PK_FK relacion que indica el tipo de pedido (estandar o personalizado).'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ;
 
 --
 -- Volcado de datos para la tabla `pedido`
@@ -363,7 +380,7 @@ CREATE TABLE `pedido_personalizado` (
   `tipo_producto` enum('Sabana','Cubrelecho') NOT NULL COMMENT 'Tamaño en el que se desea el pedido',
   `tamanio` varchar(30) NOT NULL COMMENT '	Precio total en baase a sus materiales',
   `precio_total` decimal(10,2) NOT NULL COMMENT 'FK Realaciona al pedido personalizadp con un pedido.'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ;
 
 --
 -- Volcado de datos para la tabla `pedido_personalizado`
@@ -401,7 +418,7 @@ CREATE TABLE `producto` (
   `id_clasificacion` int(4) NOT NULL COMMENT '	FK Identificador de la clasificación del producto, viene de la tabla clasificación',
   `ruta_imagen` varchar(255) DEFAULT NULL COMMENT 'Contiene la imagen del producto',
   `estado` tinyint(1) DEFAULT 1 COMMENT '	eliminación lógica, en lugar de borrar el producto de la BD, se marca como estado = 0 (false)'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ;
 
 --
 -- Volcado de datos para la tabla `producto`
@@ -445,7 +462,7 @@ CREATE TABLE `ticket_compra` (
   `id_pedido` int(4) NOT NULL COMMENT '	PK_FK Relaciona el pedido realizado con el ticket',
   `id_estado` enum('E-pt','E-pd','E-f','E-e') NOT NULL,
   `id_met_pago` enum('Mtd-EF','Mtd-NQ','Mtd-DP','Mtd-TJ','Mtd-PD') NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ;
 
 --
 -- Volcado de datos para la tabla `ticket_compra`
@@ -543,21 +560,23 @@ CREATE TABLE `usuario` (
   `reset_codigo` varchar(255) DEFAULT NULL,
   `reset_expira` datetime DEFAULT NULL,
   `estado` int(11) NOT NULL DEFAULT 1,
-  `fcm_token` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  `fcm_token` varchar(255) DEFAULT NULL,
+  `bloqueado_hasta` datetime(3) DEFAULT NULL,
+  `intentos_fallidos` int(11) NOT NULL DEFAULT 0
+) ;
 
 --
 -- Volcado de datos para la tabla `usuario`
 --
 
-INSERT INTO `usuario` (`id_usuario`, `nom_1`, `nom_2`, `ape_1`, `ape_2`, `correo`, `telefono`, `contrasena`, `codigo`, `id_rol_usuario`, `t_doc`, `img_perfil`, `codigo_visible`, `reset_codigo`, `reset_expira`, `estado`, `fcm_token`) VALUES
-('3140044786', 'Luz', NULL, 'Armstrong', NULL, 'Louvenia_McCullough@yahoo.com', 2958303129, '$2b$10$krtFyOCC2QdGs6.xTyYs1urpYESHxOKglF/nTFdaG4l3Aq9Dv7jKu', '$2b$10$nP5/9xwh2Tut4srrId0rd.hOhjdGc.33uvKJ/2m7X55sxbMvrJxLK', '1', 'CC', NULL, NULL, NULL, NULL, 1, NULL),
-('3676568822', 'Maudie', NULL, 'Little', NULL, 'Reese.Cassin@hotmail.com', 4736187823, '$2b$10$2AmVOYwmzgdfUP.2SC0NeOqAkDYl9M7DcN4v3j1jDzME/UWvBgTjO', NULL, '2', 'CC', NULL, NULL, NULL, NULL, 1, NULL),
-('4502260042', 'Eldon', NULL, 'Mante-Konopelski', NULL, 'Clifton_Pouros61@yahoo.com', 3340716508, '$2b$10$RcdcqZhOng6zzwtwjV2LaeBVtMJQh3eM7eVXw0qDis5iHeKCD9w0q', NULL, '2', 'CC', NULL, NULL, NULL, NULL, 1, NULL),
-('5358207551', 'Cade', NULL, 'Davis', NULL, 'London_Pacocha75@hotmail.com', 830281777, '$2b$10$pLsbhkYnUXfYR63ISv/bx..rBUAtbfnblThq17E5TlEiygg9Rg44u', NULL, '2', 'CC', NULL, NULL, NULL, NULL, 1, NULL),
-('6638056846', 'Baylee', NULL, 'Pouros', NULL, 'Emilie_Robel30@yahoo.com', 8191015986, '$2b$10$/7igR2DRr7EQF2wNsaZQTenyZrsAtM79gQ/6pb4ET3WSQ1rXwKiv6', NULL, '2', 'CC', NULL, NULL, NULL, NULL, 1, NULL),
-('7263753337', 'Samantha', NULL, 'Thiel', NULL, 'Ezekiel.Batz@hotmail.com', 2380924017, '$2b$10$ZWfEVLeKMuuqHgeVE.3YX.A7JbxVO1DKjIOGlOOAdgRvKbnlobyAK', NULL, '2', 'CC', NULL, NULL, NULL, NULL, 1, NULL),
-('8200125713', 'Johnson', NULL, 'Farrell', NULL, 'Dion.Barton74@yahoo.com', 2485558216, '$2b$10$iKkcBhYJS7Yk8WKPzXfx4e.BBdyg1DeZDe5D.2RkDegY3PA/0vpYC', NULL, '2', 'CC', NULL, NULL, NULL, NULL, 1, NULL);
+INSERT INTO `usuario` (`id_usuario`, `nom_1`, `nom_2`, `ape_1`, `ape_2`, `correo`, `telefono`, `contrasena`, `codigo`, `id_rol_usuario`, `t_doc`, `img_perfil`, `codigo_visible`, `reset_codigo`, `reset_expira`, `estado`, `fcm_token`, `bloqueado_hasta`, `intentos_fallidos`) VALUES
+('3140044786', 'Luz', NULL, 'Armstrong', NULL, 'Louvenia_McCullough@yahoo.com', 2958303129, '$2b$10$krtFyOCC2QdGs6.xTyYs1urpYESHxOKglF/nTFdaG4l3Aq9Dv7jKu', '$2b$10$nP5/9xwh2Tut4srrId0rd.hOhjdGc.33uvKJ/2m7X55sxbMvrJxLK', '1', 'CC', NULL, NULL, NULL, NULL, 1, NULL, NULL, 0),
+('3676568822', 'Maudie', NULL, 'Little', NULL, 'Reese.Cassin@hotmail.com', 4736187823, '$2b$10$2AmVOYwmzgdfUP.2SC0NeOqAkDYl9M7DcN4v3j1jDzME/UWvBgTjO', NULL, '2', 'CC', NULL, NULL, NULL, NULL, 1, NULL, NULL, 0),
+('4502260042', 'Eldon', NULL, 'Mante-Konopelski', NULL, 'Clifton_Pouros61@yahoo.com', 3340716508, '$2b$10$RcdcqZhOng6zzwtwjV2LaeBVtMJQh3eM7eVXw0qDis5iHeKCD9w0q', NULL, '2', 'CC', NULL, NULL, NULL, NULL, 1, NULL, NULL, 0),
+('5358207551', 'Cade', NULL, 'Davis', NULL, 'London_Pacocha75@hotmail.com', 830281777, '$2b$10$pLsbhkYnUXfYR63ISv/bx..rBUAtbfnblThq17E5TlEiygg9Rg44u', NULL, '2', 'CC', NULL, NULL, NULL, NULL, 1, NULL, NULL, 0),
+('6638056846', 'Baylee', NULL, 'Pouros', NULL, 'Emilie_Robel30@yahoo.com', 8191015986, '$2b$10$/7igR2DRr7EQF2wNsaZQTenyZrsAtM79gQ/6pb4ET3WSQ1rXwKiv6', NULL, '2', 'CC', NULL, NULL, NULL, NULL, 1, NULL, NULL, 0),
+('7263753337', 'Samantha', NULL, 'Thiel', NULL, 'Ezekiel.Batz@hotmail.com', 2380924017, '$2b$10$ZWfEVLeKMuuqHgeVE.3YX.A7JbxVO1DKjIOGlOOAdgRvKbnlobyAK', NULL, '2', 'CC', NULL, NULL, NULL, NULL, 1, NULL, NULL, 0),
+('8200125713', 'Johnson', NULL, 'Farrell', NULL, 'Dion.Barton74@yahoo.com', 2485558216, '$2b$10$iKkcBhYJS7Yk8WKPzXfx4e.BBdyg1DeZDe5D.2RkDegY3PA/0vpYC', NULL, '2', 'CC', NULL, NULL, NULL, NULL, 1, NULL, NULL, 0);
 
 --
 -- Índices para tablas volcadas
@@ -632,6 +651,16 @@ ALTER TABLE `movimiento`
   ADD KEY `id_producto` (`id_producto`),
   ADD KEY `id_usuario` (`id_usuario`),
   ADD KEY `id_material` (`id_material`);
+
+--
+-- Indices de la tabla `movimiento_material`
+--
+ALTER TABLE `movimiento_material`
+  ADD PRIMARY KEY (`id_movimiento_material`),
+  ADD KEY `fk_movmat_tipo` (`id_m`),
+  ADD KEY `fk_movmat_material` (`id_material`),
+  ADD KEY `fk_movmat_usuario` (`id_usuario`),
+  ADD KEY `fk_movmat_pedido` (`id_ped_personal`);
 
 --
 -- Indices de la tabla `notificacion`
@@ -728,25 +757,25 @@ ALTER TABLE `clasificacion`
 -- AUTO_INCREMENT de la tabla `detalles_pedido`
 --
 ALTER TABLE `detalles_pedido`
-  MODIFY `id_detalles` int(4) NOT NULL AUTO_INCREMENT COMMENT 'PK Identificador único del detalle del pedido.', AUTO_INCREMENT=98;
+  MODIFY `id_detalles` int(4) NOT NULL AUTO_INCREMENT COMMENT 'PK Identificador único del detalle del pedido.';
 
 --
 -- AUTO_INCREMENT de la tabla `detalle_pedido_personalizado`
 --
 ALTER TABLE `detalle_pedido_personalizado`
-  MODIFY `id_detalle` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
+  MODIFY `id_detalle` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `material`
 --
 ALTER TABLE `material`
-  MODIFY `id_material` int(11) NOT NULL AUTO_INCREMENT COMMENT 'PK identificador unico del material', AUTO_INCREMENT=17;
+  MODIFY `id_material` int(11) NOT NULL AUTO_INCREMENT COMMENT 'PK identificador unico del material';
 
 --
 -- AUTO_INCREMENT de la tabla `material_color`
 --
 ALTER TABLE `material_color`
-  MODIFY `id_color` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
+  MODIFY `id_color` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `material_diseno`
@@ -758,7 +787,13 @@ ALTER TABLE `material_diseno`
 -- AUTO_INCREMENT de la tabla `movimiento`
 --
 ALTER TABLE `movimiento`
-  MODIFY `id_movimiento` int(11) NOT NULL AUTO_INCREMENT COMMENT 'PK Identificador único del movimiento.', AUTO_INCREMENT=139;
+  MODIFY `id_movimiento` int(11) NOT NULL AUTO_INCREMENT COMMENT 'PK Identificador único del movimiento.';
+
+--
+-- AUTO_INCREMENT de la tabla `movimiento_material`
+--
+ALTER TABLE `movimiento_material`
+  MODIFY `id_movimiento_material` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `notificacion`
@@ -770,25 +805,25 @@ ALTER TABLE `notificacion`
 -- AUTO_INCREMENT de la tabla `pedido`
 --
 ALTER TABLE `pedido`
-  MODIFY `id_pedido` int(4) NOT NULL AUTO_INCREMENT COMMENT 'PK Identificador unico del pedido', AUTO_INCREMENT=123;
+  MODIFY `id_pedido` int(4) NOT NULL AUTO_INCREMENT COMMENT 'PK Identificador unico del pedido';
 
 --
 -- AUTO_INCREMENT de la tabla `pedido_personalizado`
 --
 ALTER TABLE `pedido_personalizado`
-  MODIFY `id_ped_personal` int(11) NOT NULL AUTO_INCREMENT COMMENT 'PK Identificador unico del pedido perzonalizado', AUTO_INCREMENT=45;
+  MODIFY `id_ped_personal` int(11) NOT NULL AUTO_INCREMENT COMMENT 'PK Identificador unico del pedido perzonalizado';
 
 --
 -- AUTO_INCREMENT de la tabla `producto`
 --
 ALTER TABLE `producto`
-  MODIFY `id_producto` int(11) NOT NULL AUTO_INCREMENT COMMENT 'PK Identificador único del producto.', AUTO_INCREMENT=32;
+  MODIFY `id_producto` int(11) NOT NULL AUTO_INCREMENT COMMENT 'PK Identificador único del producto.';
 
 --
 -- AUTO_INCREMENT de la tabla `ticket_compra`
 --
 ALTER TABLE `ticket_compra`
-  MODIFY `id_ticket_c` int(6) NOT NULL AUTO_INCREMENT COMMENT 'PK Identificador único del ticket', AUTO_INCREMENT=105;
+  MODIFY `id_ticket_c` int(6) NOT NULL AUTO_INCREMENT COMMENT 'PK Identificador único del ticket';
 
 --
 -- Restricciones para tablas volcadas
@@ -827,6 +862,15 @@ ALTER TABLE `movimiento`
   ADD CONSTRAINT `movimiento_id_m_fkey` FOREIGN KEY (`id_m`) REFERENCES `tipo_movimiento` (`id_m`) ON UPDATE CASCADE,
   ADD CONSTRAINT `movimiento_id_producto_fkey` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON UPDATE CASCADE,
   ADD CONSTRAINT `movimiento_id_usuario_fkey` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `movimiento_material`
+--
+ALTER TABLE `movimiento_material`
+  ADD CONSTRAINT `fk_movmat_material` FOREIGN KEY (`id_material`) REFERENCES `material` (`id_material`) ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_movmat_pedido` FOREIGN KEY (`id_ped_personal`) REFERENCES `pedido_personalizado` (`id_ped_personal`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_movmat_tipo` FOREIGN KEY (`id_m`) REFERENCES `tipo_movimiento` (`id_m`) ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_movmat_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `notificacion`

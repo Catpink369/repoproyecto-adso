@@ -5,12 +5,12 @@ import { ExecutionContext, ConflictException } from '@nestjs/common';
 import { faker } from '@faker-js/faker';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
-import { ProductosService } from '../../src/productos/productos.service';
-import { ProductosController } from '../../src/productos/productos.controller';
-import { PrismaService } from '../../src/prisma/prisma.service';
-import { CreateProductoDto } from '../../src/productos/dto/create-producto.dto';
-import { UpdateProductoDto } from '../../src/productos/dto/update-producto.dto';
-import { RolesGuard } from '../../src/auth/guards/roles.guard';
+import { ProductosService } from '../../../../../backend/backend/src/productos/productos.service';
+import { ProductosController } from '../../../../../backend/backend/src/productos/productos.controller';
+import { PrismaService } from '../../../../../backend/backend/src/prisma/prisma.service';
+import { CreateProductoDto } from '../../../../../backend/backend/src/productos/dto/create-producto.dto';
+import { UpdateProductoDto } from '.../../../../../backend/backend/src/productos/dto/update-producto.dto';
+import { RolesGuard } from '../../../../../backend/backend/src/auth/guards/roles.guard';
 
 describe('RF-002 - Gestión de Productos', () => {
   let service: ProductosService;

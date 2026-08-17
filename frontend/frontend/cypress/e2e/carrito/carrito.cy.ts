@@ -1,4 +1,6 @@
 // RF-006.1 a RF-006.5 - Gestion de carrito
+
+export {}; // Convertir el archivo en módulo para aislar el scope global de TypeScript
 const FRONT_URL = Cypress.env('FRONT_URL') || 'http://localhost:5173';
 
 describe('RF-006.1 - Agregar producto al carrito', () => {
@@ -42,8 +44,8 @@ describe('RF-006.2 - Visualizar carrito de compra', () => {
             const total = parseInt(textoTotal.replace(/[^\d]/g, ''), 10);
             expect(total).to.eq(suma);
         });
-        });
     });
+});
 
     it('CP-004: debe mostrar un mensaje informativo cuando el carrito está vacío', () => {
         cy.visit(`${FRONT_URL}/carrito`);
@@ -60,13 +62,21 @@ describe('RF-006.3 - Modificar cantidad del carrito', () => {
     });
 
     it('CP-005: el botón de disminuir debe deshabilitarse en cantidad 1 (no permite bajar de 1)', () => {
-        cy.get('.carrito-btn-cantidad').first().should('be.disabled');
+        cy.get('.carrito-btn-cantidad-menos').first().should('be.disabled');
     });
 
     it('CP-007: debe permitir aumentar la cantidad dentro del límite de stock', () => {
         cy.get('.carrito-input-cantidad').invoke('val').then((valorInicial) => {
-        cy.get('.carrito-btn-cantidad').eq(1).click(); // botón "+"
+        cy.get('.carrito-btn-cantidad-mas').first().click();
         cy.get('.carrito-input-cantidad').invoke('val').should('not.eq', valorInicial);
+        });
+    });
+
+    it('CP-008: debe permitir disminuir la cantidad sin bajar de 1', () => {
+        cy.get('.carrito-btn-cantidad-mas').first().click(); // Incrementa a 2
+        cy.get('.carrito-input-cantidad').invoke('val').then((valorIncrementado) => {
+        cy.get('.carrito-btn-cantidad-menos').first().click(); // Disminuye a 1
+        cy.get('.carrito-input-cantidad').invoke('val').should('not.eq', valorIncrementado);
         });
     });
 
@@ -74,9 +84,9 @@ describe('RF-006.3 - Modificar cantidad del carrito', () => {
         cy.get('.carrito-producto-stock').invoke('text').then((texto) => {
         const stockDisponible = parseInt(texto.replace(/[^\d]/g, ''), 10);
         for (let i = 1; i < stockDisponible; i++) {
-            cy.get('.carrito-btn-cantidad').eq(1).click();
+            cy.get('.carrito-btn-cantidad-mas').first().click();
         }
-        cy.get('.carrito-btn-cantidad').eq(1).should('be.disabled');
+        cy.get('.carrito-btn-cantidad-mas').first().should('be.disabled');
         });
     });
 });
@@ -125,5 +135,3 @@ describe('RF-006.5 - Vaciar carrito', () => {
         cy.get('.carrito-producto-card').should('have.length.at.least', 1);
     });
 });
-
-export {};
