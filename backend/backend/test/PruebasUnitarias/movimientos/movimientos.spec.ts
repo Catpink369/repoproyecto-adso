@@ -1,10 +1,10 @@
 //RF-009.1 / RF-009.2
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
-import { MovimientosService } from '../../src/movimientos/movimientos.service';
-import { PrismaService } from '../../src/prisma/prisma.service';
-import { fakeMovimiento } from '../utils/mock-factories';
-import { ReporteFake, ReporteFakeError } from '../utils/faker-factories';
+import { MovimientosService } from '../../../src/movimientos/movimientos.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { fakeMovimiento } from '../../utils/mock-factories';
+import { ReporteFake, ReporteFakeError } from '../../utils/faker-factories';
 
 describe('RF-009 - Gestion de Historial y Reportes', () => {
   let service: MovimientosService;

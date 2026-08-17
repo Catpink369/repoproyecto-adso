@@ -2,8 +2,8 @@
 import { Test, TestingModule } from '@nestjs/testing'; 
 import { faker } from '@faker-js/faker';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
-import { PedidosPersonalizadosService } from '../../src/pedidos-personalizados/pedidos-personalizados.service'; 
-import { PrismaService } from '../../src/prisma/prisma.service';
+import { PedidosPersonalizadosService } from '../../../src/pedidos-personalizados/pedidos-personalizados.service'; 
+import { PrismaService } from '../../../src/prisma/prisma.service';
 
 describe('RF-005 - Gestionar Pedidos Personalizados', () => {
     let service: PedidosPersonalizadosService;

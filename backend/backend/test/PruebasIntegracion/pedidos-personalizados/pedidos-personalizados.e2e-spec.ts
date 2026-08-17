@@ -3,8 +3,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
-import { AppModule } from '../../src/app.module';
-import { loginComoCliente } from '../utils/auth-helper';
+import { AppModule } from '../../../src/app.module';
+import { loginComoCliente } from '../../utils/auth-helper';
 
 jest.setTimeout(30000);
 

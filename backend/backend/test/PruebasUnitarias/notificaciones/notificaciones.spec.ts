@@ -1,11 +1,11 @@
 //RF-009.3 / RF-007.2 (CP-005 y CP-006) / RF-008.2 (CP-007)
 import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
-import { NotificacionesService } from '../../src/notificaciones/notificaciones.service';
-import { PrismaService } from '../../src/prisma/prisma.service';
-import { FcmPushService } from '../../src/notificaciones/fcm-push.service';
-import { TaskService } from '../../src/task/task.service';
-import { fakeProductoAlertaRaw, fakePedidoRaw, fakeUsuario } from '../utils/mock-factories';
+import { NotificacionesService } from '../../../src/notificaciones/notificaciones.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { FcmPushService } from '../../../src/notificaciones/fcm-push.service';
+import { TaskService } from '../../../src/task/task.service';
+import { fakeProductoAlertaRaw, fakePedidoRaw, fakeUsuario } from '../../utils/mock-factories';
 
 function mockUsuarioConCorreo(overrides: Partial<any> = {}) {
   return fakeUsuario({ correo: 'cliente@test.com', ...overrides });

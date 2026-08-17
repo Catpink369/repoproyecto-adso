@@ -3,8 +3,8 @@
 
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { JwtAuthGuard } from '../../src/auth/guards/jwt-auth.guard';
-import { IS_PUBLIC_KEY } from '../../src/auth/decorators/public.decorator';
+import { JwtAuthGuard } from '../../../src/auth/guards/jwt-auth.guard';
+import { IS_PUBLIC_KEY } from '../../../src/auth/decorators/public.decorator';
 
 describe('Usuario sin permisos no puede realizar acciones protegidas', () => {
     let guard: JwtAuthGuard;

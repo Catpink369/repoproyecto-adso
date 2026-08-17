@@ -1,7 +1,7 @@
 // auth.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService } from '../../src/auth/auth.service';
-import { PrismaService } from '../../src/prisma/prisma.service';
+import { AuthService } from '../../../src/auth/auth.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';

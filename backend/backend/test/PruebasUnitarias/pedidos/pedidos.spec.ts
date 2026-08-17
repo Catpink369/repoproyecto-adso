@@ -2,12 +2,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { PedidosService } from '../../src/pedidos/pedidos.service';
-import { PrismaService } from '../../src/prisma/prisma.service';
-import { FcmPushService } from '../../src/notificaciones/fcm-push.service';
-import { NotificacionesService } from '../../src/notificaciones/notificaciones.service';
-import { fakePedidoDetalleCompleto } from '../utils/mock-factories';
-import { PedidosController } from '../../src/pedidos/pedidos.controller';
+import { PedidosService } from '../../../src/pedidos/pedidos.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { FcmPushService } from '../../../src/notificaciones/fcm-push.service';
+import { NotificacionesService } from '../../../src/notificaciones/notificaciones.service';
+import { fakePedidoDetalleCompleto } from '../../utils/mock-factories';
+import { PedidosController } from '../../../src/pedidos/pedidos.controller';
 
 describe('RF-007 - Gestion de Pedidos / RF-008 - Gestion de Pagos y Tickets', () => {
 	let service: PedidosService;
