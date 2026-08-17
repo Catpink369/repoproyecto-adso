@@ -9,6 +9,7 @@ import { VerifyCodeDto } from './dto/verify-code.dto';
 @Controller('auth') 
 //@EnableCors()
 
+
 export class AuthController {
     constructor(private readonly authService: AuthService) {}
 

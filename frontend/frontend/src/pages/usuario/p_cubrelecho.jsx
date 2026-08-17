@@ -7,6 +7,13 @@ import Footer from '../../components/Footer.jsx';
 import { AuthContext } from '../../context/AuthContext.jsx';
 import { apiGet, apiPost } from '../../context/api.js';
 
+// Igual que en catalogo_c.jsx / cliente.jsx: arma la URL absoluta de una
+// imagen guardada en el backend (o null si el diseño no tiene foto).
+const getImageUrl = (rutaImagen) => {
+    if (!rutaImagen) return null;
+    return `http://localhost:3000${rutaImagen}`;
+};
+
 const METROS_POR_TAMANO = {
     sencilla:  4,
     semidoble: 5,
@@ -387,6 +394,33 @@ const PersonalizarCubrelecho = () => {
                                         </div>
                                     ))}
                                 </div>
+
+                                {/* Foto ampliada del diseño elegido para el lado activo. No
+                                    cambia dinámicamente con tela/color — es siempre la misma
+                                    foto de referencia de material_diseno.ruta_imagen. Al
+                                    cambiar de lado (ladoActivo) esto se re-evalúa solo, porque
+                                    disenoActual ya apunta al diseño de ese lado. */}
+                                {disenoActual && (
+                                    <div className="diseno-imagen-preview" style={{ marginTop: '14px' }}>
+                                        {getImageUrl(disenoActual.ruta_imagen) ? (
+                                            <img
+                                                src={getImageUrl(disenoActual.ruta_imagen)}
+                                                alt={disenoActual.nombre}
+                                                style={{
+                                                    width: '100%', maxWidth: '280px', borderRadius: '10px',
+                                                    border: '2px solid #e8d5e0', display: 'block',
+                                                }}
+                                                onError={(e) => {
+                                                    e.target.src = 'https://placehold.co/280x280?text=Sin+imagen';
+                                                }}
+                                            />
+                                        ) : (
+                                            <p style={{ color: '#9a7a8a', fontSize: '14px' }}>
+                                                Este diseño todavía no tiene una foto de referencia cargada.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
 

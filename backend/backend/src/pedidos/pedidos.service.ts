@@ -313,24 +313,26 @@ export class PedidosService {
   // modificar (ni cambiar de estado ni anular). RF-007.3 / CP-010.
   private readonly ESTADOS_INMUTABLES = ['Entregado', 'Finalizado', 'Anulado'];
 
-  // Flujo secuencial válido (RF-008.2 RN-002 / FA-01). Solo se permite
-  // avanzar UN paso a la vez, en este orden. "Anulado" es un flujo aparte
-  // (RF-007.3) y se permite desde cualquier estado no inmutable.
-  private readonly FLUJO_ESTADOS = ['Pendiente', 'Pagado', 'En preparación', 'Entregado', 'Finalizado'];
+  // Flujo válido real (RF-008.2 RN-002 / FA-01):
+  //   Pendiente → En preparación → Pagado → Entregado ó Finalizado
+  // Desde "Pagado" el pedido puede ramificarse a cualquiera de los dos
+  // estados finales (no es una secuencia lineal única a partir de ahí).
+  // "Anulado" es un flujo aparte (RF-007.3) y se permite desde cualquier
+  // estado no inmutable.
+  private readonly TRANSICIONES_VALIDAS: Record<string, string[]> = {
+    'Pendiente':      ['En preparación'],
+    'En preparación': ['Pagado'],
+    'Pagado':         ['Entregado', 'Finalizado'],
+  };
 
   private validarTransicionEstado(estadoActual: string, estadoNuevo: string) {
     if (estadoNuevo === 'Anulado') return; // gestionado de forma independiente (RF-007.3)
 
-    const idxNuevo = this.FLUJO_ESTADOS.indexOf(estadoNuevo);
-    if (idxNuevo === -1) {
-      throw new BadRequestException(`El estado "${estadoNuevo}" no es válido.`);
-    }
-
-    const idxActual = this.FLUJO_ESTADOS.indexOf(estadoActual);
-    if (idxActual === -1 || idxNuevo !== idxActual + 1) {
+    const siguientesValidos = this.TRANSICIONES_VALIDAS[estadoActual];
+    if (!siguientesValidos || !siguientesValidos.includes(estadoNuevo)) {
       throw new BadRequestException(
         `Transición no permitida: no se puede pasar de "${estadoActual}" a "${estadoNuevo}". ` +
-          `El flujo válido es ${this.FLUJO_ESTADOS.join(' → ')}.`,
+          `El flujo válido es Pendiente → En preparación → Pagado → Entregado o Finalizado.`,
       );
     }
   }

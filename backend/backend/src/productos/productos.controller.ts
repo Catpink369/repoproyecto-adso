@@ -5,6 +5,8 @@ import { UpdateProductoDto } from './dto/update-producto.dto';
 import { ApiBearerAuth, ApiSecurity, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Roles as RolesEnum } from '../auth/enums/roles.enum';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { mkdirSync } from 'fs';
@@ -17,6 +19,7 @@ export class ProductosController {
 
   // POST /productos
   @Post()
+  @Roles(RolesEnum.ADMIN, RolesEnum.TRABAJADOR)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear un nuevo producto' })
   @ApiResponse({ status: 201, description: 'Producto creado exitosamente.' })
@@ -97,6 +100,7 @@ export class ProductosController {
 
   // PATCH /productos/:id
   @Patch(':id')
+  @Roles(RolesEnum.ADMIN, RolesEnum.TRABAJADOR)
   @ApiOperation({ summary: 'Actualizar un producto por ID' })
   @ApiResponse({ status: 200, description: 'Producto actualizado exitosamente.' })
   @ApiResponse({ status: 400, description: 'ID del producto o datos inválidos.' })
@@ -126,6 +130,7 @@ export class ProductosController {
 
   // DELETE /productos/:id
   @Delete(':id')
+  @Roles(RolesEnum.ADMIN)
   @ApiOperation({ summary: 'Eliminar un producto del sistema' })
   @ApiResponse({ status: 200, description: 'Producto eliminado exitosamente.' })
   @ApiResponse({ status: 400, description: 'El ID proporcionado no es un número válido.' })

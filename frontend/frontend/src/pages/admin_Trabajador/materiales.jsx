@@ -32,14 +32,15 @@ const Materiales = () => {
     const [imagenNuevo, setImagenNuevo]             = useState(null);
     const fileNuevoRef                              = useRef(null);
 
-    // edición
+    // edición (modal "Editar datos")
     const [editando, setEditando]                   = useState(null); // material completo
     const [editForm, setEditForm]                   = useState({});
     const [imagenEdit, setImagenEdit]               = useState(null);
     const [guardandoEdit, setGuardandoEdit]         = useState(false);
     const fileEditRef                               = useRef(null);
 
-    // ── Colores y diseños del material que se está editando ──────────
+    // gestión de colores/diseños (modal aparte, solo Tela)
+    const [gestionando, setGestionando]             = useState(null); // material completo
     const [colores, setColores]                     = useState([]);
     const [disenos, setDisenos]                     = useState([]);
     const [cargandoColoresDisenos, setCargandoColoresDisenos] = useState(false);
@@ -108,8 +109,8 @@ const Materiales = () => {
                     method: 'POST',
                     headers: {
                         'x-api-key': import.meta.env.VITE_API_KEY,
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     },
+                    credentials: 'include',
                     body: fd,
                 });
             }
@@ -122,7 +123,7 @@ const Materiales = () => {
         finally { setGuardando(false); }
     };
 
-    // ── EDITAR ─────────────────────────────────────────────
+    // ── EDITAR DATOS ───────────────────────────────────────
     const abrirEdicion = (m) => {
         setEditando(m);
         setEditForm({
@@ -134,16 +135,16 @@ const Materiales = () => {
             stock_minimo:    m.stock_minimo ?? 5,
         });
         setImagenEdit(null);
+    };
+
+    // ── GESTIONAR COLORES/DISEÑOS (modal aparte) ────────────
+    const abrirColoresDisenos = (m) => {
+        setGestionando(m);
         setNuevoColorNombre('');
         setNuevoColorHex('#c45a77');
         setNuevoDisenoNombre('');
         setNuevoDisenoImagen(null);
-        if (m.tipo === 'Tela') {
-            cargarColoresDisenos(m.id_material);
-        } else {
-            setColores([]);
-            setDisenos([]);
-        }
+        cargarColoresDisenos(m.id_material);
     };
 
     // ── Colores y diseños: cargar ─────────────────────────
@@ -169,13 +170,13 @@ const Materiales = () => {
         if (!nuevoColorNombre.trim()) { alert('El color necesita un nombre.'); return; }
         setGuardandoColor(true);
         try {
-            await apiPost(`/pedidos-personalizados/materiales/${editando.id_material}/colores`, {
+            await apiPost(`/pedidos-personalizados/materiales/${gestionando.id_material}/colores`, {
                 nombre: nuevoColorNombre.trim(),
                 codigo_hex: nuevoColorHex,
             });
             setNuevoColorNombre('');
             setNuevoColorHex('#c45a77');
-            await cargarColoresDisenos(editando.id_material);
+            await cargarColoresDisenos(gestionando.id_material);
         } catch (err) {
             alert(err?.response?.data?.message || 'Error al registrar el color.');
         } finally {
@@ -187,7 +188,7 @@ const Materiales = () => {
         if (!window.confirm('¿Desactivar este color? Ya no aparecerá para elegir en pedidos nuevos.')) return;
         try {
             await apiDelete(`/pedidos-personalizados/materiales/colores/${id_color}`);
-            await cargarColoresDisenos(editando.id_material);
+            await cargarColoresDisenos(gestionando.id_material);
         } catch (err) {
             alert(err?.response?.data?.message || 'Error al desactivar el color.');
         }
@@ -199,7 +200,7 @@ const Materiales = () => {
         if (!nuevoDisenoNombre.trim()) { alert('El diseño necesita un nombre.'); return; }
         setGuardandoDiseno(true);
         try {
-            const creado = await apiPost(`/pedidos-personalizados/materiales/${editando.id_material}/disenos`, {
+            const creado = await apiPost(`/pedidos-personalizados/materiales/${gestionando.id_material}/disenos`, {
                 nombre: nuevoDisenoNombre.trim(),
             });
 
@@ -210,15 +211,15 @@ const Materiales = () => {
                     method: 'POST',
                     headers: {
                         'x-api-key': import.meta.env.VITE_API_KEY,
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     },
+                    credentials: 'include',
                     body: fd,
                 });
             }
 
             setNuevoDisenoNombre('');
             setNuevoDisenoImagen(null);
-            await cargarColoresDisenos(editando.id_material);
+            await cargarColoresDisenos(gestionando.id_material);
         } catch (err) {
             alert(err?.response?.data?.message || 'Error al registrar el diseño.');
         } finally {
@@ -230,7 +231,7 @@ const Materiales = () => {
         if (!window.confirm('¿Desactivar este diseño? Ya no aparecerá para elegir en pedidos nuevos.')) return;
         try {
             await apiDelete(`/pedidos-personalizados/materiales/disenos/${id_diseno}`);
-            await cargarColoresDisenos(editando.id_material);
+            await cargarColoresDisenos(gestionando.id_material);
         } catch (err) {
             alert(err?.response?.data?.message || 'Error al desactivar el diseño.');
         }
@@ -258,8 +259,8 @@ const Materiales = () => {
                     method: 'POST',
                     headers: {
                         'x-api-key': import.meta.env.VITE_API_KEY,
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     },
+                    credentials: 'include',
                     body: fd,
                 });
             }
@@ -392,11 +393,7 @@ const Materiales = () => {
                                     <div className="campo">
                                         <label>Tipo *</label>
                                         <select value={editForm.tipo}
-                                            onChange={e => {
-                                                const tipo = e.target.value;
-                                                setEditForm(p => ({ ...p, tipo }));
-                                                if (tipo === 'Tela') cargarColoresDisenos(editando.id_material);
-                                            }}>
+                                            onChange={e => setEditForm(p => ({ ...p, tipo: e.target.value }))}>
                                             {['Tela','Bordado','Diseño','Relleno','Accesorio'].map(t => <option key={t}>{t}</option>)}
                                         </select>
                                     </div>
@@ -464,18 +461,29 @@ const Materiales = () => {
                                         </button>
                                     </div>
                                 </form>
+                            </div>
+                        </div>
+                    )}
 
-                                {/* ── Colores y diseños (solo para Tela) ───────────────── */}
-                                {editForm.tipo === 'Tela' && (
-                                    <div style={{ marginTop: '26px', borderTop: '2px solid #e0d0e0', paddingTop: '18px' }}>
-                                        <h3 style={{ color: '#5a3d54', marginBottom: '14px' }}>
-                                            Colores y diseños de esta tela
-                                        </h3>
-                                        <p style={{ fontSize: '13px', color: '#9a7a8a', marginTop: '-8px', marginBottom: '16px' }}>
-                                            Esto es lo que el cliente podrá elegir al personalizar una sábana o cubrelecho con esta tela.
-                                        </p>
+                    {/* ── Modal COLORES Y DISEÑOS (solo Tela, botón aparte) ── */}
+                    {gestionando && (
+                        <div style={{
+                            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+                        }}>
+                            <div style={{
+                                background: '#fff', borderRadius: '12px', padding: '30px',
+                                width: '90%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto',
+                                boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
+                            }}>
+                                <h3 style={{ marginTop: 0, color: '#5a3d54', borderBottom: '2px solid #e0d0e0', paddingBottom: '10px' }}>
+                                    Colores y diseños — {gestionando.nombre}
+                                </h3>
+                                <p style={{ fontSize: '13px', color: '#9a7a8a', marginTop: '10px', marginBottom: '16px' }}>
+                                    Esto es lo que el cliente podrá elegir al personalizar una sábana o cubrelecho con esta tela.
+                                </p>
 
-                                        {cargandoColoresDisenos ? (
+                                {cargandoColoresDisenos ? (
                                             <p style={{ color: '#9a7a8a' }}>Cargando colores y diseños...</p>
                                         ) : (
                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '22px' }}>
@@ -582,8 +590,12 @@ const Materiales = () => {
 
                                             </div>
                                         )}
-                                    </div>
-                                )}
+
+                                <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+                                    <button type="button" className="btn-cancelar" onClick={() => setGestionando(null)}>
+                                        Cerrar
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -670,10 +682,15 @@ const Materiales = () => {
                                                     <span className="stock-minimo-alerta">Agotado</span>
                                                 )}
                                             </td>
-                                            <td>
+                                            <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                                                 <button className="editar" onClick={() => abrirEdicion(m)}>
                                                     Editar
                                                 </button>
+                                                {m.tipo === 'Tela' && (
+                                                    <button className="btn-categoria" onClick={() => abrirColoresDisenos(m)}>
+                                                        Colores/Diseños
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

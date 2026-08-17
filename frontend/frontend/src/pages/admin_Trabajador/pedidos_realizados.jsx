@@ -22,9 +22,22 @@ export default function PedidosRealizados() {
 
     const [filtroTipo, setFiltroTipo] = useState('todos');
 
-    // ── 'En preparación' agregado entre Pagado y Entregado
-    const opcionesEstado = ['Pendiente', 'Pagado', 'En preparación', 'Entregado', 'Finalizado'];
     const opcionesMetodoPago = ['Por_definir', 'Efectivo', 'Tarjeta', 'Transferencia', 'Nequi', 'DaviPlata'];
+
+    // Espejo de TRANSICIONES_VALIDAS en pedidos.service.ts — evita ofrecer en
+    // el <select> un salto que el backend igual va a rechazar.
+    const TRANSICIONES_VALIDAS = {
+        'Pendiente':      ['En preparación'],
+        'En preparación': ['Pagado'],
+        'Pagado':         ['Entregado', 'Finalizado'],
+    };
+
+    // Opciones que tiene sentido mostrar para ESTE pedido: su estado actual
+    // (para poder dejarlo igual) + los siguientes pasos válidos desde ahí.
+    const opcionesEstadoPara = (estadoActual) => {
+        const siguientes = TRANSICIONES_VALIDAS[estadoActual] || [];
+        return [estadoActual, ...siguientes];
+    };
 
     useEffect(() => { cargarPedidos(); }, []);
 
@@ -166,7 +179,11 @@ export default function PedidosRealizados() {
     // ─── ANULAR PEDIDO ────────────────────────────────────────────────────────
     // Estados finales: coincide con ESTADOS_INMUTABLES del backend (pedidos.service.ts)
     const ESTADOS_FINALES = ['Entregado', 'Finalizado', 'Anulado'];
-    const puedeAnularse = (pedido) => !ESTADOS_FINALES.includes(pedido.estado);
+    // Backend (ESTADOS_INMUTABLES en pedidos.service.ts) ya rechaza cualquier
+    // cambio de estado/pago sobre estos 3 estados — esto solo evita mostrar
+    // botones que de todas formas fallarían al guardar.
+    const esEstadoFinal = (pedido) => ESTADOS_FINALES.includes(pedido.estado);
+    const puedeAnularse = (pedido) => !esEstadoFinal(pedido);
 
     const handleAnularPedido = async (pedido) => {
         const confirmar = window.confirm(
@@ -671,7 +688,7 @@ export default function PedidosRealizados() {
                                                                 onChange={(e) => setNuevoEstadoTemp(e.target.value)}
                                                                 className="pedido-estado-select"
                                                             >
-                                                                {opcionesEstado.map(op =>
+                                                                {opcionesEstadoPara(pedido.estado).map(op =>
                                                                     <option key={op} value={op}>{op}</option>
                                                                 )}
                                                             </select>
@@ -731,6 +748,12 @@ export default function PedidosRealizados() {
                                                     {/* ACCIONES */}
                                                     <td>
                                                         <div className="pedido-acciones">
+                                                            {esEstadoFinal(pedido) ? (
+                                                                <span style={{ color: '#9a7a8a', fontSize: '13px', fontStyle: 'italic' }}>
+                                                                    {pedido.estado === 'Anulado' ? 'Pedido anulado' : 'Pedido finalizado'} — sin más acciones
+                                                                </span>
+                                                            ) : (
+                                                                <>
                                                             {editandoId === pedido.id_pedido ? (
                                                                 <>
                                                                     <button onClick={() => handleGuardarEstado(pedido)} className="btn-guardar">
@@ -788,6 +811,8 @@ export default function PedidosRealizados() {
                                                                 >
                                                                     Anular pedido
                                                                 </button>
+                                                            )}
+                                                                </>
                                                             )}
 
                                                             <button

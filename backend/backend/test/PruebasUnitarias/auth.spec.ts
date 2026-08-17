@@ -1,3 +1,4 @@
+// auth.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from '../../src/auth/auth.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -5,7 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
-describe('Pruebas unitarias de AuthService', () => {
+describe('RF-001.3 - Iniciar sesión', () => {
   let service: AuthService;
   let prismaMock: any;
   let jwtServiceMock: any;
@@ -34,25 +35,75 @@ describe('Pruebas unitarias de AuthService', () => {
     service = module.get<AuthService>(AuthService);
   });
 
-  // CP-013
-  test('Debería retornar un error al intentar iniciar sesión con la contraseña incorrecta', async () => {
-    const hashed = await bcrypt.hash('claveCorrecta123', 10);
-
-    prismaMock.usuario.findFirst.mockResolvedValue({
+  function mockUsuarioValido(overrides: any = {}) {
+    return {
       id_usuario: '10125587421',
       correo: 'juan@correo.com',
-      contrasena: hashed,
       estado: 1,
       intentos_fallidos: 0,
       bloqueado_hasta: null,
       id_rol_usuario: '2',
-    });
+      codigo: 'codigo-hasheado',
+      ...overrides,
+    };
+  }
 
+  it('CP-010: debe iniciar sesión exitosamente con credenciales válidas de Cliente', async () => {
+    const hashed = await bcrypt.hash('claveCorrecta123', 10);
+
+    prismaMock.usuario.findFirst.mockResolvedValue(
+      mockUsuarioValido({ contrasena: hashed, id_rol_usuario: '2' }),
+    );
     prismaMock.usuario.update.mockResolvedValue({});
 
-    await expect(
-      service.login('juan@correo.com', 'claveFalsa123'),
-    ).rejects.toThrow(UnauthorizedException);
+    const resultado = await service.login('juan@correo.com', 'claveCorrecta123');
+
+    expect(resultado.success).toBe(true);
+    expect((resultado as any).needs_code).toBeUndefined();
+    expect(resultado.user).toBeDefined();
+    expect((resultado.user as any).contrasena).toBeUndefined();
+    expect((resultado.user as any).codigo).toBeUndefined();
+  });
+
+  it('CP-011: debe iniciar sesión exitosamente con credenciales válidas de Trabajador', async () => {
+    const hashed = await bcrypt.hash('claveCorrecta123', 10);
+
+    prismaMock.usuario.findFirst.mockResolvedValue(
+      mockUsuarioValido({ contrasena: hashed, id_rol_usuario: '3' }),
+    );
+    prismaMock.usuario.update.mockResolvedValue({});
+
+    const resultado = await service.login('juan@correo.com', 'claveCorrecta123');
+
+    expect(resultado.needs_code).toBe(true);
+    expect(resultado.success).toBeUndefined();
+    expect(resultado.user).toBeDefined();
+  });
+
+  it('CP-012: debe iniciar sesión exitosamente con credenciales válidas de Administrador', async () => {
+    const hashed = await bcrypt.hash('claveCorrecta123', 10);
+
+    prismaMock.usuario.findFirst.mockResolvedValue(
+      mockUsuarioValido({ contrasena: hashed, id_rol_usuario: '1' }),
+    );
+    prismaMock.usuario.update.mockResolvedValue({});
+
+    const resultado = await service.login('juan@correo.com', 'claveCorrecta123');
+
+    expect(resultado.needs_code).toBe(true);
+    expect(resultado.success).toBeUndefined();
+    expect(resultado.user).toBeDefined();
+  });
+
+  it('CP-013: debe rechazar el inicio de sesión con la contraseña incorrecta', async () => {
+    const hashed = await bcrypt.hash('claveCorrecta123', 10);
+
+    prismaMock.usuario.findFirst.mockResolvedValue(
+      mockUsuarioValido({ contrasena: hashed }),
+    );
+    prismaMock.usuario.update.mockResolvedValue({});
+
+    await expect(service.login('juan@correo.com', 'claveFalsa123')).rejects.toThrow(UnauthorizedException);
 
     expect(prismaMock.usuario.update).toHaveBeenCalledWith({
       where: { id_usuario: '10125587421' },
@@ -60,55 +111,64 @@ describe('Pruebas unitarias de AuthService', () => {
     });
   });
 
-  // CP-015
-  test('Debería bloquear temporalmente la cuenta tras ingresar la contraseña incorrecta 5 veces seguidas', async () => {
+  it('CP-014: debe rechazar el inicio de sesión con un correo que no está registrado', async () => {
+    prismaMock.usuario.findFirst.mockResolvedValue(null);
+
+    await expect(service.login('noexiste@correo.com', 'cualquierClave')).rejects.toThrow(
+      UnauthorizedException,
+    );
+
+    expect(prismaMock.usuario.update).not.toHaveBeenCalled();
+  });
+
+  it('CP-015: debe bloquear temporalmente la cuenta tras ingresar la contraseña incorrecta 5 veces seguidas', async () => {
     const hashed = await bcrypt.hash('claveCorrecta123', 10);
 
-    prismaMock.usuario.findFirst.mockResolvedValue({
-      id_usuario: '10125587421',
-      correo: 'juan@correo.com',
-      contrasena: hashed,
-      estado: 1,
-      intentos_fallidos: 4,
-      bloqueado_hasta: null,
-      id_rol_usuario: '2',
-    });
-
+    prismaMock.usuario.findFirst.mockResolvedValue(
+      mockUsuarioValido({ contrasena: hashed, intentos_fallidos: 4 }),
+    );
     prismaMock.usuario.update.mockResolvedValue({});
 
-    await expect(
-      service.login('juan@correo.com', 'claveIncorrecta'),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.login('juan@correo.com', 'claveIncorrecta')).rejects.toThrow(BadRequestException);
 
     expect(prismaMock.usuario.update).toHaveBeenCalledWith({
       where: { id_usuario: '10125587421' },
-      data: {
-        intentos_fallidos: 0,
-        bloqueado_hasta: expect.any(Date),
-      },
+      data: { intentos_fallidos: 0, bloqueado_hasta: expect.any(Date) },
     });
   });
 
-  // CP-016
-  test('Debería indicar que se requiere código de verificación al iniciar sesión con un rol de Administrador o Trabajador', async () => {
-    const hashed = await bcrypt.hash('claveCorrecta123', 10);
+  describe('CP-016: validación de redirección según el rol', () => {
+    it.each([
+      ['Cliente', '2', 'success'],
+      ['Administrador', '1', 'needs_code'],
+    ])('debe redirigir según corresponda para el rol %s', async (_rol, id_rol_usuario, campoEsperado) => {
+      const hashed = await bcrypt.hash('claveCorrecta123', 10);
 
-    prismaMock.usuario.findFirst.mockResolvedValue({
-      id_usuario: '1012345678',
-      correo: 'evelyn@correo.com',
-      contrasena: hashed,
-      estado: 1,
-      intentos_fallidos: 0,
-      bloqueado_hasta: null,
-      id_rol_usuario: '1', // Trabajador
-      codigo: 'codigo-hasheado',
+      prismaMock.usuario.findFirst.mockResolvedValue(
+        mockUsuarioValido({ contrasena: hashed, id_rol_usuario }),
+      );
+      prismaMock.usuario.update.mockResolvedValue({});
+
+      const resultado: any = await service.login('juan@correo.com', 'claveCorrecta123');
+
+      expect(resultado[campoEsperado]).toBe(campoEsperado === 'success' ? true : true);
+      expect(resultado.user).toBeDefined();
     });
-
-    prismaMock.usuario.update.mockResolvedValue({});
-
-    const resultado = await service.login('evelyn@correo.com', 'claveCorrecta123');
-
-    expect(resultado.needs_code).toBe(true);
-    expect(resultado.success).toBeUndefined();
   });
+
+  describe('RF-001.8 - Desactivar Usuario (login)', () => {
+    it('CP-027: debe rechazar el inicio de sesión con una cuenta previamente desactivada por el Administrador', async () => {
+        const hashed = await bcrypt.hash('claveCorrecta123', 10);
+
+        prismaMock.usuario.findFirst.mockResolvedValue(
+        mockUsuarioValido({ contrasena: hashed, estado: 0 }),
+        );
+
+        await expect(service.login('juan@correo.com', 'claveCorrecta123')).rejects.toThrow(
+        ForbiddenException,
+        );
+
+        expect(prismaMock.usuario.update).not.toHaveBeenCalled();
+    });
+    });
 });

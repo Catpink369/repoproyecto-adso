@@ -5,8 +5,9 @@ import { CreateMaterialColorDto } from './dto/create-material-color.dto';
 import { UpdateMaterialColorDto } from './dto/update-material-color.dto';
 import { CreateMaterialDisenoDto } from './dto/create-material-diseno.dto';
 import { UpdateMaterialDisenoDto } from './dto/update-material-diseno.dto';
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { normalizarTipoMovimiento } from '../movimientos/tipo-movimiento.util';
 
 @Injectable()
 export class PedidosPersonalizadosService {
@@ -218,6 +219,41 @@ export class PedidosPersonalizadosService {
   }
 
   // --------------------------------------------------------
+  // DESACTIVAR MATERIAL (baja lógica — RF-004.4)
+  // --------------------------------------------------------
+  // RN-002/RN-003: nunca se elimina físicamente, solo se cambia el estado.
+  // RN-004: los materiales asociados a productos o pedidos históricos se
+  // conservan igual — la desactivación NO se bloquea por estar en uso
+  // (el RF solo define flujos alternativos para: no existe, ya inactivo,
+  // sin permisos, o error de conexión; "en uso" no es uno de ellos).
+  async desactivarMaterial(id: number) {
+    const material = await this.prisma.material.findUnique({ where: { id_material: id } });
+
+    if (!material) {
+      throw new NotFoundException('El material no existe.');
+    }
+    if (!material.estado) {
+      throw new ConflictException('El material ya se encuentra desactivado.');
+    }
+
+    const materialDesactivado = await this.prisma.material.update({
+      where: { id_material: id },
+      data: { estado: false },
+    });
+
+    // RF-004.4 CA-005: registrar la operación en auditoría. Todavía no
+    // existe una tabla de auditoría en el proyecto, así que por ahora se
+    // deja constancia en el log del servidor (mismo criterio que el resto
+    // del módulo usa con console.log). Cuando exista una tabla real de
+    // auditoría, reemplazar este bloque por un insert.
+    console.log(
+      `[AUDITORIA] Material desactivado — id_material: ${id}, nombre: "${material.nombre}", fecha: ${new Date().toISOString()}`,
+    );
+
+    return materialDesactivado;
+  }
+
+  // --------------------------------------------------------
   // Reintentos por colisión de num_ticket (aleatorio, ticket_compra.num_ticket UNIQUE)
   // --------------------------------------------------------
   private readonly MAX_INTENTOS_TICKET = 5;
@@ -356,6 +392,23 @@ export class PedidosPersonalizadosService {
               where: { id_material: item.id_material },
               data: { stock_actual: stockRestante },
             });
+
+            // RF-004: registra automáticamente la salida de material que
+            // provocó este pedido personalizado. El cliente/admin NUNCA
+            // registra esta salida a mano — solo las entradas (restock)
+            // se registran manualmente desde Movimientos > Materiales.
+            // pedidoPersonal.id_ped_personal ya existe en este punto de la
+            // transacción porque se creó justo antes (más arriba en este
+            // mismo método).
+            await tx.$executeRaw`
+              INSERT INTO movimiento_material
+                (cantidad_m, fecha_m, observaciones, id_m, id_material, id_usuario, id_ped_personal)
+              VALUES
+                (${item.cantidad}, NOW(),
+                 ${`Consumido automáticamente por el pedido personalizado #${pedido.id_pedido}.`},
+                 ${normalizarTipoMovimiento('M-S')}, ${item.id_material}, ${String(dto.id_usuario)},
+                 ${pedidoPersonal.id_ped_personal})
+            `;
           }
 
           return { pedido, pedidoPersonal, num_ticket: numTicket };
