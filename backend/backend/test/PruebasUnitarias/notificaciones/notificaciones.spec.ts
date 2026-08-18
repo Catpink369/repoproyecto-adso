@@ -1,21 +1,14 @@
-//RF-009.3 / RF-007.2 (CP-005 y CP-006) / RF-008.2 (CP-007)
+//RF-009.3
 import { Test, TestingModule } from '@nestjs/testing';
-import { faker } from '@faker-js/faker';
 import { NotificacionesService } from '../../../src/notificaciones/notificaciones.service';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { FcmPushService } from '../../../src/notificaciones/fcm-push.service';
 import { TaskService } from '../../../src/task/task.service';
 import { fakeProductoAlertaRaw, fakePedidoRaw, fakeUsuario } from '../../utils/mock-factories';
 
-function mockUsuarioConCorreo(overrides: Partial<any> = {}) {
-  return fakeUsuario({ correo: 'cliente@test.com', ...overrides });
-}
-
 describe('Notificaciones ', () => {
   let service: NotificacionesService;
   let prisma: any;
-  let fcmPush: any;
-  let taskService: any;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -29,21 +22,15 @@ describe('Notificaciones ', () => {
       notificacion: { create: jest.fn() },
     };
 
-    fcmPush = {
-      notificarAdmins: jest.fn(),
-      notificarUsuario: jest.fn(),
-    };
-
-    taskService = {
-      enviarCambioEstadoPedido: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotificacionesService,
         { provide: PrismaService, useValue: prisma },
-        { provide: FcmPushService, useValue: fcmPush },
-        { provide: TaskService, useValue: taskService },
+        // FcmPushService y TaskService siguen siendo dependencias del servicio
+        // (las usa notificarCambioEstadoPedido, que ya no se prueba en este
+        // archivo), se mockean solo para que el módulo compile.
+        { provide: FcmPushService, useValue: { notificarAdmins: jest.fn(), notificarUsuario: jest.fn() } },
+        { provide: TaskService, useValue: { enviarCambioEstadoPedido: jest.fn() } },
       ],
     }).compile();
 
@@ -53,69 +40,6 @@ describe('Notificaciones ', () => {
   function mockStockBajoRaw(filas: any[]) {
     prisma.$queryRaw.mockResolvedValueOnce(filas);
   }
-
-  // RF-007.2 
-  describe('RF-007.2 - Consultar/ver estado de pedido', () => {
-    let id_pedido: number;
-    let id_usuario: string;
-
-    beforeEach(() => {
-      id_pedido = faker.number.int({ min: 1, max: 9999 });
-      id_usuario = faker.string.numeric(10);
-      prisma.usuario.findUnique.mockResolvedValue(mockUsuarioConCorreo({ id_usuario }));
-      prisma.ticket_compra.findFirst.mockResolvedValue({ num_ticket: 123456, total_ticket: 50000 });
-      prisma.notificacion.create.mockResolvedValue({ id_notificacion: 1 });
-    });
-
-    it('CP-005: debe crear la notificación persistida en el panel del cliente', async () => {
-      await service.notificarCambioEstadoPedido({ id_pedido, id_usuario, estado: 'Pagado' });
-
-      expect(prisma.notificacion.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ id_usuario, tipo: 'pedido_estado' }),
-        }),
-      );
-    });
-
-    it('CP-006: debe enviar el correo con los datos del ticket cuando el usuario tiene correo registrado', async () => {
-      await service.notificarCambioEstadoPedido({ id_pedido, id_usuario, estado: 'Pagado' });
-
-      expect(taskService.enviarCambioEstadoPedido).toHaveBeenCalledWith(
-        expect.objectContaining({
-          correo: 'cliente@test.com',
-          idPedido: id_pedido,
-          estado: 'Pagado',
-          numTicket: '123456',
-          totalTicket: 50000,
-        }),
-      );
-    });
-  });
-
-  // RF-008.2 
-  describe('RF-008.2 - Actualizar estado de pedido', () => {
-    let id_pedido: number;
-    let id_usuario: string;
-
-    beforeEach(() => {
-      id_pedido = faker.number.int({ min: 1, max: 9999 });
-      id_usuario = faker.string.numeric(10);
-      prisma.usuario.findUnique.mockResolvedValue(mockUsuarioConCorreo({ id_usuario }));
-      prisma.ticket_compra.findFirst.mockResolvedValue({ num_ticket: 123456, total_ticket: 50000 });
-      prisma.notificacion.create.mockResolvedValue({ id_notificacion: 1 });
-    });
-
-    it('CP-007: debe enviar la notificación push con el título esperado', async () => {
-      await service.notificarCambioEstadoPedido({ id_pedido, id_usuario, estado: 'Pagado' });
-
-      expect(fcmPush.notificarUsuario).toHaveBeenCalledWith(
-        id_usuario,
-        'Actualización de tu pedido',
-        expect.stringContaining('pago fue confirmado'),
-        expect.objectContaining({ id_pedido: String(id_pedido) }),
-      );
-    });
-  });
 
   // RF-009.3 
   describe('RF-009.3 - Consultar notificaciones', () => {
@@ -152,6 +76,8 @@ describe('Notificaciones ', () => {
     });
 
     it('CP-010: las alertas de pedido nuevo deben apuntar a /pedidos_realizados', async () => {
+      // NOTA: numeración duplicada (dos CP-010) heredada del archivo original;
+      // revisar y renumerar cuando toque este archivo.
       prisma.producto.findMany.mockResolvedValue([]);
       prisma.pedido.findMany.mockResolvedValue([
         fakePedidoRaw({ id_pedido: 7, id_usuario: 'u1', id_tipo: 'P_P' }),

@@ -54,7 +54,6 @@ const PersonalizarSabana = () => {
     const [enviando, setEnviando]                   = useState(false);
     const [mensaje, setMensaje]                     = useState({ text: '', type: '' });
 
-    // colores y diseños
     const [colores, setColores]                     = useState([]);
     const [disenos, setDisenos]                     = useState([]);
     const [colorSeleccionado, setColorSeleccionado] = useState(null);
@@ -75,7 +74,6 @@ const PersonalizarSabana = () => {
         fetchTelas();
     }, []);
 
-    // Cuando cambia la tela seleccionada, cargar sus colores y diseños
     useEffect(() => {
         if (!telaSeleccionada) {
             setColores([]);
@@ -137,36 +135,49 @@ const PersonalizarSabana = () => {
         setEnviando(true);
         setMensaje({ text: '', type: '' });
 
-        const metros = calcularMetros();
+        const metrosBase = METROS_POR_TAMANO[tamano] || 0;
+        const materiales = [
+            {
+                id_material: telaSeleccionada.id_material,
+                cantidad: metrosBase,
+                id_color: colorSeleccionado?.id_color,
+                id_diseno: disenoSeleccionado?.id_diseno,
+                concepto: 'Tela base',
+            },
+        ];
+
+        if (sobresabana) {
+            materiales.push({
+                id_material: telaSeleccionada.id_material,
+                cantidad: METROS_SOBRESABANA,
+                id_color: colorSeleccionado?.id_color,
+                id_diseno: disenoSeleccionado?.id_diseno,
+                concepto: 'Sobresábana',
+            });
+        }
+
+        const numFundas = almohadas === 'una' ? 1 : almohadas === 'dos' ? 2 : 0;
+        if (numFundas > 0) {
+            materiales.push({
+                id_material: telaSeleccionada.id_material,
+                cantidad: METROS_ALMOHADA * numFundas,
+                id_color: colorSeleccionado?.id_color,
+                id_diseno: disenoSeleccionado?.id_diseno,
+                concepto: `Funda x${numFundas}`,
+            });
+        }
+
         const dto = {
             id_usuario:    usuarioActual.id_usuario,
             tipo_producto: 'Sábana',
             tamanio:       TAMANO_LABEL[tamano],
             metodo_pago:   'Mtd_PD',
-            materiales: [{ id_material: telaSeleccionada.id_material, cantidad: metros }],
+            materiales,
         };
 
         try {
             const response = await apiPost('/pedidos-personalizados', dto);
-            sessionStorage.setItem('ticketPersonalizado', JSON.stringify({
-                num_ticket:   response.num_ticket,
-                id_pedido:    response.id_pedido,
-                precio_total: response.precio_total,
-                tipo:         'Sábana',
-                tamano:       TAMANO_LABEL[tamano],
-                tela:         telaSeleccionada.nombre,
-                color:        colorSeleccionado?.nombre || null,
-                diseno:       disenoSeleccionado?.nombre || null,
-                sobresabana,
-                almohadas,
-                metros,
-                usuario: {
-                    nombre:     `${usuarioActual.nom_1} ${usuarioActual.ape_1}`,
-                    correo:     usuarioActual.correo,
-                    telefono:   usuarioActual.telefono,
-                    id_usuario: usuarioActual.id_usuario,
-                },
-            }));
+            sessionStorage.setItem('ticketPersonalizado', JSON.stringify(response));
             navigate('/ticket_personalizado');
         } catch (error) {
             setMensaje({ text: error.message || 'Error al confirmar el pedido.', type: 'error' });
@@ -179,7 +190,6 @@ const PersonalizarSabana = () => {
         <div className="app-container">
             <Header />
             <main className="personalizar-main">
-
                 <div className="personalizar-topbar">
                     <Link to="/pedidos_personalizados" className="btn-volver-ped">← Volver</Link>
                     <h2>Personalizar sábana</h2>
@@ -192,8 +202,6 @@ const PersonalizarSabana = () => {
                 )}
 
                 <div className="personalizar-layout">
-
-                    {/* Columna izquierda */}
                     <div className="personalizar-col-imagen">
                         <img src={p_sabana} alt="Sábana" className="personalizar-imagen" />
                         <div className="personalizar-imagen-info">
@@ -237,10 +245,7 @@ const PersonalizarSabana = () => {
                         </div>
                     </div>
 
-                    {/* Columna derecha */}
                     <div className="personalizar-col-opciones">
-
-                        {/* Tamaño */}
                         <div className="opcion-seccion">
                             <h3>Tamaño de sábana</h3>
                             <div className="opciones-radio-grid">
@@ -255,7 +260,6 @@ const PersonalizarSabana = () => {
                             </div>
                         </div>
 
-                        {/* Tipo de tela */}
                         <div className="opcion-seccion">
                             <h3>Tipo de tela</h3>
                             {cargandoTelas ? (
@@ -267,8 +271,7 @@ const PersonalizarSabana = () => {
                                     {telas.map(tela => (
                                         <div key={tela.id_material}
                                             className={`tela-item ${telaSeleccionada?.id_material === tela.id_material ? 'activo' : ''}`}
-                                            onClick={() => setTelaSeleccionada(tela)}
-                                        >
+                                            onClick={() => setTelaSeleccionada(tela)}>
                                             {telaSeleccionada?.id_material === tela.id_material ? '✓ ' : ''}
                                             {tela.nombre}
                                             <small style={{ color: '#9a7a8a', marginLeft: '8px' }}>
@@ -280,41 +283,29 @@ const PersonalizarSabana = () => {
                             )}
                         </div>
 
-                        {/* Colores — aparece solo si la tela tiene colores */}
                         {telaSeleccionada && (
                             <div className="opcion-seccion">
-                                <h3>Color de tela</h3>
+                                <h3>Color</h3>
                                 {cargandoOpciones ? (
                                     <p style={{ color: '#9a7a8a' }}>Cargando colores...</p>
                                 ) : colores.length === 0 ? (
-                                    <p style={{ fontSize: '0.88rem', color: '#9a7a8a' }}>
-                                        Esta tela no tiene colores registrados aún.
-                                    </p>
+                                    <p style={{ fontSize: '0.88rem', color: '#9a7a8a' }}>Esta tela no tiene colores registrados.</p>
                                 ) : (
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                                         {colores.map(c => (
-                                            <div
-                                                key={c.id_color}
-                                                onClick={() => setColorSeleccionado(
-                                                    colorSeleccionado?.id_color === c.id_color ? null : c
-                                                )}
+                                            <div key={c.id_color}
+                                                onClick={() => setColorSeleccionado(colorSeleccionado?.id_color === c.id_color ? null : c)}
                                                 style={{
                                                     display: 'flex', alignItems: 'center', gap: '8px',
                                                     padding: '8px 14px', borderRadius: '20px', cursor: 'pointer',
-                                                    border: colorSeleccionado?.id_color === c.id_color
-                                                        ? '2px solid #c45a77'
-                                                        : '2px solid #e8d5e0',
-                                                    background: colorSeleccionado?.id_color === c.id_color
-                                                        ? '#fff0f5' : '#fdf8fb',
-                                                    fontSize: '0.88rem', fontWeight: 500,
-                                                    color: '#5a3d54',
-                                                }}
-                                            >
+                                                    border: colorSeleccionado?.id_color === c.id_color ? '2px solid #c45a77' : '2px solid #e8d5e0',
+                                                    background: colorSeleccionado?.id_color === c.id_color ? '#fff0f5' : '#fdf8fb',
+                                                    fontSize: '0.88rem', fontWeight: 500, color: '#5a3d54',
+                                                }}>
                                                 {c.codigo_hex && (
                                                     <span style={{
                                                         width: '18px', height: '18px', borderRadius: '50%',
-                                                        background: c.codigo_hex, flexShrink: 0,
-                                                        border: '1.5px solid rgba(0,0,0,0.1)',
+                                                        background: c.codigo_hex, border: '1.5px solid rgba(0,0,0,0.1)',
                                                         display: 'inline-block',
                                                     }} />
                                                 )}
@@ -327,87 +318,62 @@ const PersonalizarSabana = () => {
                             </div>
                         )}
 
-                        {/* Diseños — aparece solo si la tela tiene diseños */}
                         {telaSeleccionada && disenos.length > 0 && (
                             <div className="opcion-seccion">
-                                <h3>Diseño / Estampado</h3>
+                                <h3>Diseño</h3>
                                 <div className="lista-telas">
                                     {disenos.map(d => (
-                                        <div
-                                            key={d.id_diseno}
+                                        <div key={d.id_diseno}
                                             className={`tela-item ${disenoSeleccionado?.id_diseno === d.id_diseno ? 'activo' : ''}`}
-                                            onClick={() => setDisenoSeleccionado(
-                                                disenoSeleccionado?.id_diseno === d.id_diseno ? null : d
-                                            )}
-                                        >
+                                            onClick={() => setDisenoSeleccionado(disenoSeleccionado?.id_diseno === d.id_diseno ? null : d)}>
                                             {disenoSeleccionado?.id_diseno === d.id_diseno ? '✓ ' : ''}
                                             {d.nombre}
                                         </div>
                                     ))}
                                 </div>
-
-                                {/* Foto ampliada del diseño elegido. No cambia dinámicamente
-                                    con tela/color — es siempre la misma foto de referencia que
-                                    tiene registrada ese diseño en material_diseno.ruta_imagen. */}
                                 {disenoSeleccionado && (
                                     <div className="diseno-imagen-preview" style={{ marginTop: '14px' }}>
                                         {getImageUrl(disenoSeleccionado.ruta_imagen) ? (
                                             <img
                                                 src={getImageUrl(disenoSeleccionado.ruta_imagen)}
                                                 alt={disenoSeleccionado.nombre}
-                                                style={{
-                                                    width: '100%', maxWidth: '280px', borderRadius: '10px',
-                                                    border: '2px solid #e8d5e0', display: 'block',
-                                                }}
-                                                onError={(e) => {
-                                                    e.target.src = 'https://placehold.co/280x280?text=Sin+imagen';
-                                                }}
+                                                style={{ width: '100%', maxWidth: '280px', borderRadius: '10px', border: '2px solid #e8d5e0' }}
+                                                onError={(e) => { e.target.src = 'https://placehold.co/280x280?text=Sin+imagen'; }}
                                             />
                                         ) : (
-                                            <p style={{ color: '#9a7a8a', fontSize: '14px' }}>
-                                                Este diseño todavía no tiene una foto de referencia cargada.
-                                            </p>
+                                            <p style={{ color: '#9a7a8a', fontSize: '14px' }}>Sin foto de referencia.</p>
                                         )}
                                     </div>
                                 )}
                             </div>
                         )}
 
-                        {/* Extras */}
                         <div className="opcion-seccion">
-                            <h3>Extras</h3>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', cursor: 'pointer' }}>
-                                <input type="checkbox" checked={sobresabana}
-                                    onChange={e => setSobresabana(e.target.checked)}
-                                    style={{ width: '18px', height: '18px' }} />
-                                <div>
-                                    <strong>Incluir sobresábana</strong>
-                                    <small style={{ display: 'block', color: '#9a7a8a' }}>
-                                        +{METROS_SOBRESABANA} metros de tela adicionales
-                                    </small>
-                                </div>
-                            </label>
-
-                            <h4 style={{ marginBottom: '8px', color: '#5a3d54' }}>Fundas de almohada</h4>
-                            <div className="metodo-pago-grid">
+                            <h3>Fundas de almohada</h3>
+                            <div className="opciones-radio-grid">
                                 {[
-                                    { value: 'no',  label: 'Sin fundas', sub: 'No incluir' },
-                                    { value: 'una', label: 'Una funda',  sub: `+${METROS_ALMOHADA} metro de tela` },
-                                    { value: 'dos', label: 'Dos fundas', sub: `+${METROS_ALMOHADA * 2} metros de tela` },
-                                ].map(a => (
-                                    <label key={a.value} className={`metodo-pago-opcion ${almohadas === a.value ? 'seleccionado' : ''}`}>
-                                        <input type="radio" name="almohada" value={a.value}
-                                            checked={almohadas === a.value}
+                                    { value: 'no', label: 'Sin fundas' },
+                                    { value: 'una', label: '1 funda (+1m)' },
+                                    { value: 'dos', label: '2 fundas (+2m)' },
+                                ].map(o => (
+                                    <label key={o.value} className={`radio-card ${almohadas === o.value ? 'seleccionado' : ''}`}>
+                                        <input type="radio" name="almohadas" value={o.value}
+                                            checked={almohadas === o.value}
                                             onChange={e => setAlmohadas(e.target.value)} />
-                                        <div className="metodo-pago-texto">
-                                            <strong>{a.label}</strong>
-                                            <span>{a.sub}</span>
-                                        </div>
+                                        <span>{o.label}</span>
                                     </label>
                                 ))}
                             </div>
                         </div>
 
+                        <div className="opcion-seccion">
+                            <h3>Sobresábana</h3>
+                            <label className={`radio-card ${sobresabana ? 'seleccionado' : ''}`}>
+                                <input type="checkbox" checked={sobresabana}
+                                    onChange={e => setSobresabana(e.target.checked)} />
+                                <span>Incluir sobresábana (+2m)</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </main>

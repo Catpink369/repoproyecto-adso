@@ -10,15 +10,16 @@ import notif from '../assets/notif.png';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { apiGet, apiPatch } from '../context/api.js';
+import TicketPedidoModal from './TicketPedidoModal.jsx';
 
 import './css/header.css';
 
 const WHATSAPP = 'https://wa.me/573123456789';
 
-// Mapea el tipo de notificación guardado en BD a una ruta del front del cliente
-const RUTA_POR_TIPO = {
-    pedido_estado: '/mis_pedidos',
-    };
+// Mapea el tipo de notificación guardado en BD a una ruta del front del cliente.
+// 'pedido_estado' ya NO usa esto: en vez de navegar, abre el ticket en un
+// modal (ver handleClicNotificacion / TicketPedidoModal).
+const RUTA_POR_TIPO = {};
 
 const COLOR_POR_TIPO = {
     pedido_estado: '#2196F3',
@@ -35,6 +36,7 @@ const Header = () => {
     const [notificaciones, setNotificaciones] = useState([]);
     const [cantidadNoLeidas, setCantidadNoLeidas] = useState(0);
     const [cargando, setCargando] = useState(false);
+    const [idPedidoTicket, setIdPedidoTicket] = useState(null);
     const pollingRef = useRef(null);
     const panelRef = useRef(null);
 
@@ -113,7 +115,16 @@ const Header = () => {
         }
     };
 
-    // Clic en una notificación: marcarla leída + navegar según su tipo
+    // El registro de notificacion no guarda id_pedido como columna aparte —
+    // se extrae del mensaje "Tu pedido #123 ...", que es como lo arma
+    // NotificacionesService.notificarCambioEstadoPedido() en el backend.
+    const extraerIdPedido = (mensaje) => {
+        const match = mensaje?.match(/#(\d+)/);
+        return match ? Number(match[1]) : null;
+    };
+
+    // Clic en una notificación: marcarla leída + mostrar el ticket (o navegar
+    // según su tipo, para el resto de tipos que sí tengan ruta mapeada)
     const handleClicNotificacion = async (n) => {
         if (!n.leida) {
             try {
@@ -124,6 +135,15 @@ const Header = () => {
                 setCantidadNoLeidas(prev => Math.max(0, prev - 1));
             } catch (error) {
                 console.error('Error al marcar notificación como leída:', error);
+            }
+        }
+
+        if (n.tipo === 'pedido_estado') {
+            const idPedido = extraerIdPedido(n.mensaje);
+            if (idPedido) {
+                setMostrarNotif(false);
+                setIdPedidoTicket(idPedido);
+                return;
             }
         }
 
@@ -229,6 +249,8 @@ const Header = () => {
                 </Link>
             </div>
         </div>
+
+        <TicketPedidoModal idPedido={idPedidoTicket} onClose={() => setIdPedidoTicket(null)} />
         </header>
     );
 };

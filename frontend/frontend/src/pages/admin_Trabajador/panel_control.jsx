@@ -523,6 +523,7 @@ function Reportes() {
             setTopClientes(Object.values(clientes).sort((a, b) => b.total_monto - a.total_monto).slice(0, 3));
 
             setIngresosPorPedido(pedidos
+                .filter(p => p.estado !== 'Anulado') // ← excluir pedidos anulados del reporte de ingresos
                 .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 10)
                 .map(p => {
                     const ticket = p.ticket_compra;

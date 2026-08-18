@@ -7,8 +7,6 @@ import Footer from '../../components/Footer.jsx';
 import { AuthContext } from '../../context/AuthContext.jsx';
 import { apiGet, apiPost } from '../../context/api.js';
 
-// Igual que en catalogo_c.jsx / cliente.jsx: arma la URL absoluta de una
-// imagen guardada en el backend (o null si el diseño no tiene foto).
 const getImageUrl = (rutaImagen) => {
     if (!rutaImagen) return null;
     return `http://localhost:3000${rutaImagen}`;
@@ -51,7 +49,6 @@ const PersonalizarCubrelecho = () => {
     const [enviando, setEnviando]           = useState(false);
     const [mensaje, setMensaje]             = useState({ text: '', type: '' });
 
-    // colores y diseños por lado
     const [coloresL1, setColoresL1]                   = useState([]);
     const [coloresL2, setColoresL2]                   = useState([]);
     const [disenosL1, setDisenosL1]                   = useState([]);
@@ -77,7 +74,6 @@ const PersonalizarCubrelecho = () => {
         fetchTelas();
     }, []);
 
-    // Cargar colores/diseños cuando cambia la tela del lado 1
     useEffect(() => {
         if (!telaLado1) { setColoresL1([]); setDisenosL1([]); setColorL1(null); setDisenoL1(null); return; }
         const fetch = async () => {
@@ -96,7 +92,6 @@ const PersonalizarCubrelecho = () => {
         fetch();
     }, [telaLado1]);
 
-    // Cargar colores/diseños cuando cambia la tela del lado 2
     useEffect(() => {
         if (!telaLado2) { setColoresL2([]); setDisenosL2([]); setColorL2(null); setDisenoL2(null); return; }
         const fetch = async () => {
@@ -119,7 +114,6 @@ const PersonalizarCubrelecho = () => {
         Number(price)?.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
 
     const calcularMetros   = () => METROS_POR_TAMANO[tamano] || 0;
-    const metrosPorLado    = () => calcularMetros() / 2;
 
     const calcularPrecio = () => {
         if (!tamano || !telaLado1 || !telaLado2) return null;
@@ -132,7 +126,6 @@ const PersonalizarCubrelecho = () => {
     const precio         = calcularPrecio();
     const puedeConfirmar = tamano && telaLado1 && telaLado2;
 
-    // helpers para el lado activo
     const telaActual    = ladoActivo === 'lado1' ? telaLado1 : telaLado2;
     const setTelaActual = ladoActivo === 'lado1' ? setTelaLado1 : setTelaLado2;
     const coloresActual      = ladoActivo === 'lado1' ? coloresL1 : coloresL2;
@@ -156,17 +149,23 @@ const PersonalizarCubrelecho = () => {
         setEnviando(true);
         setMensaje({ text: '', type: '' });
 
-        const metros = calcularMetros();
-        const mitad  = metros / 2;
-        const materiales = [];
-
-        const agregarMaterial = (id, cantidad) => {
-            const existe = materiales.find(m => m.id_material === id);
-            if (existe) { existe.cantidad += cantidad; }
-            else { materiales.push({ id_material: id, cantidad }); }
-        };
-        agregarMaterial(telaLado1.id_material, mitad);
-        agregarMaterial(telaLado2.id_material, mitad);
+        const mitad = calcularMetros() / 2;
+        const materiales = [
+            {
+                id_material: telaLado1.id_material,
+                cantidad: mitad,
+                id_color: colorL1?.id_color,
+                id_diseno: disenoL1?.id_diseno,
+                concepto: 'Lado 1',
+            },
+            {
+                id_material: telaLado2.id_material,
+                cantidad: mitad,
+                id_color: colorL2?.id_color,
+                id_diseno: disenoL2?.id_diseno,
+                concepto: 'Lado 2',
+            },
+        ];
 
         const dto = {
             id_usuario:    usuarioActual.id_usuario,
@@ -178,26 +177,7 @@ const PersonalizarCubrelecho = () => {
 
         try {
             const response = await apiPost('/pedidos-personalizados', dto);
-            sessionStorage.setItem('ticketPersonalizado', JSON.stringify({
-                num_ticket:   response.num_ticket,
-                id_pedido:    response.id_pedido,
-                precio_total: response.precio_total,
-                tipo:         'Cubrelecho',
-                tamano:       TAMANO_LABEL[tamano],
-                telaLado1:    telaLado1.nombre,
-                telaLado2:    telaLado2.nombre,
-                colorLado1:   colorL1?.nombre || null,
-                colorLado2:   colorL2?.nombre || null,
-                disenoLado1:  disenoL1?.nombre || null,
-                disenoLado2:  disenoL2?.nombre || null,
-                metros,
-                usuario: {
-                    nombre:     `${usuarioActual.nom_1} ${usuarioActual.ape_1}`,
-                    correo:     usuarioActual.correo,
-                    telefono:   usuarioActual.telefono,
-                    id_usuario: usuarioActual.id_usuario,
-                },
-            }));
+            sessionStorage.setItem('ticketPersonalizado', JSON.stringify(response));
             navigate('/ticket_personalizado');
         } catch (error) {
             setMensaje({ text: error.message || 'Error al confirmar el pedido.', type: 'error' });
@@ -224,7 +204,6 @@ const PersonalizarCubrelecho = () => {
 
                 <div className="personalizar-layout">
 
-                    {/* Columna izquierda */}
                     <div className="personalizar-col-imagen">
                         <img src={p_cubrelechos} alt="Cubrelecho" className="personalizar-imagen" />
                         <div className="personalizar-imagen-info">
@@ -275,10 +254,7 @@ const PersonalizarCubrelecho = () => {
                         </div>
                     </div>
 
-                    {/* Columna derecha */}
                     <div className="personalizar-col-opciones">
-
-                        {/* Tamaño */}
                         <div className="opcion-seccion">
                             <h3>Tamaño de cama</h3>
                             <div className="opciones-radio-grid">
@@ -293,7 +269,6 @@ const PersonalizarCubrelecho = () => {
                             </div>
                         </div>
 
-                        {/* Tipo de tela + colores + diseños por lado */}
                         <div className="opcion-seccion">
                             <h3>Tipo de tela</h3>
 
@@ -335,37 +310,29 @@ const PersonalizarCubrelecho = () => {
                             </div>
                         </div>
 
-                        {/* Colores del lado activo */}
                         {telaActual && (
                             <div className="opcion-seccion">
                                 <h3>Color — {ladoActivo === 'lado1' ? 'Lado 1' : 'Lado 2'}</h3>
                                 {cargandoActual ? (
                                     <p style={{ color: '#9a7a8a' }}>Cargando colores...</p>
                                 ) : coloresActual.length === 0 ? (
-                                    <p style={{ fontSize: '0.88rem', color: '#9a7a8a' }}>
-                                        Esta tela no tiene colores registrados aún.
-                                    </p>
+                                    <p style={{ fontSize: '0.88rem', color: '#9a7a8a' }}>Esta tela no tiene colores registrados.</p>
                                 ) : (
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                                         {coloresActual.map(c => (
                                             <div key={c.id_color}
-                                                onClick={() => setColorActual(
-                                                    colorActual?.id_color === c.id_color ? null : c
-                                                )}
+                                                onClick={() => setColorActual(colorActual?.id_color === c.id_color ? null : c)}
                                                 style={{
                                                     display: 'flex', alignItems: 'center', gap: '8px',
                                                     padding: '8px 14px', borderRadius: '20px', cursor: 'pointer',
-                                                    border: colorActual?.id_color === c.id_color
-                                                        ? '2px solid #c45a77' : '2px solid #e8d5e0',
-                                                    background: colorActual?.id_color === c.id_color
-                                                        ? '#fff0f5' : '#fdf8fb',
+                                                    border: colorActual?.id_color === c.id_color ? '2px solid #c45a77' : '2px solid #e8d5e0',
+                                                    background: colorActual?.id_color === c.id_color ? '#fff0f5' : '#fdf8fb',
                                                     fontSize: '0.88rem', fontWeight: 500, color: '#5a3d54',
                                                 }}>
                                                 {c.codigo_hex && (
                                                     <span style={{
                                                         width: '18px', height: '18px', borderRadius: '50%',
-                                                        background: c.codigo_hex, flexShrink: 0,
-                                                        border: '1.5px solid rgba(0,0,0,0.1)',
+                                                        background: c.codigo_hex, border: '1.5px solid rgba(0,0,0,0.1)',
                                                         display: 'inline-block',
                                                     }} />
                                                 )}
@@ -378,7 +345,6 @@ const PersonalizarCubrelecho = () => {
                             </div>
                         )}
 
-                        {/* Diseños del lado activo */}
                         {telaActual && disenosActual.length > 0 && (
                             <div className="opcion-seccion">
                                 <h3>Diseño — {ladoActivo === 'lado1' ? 'Lado 1' : 'Lado 2'}</h3>
@@ -386,44 +352,29 @@ const PersonalizarCubrelecho = () => {
                                     {disenosActual.map(d => (
                                         <div key={d.id_diseno}
                                             className={`tela-item ${disenoActual?.id_diseno === d.id_diseno ? 'activo' : ''}`}
-                                            onClick={() => setDisenoActual(
-                                                disenoActual?.id_diseno === d.id_diseno ? null : d
-                                            )}>
+                                            onClick={() => setDisenoActual(disenoActual?.id_diseno === d.id_diseno ? null : d)}>
                                             {disenoActual?.id_diseno === d.id_diseno ? '✓ ' : ''}
                                             {d.nombre}
                                         </div>
                                     ))}
                                 </div>
 
-                                {/* Foto ampliada del diseño elegido para el lado activo. No
-                                    cambia dinámicamente con tela/color — es siempre la misma
-                                    foto de referencia de material_diseno.ruta_imagen. Al
-                                    cambiar de lado (ladoActivo) esto se re-evalúa solo, porque
-                                    disenoActual ya apunta al diseño de ese lado. */}
                                 {disenoActual && (
                                     <div className="diseno-imagen-preview" style={{ marginTop: '14px' }}>
                                         {getImageUrl(disenoActual.ruta_imagen) ? (
                                             <img
                                                 src={getImageUrl(disenoActual.ruta_imagen)}
                                                 alt={disenoActual.nombre}
-                                                style={{
-                                                    width: '100%', maxWidth: '280px', borderRadius: '10px',
-                                                    border: '2px solid #e8d5e0', display: 'block',
-                                                }}
-                                                onError={(e) => {
-                                                    e.target.src = 'https://placehold.co/280x280?text=Sin+imagen';
-                                                }}
+                                                style={{ width: '100%', maxWidth: '280px', borderRadius: '10px', border: '2px solid #e8d5e0' }}
+                                                onError={(e) => { e.target.src = 'https://placehold.co/280x280?text=Sin+imagen'; }}
                                             />
                                         ) : (
-                                            <p style={{ color: '#9a7a8a', fontSize: '14px' }}>
-                                                Este diseño todavía no tiene una foto de referencia cargada.
-                                            </p>
+                                            <p style={{ color: '#9a7a8a', fontSize: '14px' }}>Sin foto de referencia.</p>
                                         )}
                                     </div>
                                 )}
                             </div>
                         )}
-
                     </div>
                 </div>
             </main>

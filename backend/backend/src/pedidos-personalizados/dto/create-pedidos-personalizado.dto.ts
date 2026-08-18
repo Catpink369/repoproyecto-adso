@@ -1,39 +1,51 @@
-import { IsNotEmpty, IsString, IsArray, ArrayNotEmpty, IsNumber, IsOptional, IsIn, MaxLength, ValidateNested, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsString, IsNotEmpty, IsNumber, Min, IsOptional, MaxLength, IsArray, ValidateNested } from 'class-validator';
 
 export class MaterialItemDto {
     @IsNumber()
-    @IsNotEmpty()
+    @IsNotEmpty({ message: 'El id_material es obligatorio.' })
     @Type(() => Number)
     id_material!: number;
 
     @IsNumber()
-    @Min(0.1)
+    @Min(0.1, { message: 'La cantidad debe ser mayor a 0.' })
     @Type(() => Number)
     cantidad!: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Type(() => Number)
+    id_color?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Type(() => Number)
+    id_diseno?: number;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(40, { message: 'El concepto no puede superar los 40 caracteres.' })
+    concepto?: string;
     }
 
     export class CreatePedidoPersonalizadoDto {
     @IsString()
-    @IsNotEmpty()
+    @IsNotEmpty({ message: 'El id_usuario es obligatorio.' })
     id_usuario!: string;
 
-    @IsIn(['Sabana', 'Sábana', 'Cubrelecho'], {
-        message: 'tipo_producto debe ser Sabana o Cubrelecho.',
-    })
+    @IsString()
+    @IsNotEmpty({ message: 'El tipo_producto es obligatorio.' })
     tipo_producto!: string;
 
     @IsString()
-    @IsNotEmpty()
-    @MaxLength(30, { message: 'tamanio no puede superar los 30 caracteres.' })
+    @IsNotEmpty({ message: 'El tamaño es obligatorio.' })
     tamanio!: string;
 
-    @IsString()
     @IsOptional()
+    @IsString()
     metodo_pago?: string;
 
     @IsArray()
-    @ArrayNotEmpty({ message: 'Debes seleccionar al menos un material.' })
     @ValidateNested({ each: true })
     @Type(() => MaterialItemDto)
     materiales!: MaterialItemDto[];

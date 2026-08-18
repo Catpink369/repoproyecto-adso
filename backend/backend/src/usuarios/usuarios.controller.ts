@@ -4,6 +4,7 @@ import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { Roles } from '../auth/enums/roles.enum';
+import { Roles as RolesDecorator } from '../auth/decorators/roles.decorator';
 import { ApiBearerAuth, ApiSecurity, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -30,7 +31,7 @@ export class UsuariosController {
     try {
       return await this.usuariosService.create(createUsuarioDto);
     } catch (error: any) {
-      if (error.code === '23505' || error.code === 11000) {
+      if (error.code === '23505' || error.code === 11000 || error.code === 'P2002') {
         throw new ConflictException('El correo ya está registrado');
       }
       if (error instanceof BadRequestException || error instanceof ConflictException) {
@@ -47,6 +48,7 @@ export class UsuariosController {
   @ApiOperation({ summary: 'Solicitar código de reset de contraseña' })
   @ApiResponse({ status: 200, description: 'Código enviado si el correo existe.' })
   @ApiResponse({ status: 400, description: 'Correo inválido o ausente.' })
+  @ApiResponse({ status: 404, description: 'No existe un usuario con ese correo.' })
   @ApiResponse({ status: 500, description: 'Error al enviar el correo.' })
   async solicitarReset(@Body() body: { correo: string }) {
     if (!body.correo || !body.correo.includes('@')) {
@@ -56,7 +58,7 @@ export class UsuariosController {
       await this.usuariosService.solicitarReset(body.correo);
       return { message: 'Si el correo está registrado, recibirás un código de recuperación' };
     } catch (error: any) {
-      if (error instanceof BadRequestException) throw error;
+      if (error instanceof BadRequestException || error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException('Error al procesar la solicitud de reset');
     }
   }
@@ -94,10 +96,12 @@ export class UsuariosController {
   }
 
   // ── 4. GET / → listar usuarios
+  @RolesDecorator(Roles.ADMIN)
   @Get()
   @ApiOperation({ summary: 'Listar usuarios' })
   @ApiResponse({ status: 200, description: 'Lista de usuarios retornada.' })
   @ApiResponse({ status: 401, description: 'Token JWT ausente o expirado.' })
+  @ApiResponse({ status: 403, description: 'Solo el Administrador puede listar usuarios.' })
   async findAll(@Query() query: any) {
     console.log('controller - todos los usuarios:', JSON.stringify(query));
     try {
@@ -155,7 +159,7 @@ export class UsuariosController {
       if (!usuario) throw new NotFoundException(`Usuario con id ${id} no encontrado`);
       return usuario;
     } catch (error: any) {
-      if (error.code === '23505' || error.code === 11000) {
+      if (error.code === '23505' || error.code === 11000 || error.code === 'P2002') {
         throw new ConflictException('El correo ya está en uso por otro usuario');
       }
       if (
@@ -199,24 +203,27 @@ export class UsuariosController {
   }
 
   // ── 8. PATCH :id/estado
-    @Patch(':id/estado')
-    @ApiOperation({ summary: 'Activar o desactivar usuario' })
-    @ApiResponse({ status: 200, description: 'Estado del usuario cambiado.' })
-    @ApiResponse({ status: 404, description: 'Usuario no encontrado.' })
-    async toggleEstado(@Param('id') id: string) {
-      try {
-        const usuario = await this.usuariosService.toggleEstado(id);
-        if (!usuario) throw new NotFoundException(`Usuario con id ${id} no encontrado`);
-        return usuario;
-      } catch (error: any) {
-        if (
-          error instanceof NotFoundException ||
-          error instanceof ForbiddenException ||
-          error instanceof UnauthorizedException
-        ) throw error;
-        throw new InternalServerErrorException('Error interno al cambiar el estado del usuario');
-      }
+  @RolesDecorator(Roles.ADMIN)
+  @Patch(':id/estado')
+  @ApiOperation({ summary: 'Activar o desactivar usuario' })
+  @ApiResponse({ status: 200, description: 'Estado del usuario cambiado.' })
+  @ApiResponse({ status: 403, description: 'Solo el Administrador puede cambiar el estado de un usuario.' })
+  @ApiResponse({ status: 404, description: 'Usuario no encontrado.' })
+  async toggleEstado(@Param('id') id: string) {
+    try {
+      const usuario = await this.usuariosService.toggleEstado(id);
+      if (!usuario) throw new NotFoundException(`Usuario con id ${id} no encontrado`);
+      return usuario;
+    } catch (error: any) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException ||
+        error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
+      ) throw error;
+      throw new InternalServerErrorException('Error interno al cambiar el estado del usuario');
     }
+  }
 
     // ── 9. DELETE :id
     @Delete(':id')

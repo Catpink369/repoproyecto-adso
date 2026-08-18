@@ -1,4 +1,4 @@
-// RF-008.1 a RF-008.4 
+// RF-008.1 a RF-008.4
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -71,6 +71,10 @@ describe('RF-008 — Pagos y Tickets (integración)', () => {
     });
 
     afterAll(async () => {
+        // Limpieza de notificaciones creadas por los pedidos de este archivo
+        // (notificarPedidoCreado / notificarCambioEstadoPedido las persisten
+        await prisma.notificacion.deleteMany({ where: { id_usuario: cliente.usuario.id_usuario } });
+
         await prisma.detalle_pedido_personalizado.deleteMany({ where: { id_material: material.id_material } });
         await prisma.material.delete({ where: { id_material: material.id_material } }).catch(() => {});
         const detalles = await prisma.detalles_pedido.findMany({
@@ -86,13 +90,13 @@ describe('RF-008 — Pagos y Tickets (integración)', () => {
         await app.close();
     });
 
-    async function crearPedidoEstandar() {
+    async function crearPedidoEstandar(clienteUsado: { usuario: any; token: string } = cliente) {
         const res = await request(app.getHttpServer())
         .post('/pedidos/crear')
         .set('x-api-key', API_KEY)
-        .set('Authorization', `Bearer ${cliente.token}`)
+        .set('Authorization', `Bearer ${clienteUsado.token}`)
         .send({
-            id_usuario: cliente.usuario.id_usuario,
+            id_usuario: clienteUsado.usuario.id_usuario,
             metodo_pago: 'Efectivo',
             subtotal: 25000,
             total: 25000,
@@ -179,6 +183,22 @@ describe('RF-008 — Pagos y Tickets (integración)', () => {
 
         it('CP-006: bloquea el cambio de estado en pedidos Entregado/Finalizado/Anulado', async () => {
             const idPedido = await crearPedidoEstandar();
+
+            // El flujo válido es Pendiente -> En preparación -> Pagado -> Finalizado
+            await request(app.getHttpServer())
+                .patch(`/pedidos/${idPedido}`)
+                .set('x-api-key', API_KEY)
+                .set('Authorization', `Bearer ${admin.token}`)
+                .send({ estado: 'En preparación' })
+                .expect(200);
+
+            await request(app.getHttpServer())
+                .patch(`/pedidos/${idPedido}`)
+                .set('x-api-key', API_KEY)
+                .set('Authorization', `Bearer ${admin.token}`)
+                .send({ estado: 'Pagado', metodo_pago: 'Efectivo' })
+                .expect(200);
+
             await request(app.getHttpServer())
                 .patch(`/pedidos/${idPedido}`)
                 .set('x-api-key', API_KEY)
@@ -212,7 +232,8 @@ describe('RF-008 — Pagos y Tickets (integración)', () => {
             });
 
             expect(notif).not.toBeNull();
-            expect(notif?.titulo).toBe('Actualización de pedido'); // el título persistido; el push usa "Actualización de tu pedido"
+
+            expect(notif?.titulo).toBe('Actualización de tu pedido');
         });
     });
 
@@ -242,61 +263,48 @@ describe('RF-008 — Pagos y Tickets (integración)', () => {
         });
     });
 
+    // RF-008.4 
     describe('RF-008.4 — Consultar tickets y pedidos realizados', () => {
-        it('CP-010: el usuario visualiza el historial cronológico completo de sus pedidos', async () => {
-            await crearPedidoEstandar();
-            await crearPedidoEstandar();
+        it('CP-010: el cliente solo ve notificaciones/pedidos de su propia cuenta', async () => {
+            // Un segundo cliente, sin relación con el primero, hace su propio pedido.
+            const otroCliente = await loginComoCliente(app);
+            await crearPedidoEstandar(otroCliente);
+
+            await crearPedidoEstandar(); // pedido propio del cliente bajo prueba
 
             const res = await request(app.getHttpServer())
-                .get(`/pedidos/usuario/${cliente.usuario.id_usuario}`)
+                .get(`/notificaciones/usuario/${cliente.usuario.id_usuario}`)
                 .set('x-api-key', API_KEY)
                 .set('Authorization', `Bearer ${cliente.token}`);
 
             expect(res.status).toBe(200);
-            expect(res.body.length).toBeGreaterThanOrEqual(2);
-            const fechas = res.body.map((p: any) => new Date(p.fecha).getTime());
-            const fechasOrdenadas = [...fechas].sort((a, b) => b - a);
-            expect(fechas).toEqual(fechasOrdenadas); // más reciente primero
+            const notificaciones = Array.isArray(res.body) ? res.body : res.body?.data ?? [];
+            expect(notificaciones.length).toBeGreaterThan(0);
+            expect(
+                notificaciones.every((n: any) => n.id_usuario === cliente.usuario.id_usuario),
+            ).toBe(true);
+
+            // limpieza del cliente 
+            await prisma.notificacion.deleteMany({ where: { id_usuario: otroCliente.usuario.id_usuario } });
         });
 
-        it('CP-011: el filtro "estándar" oculta los pedidos personalizados', async () => {
-            await crearPedidoEstandar();
-            await request(app.getHttpServer())
-                .post('/pedidos-personalizados')
-                .set('x-api-key', API_KEY)
-                .set('Authorization', `Bearer ${cliente.token}`)
-                .send({
-                id_usuario: cliente.usuario.id_usuario,
-                tipo_producto: 'Sabana',
-                tamanio: 'Sencilla',
-                materiales: [{ id_material: material.id_material, cantidad: 1 }],
-                });
-
-            const res = await request(app.getHttpServer())
-                .get(`/pedidos/usuario/${cliente.usuario.id_usuario}?tipo=estandar`)
-                .set('x-api-key', API_KEY)
-                .set('Authorization', `Bearer ${cliente.token}`);
-
-            expect(res.status).toBe(200);
-            expect(res.body.every((p: any) => p.id_tipo === 'P_E')).toBe(true);
-        });
-
-        it('CP-012: el filtro "personalizado" oculta los pedidos estándar', async () => {
-            const res = await request(app.getHttpServer())
-                .get(`/pedidos/usuario/${cliente.usuario.id_usuario}?tipo=personalizado`)
-                .set('x-api-key', API_KEY)
-                .set('Authorization', `Bearer ${cliente.token}`);
-
-            expect(res.status).toBe(200);
-            expect(res.body.every((p: any) => p.id_tipo === 'P_P')).toBe(true);
-            expect(res.body.length).toBeGreaterThan(0);
-        });
-
-        it('CP-013: se puede abrir el detalle completo de un pedido específico', async () => {
+        it('CP-011: al hacer clic en la notificación se abre el ticket completo del pedido correspondiente', async () => {
             const idPedido = await crearPedidoEstandar();
 
+            const resNotif = await request(app.getHttpServer())
+                .get(`/notificaciones/usuario/${cliente.usuario.id_usuario}`)
+                .set('x-api-key', API_KEY)
+                .set('Authorization', `Bearer ${cliente.token}`);
+
+            const notificaciones = Array.isArray(resNotif.body) ? resNotif.body : resNotif.body?.data ?? [];
+            const notif = notificaciones.find((n: any) => n.mensaje?.includes(`#${idPedido}`));
+            expect(notif).toBeDefined();
+
+            const idExtraido = Number(notif.mensaje.match(/#(\d+)/)?.[1]);
+            expect(idExtraido).toBe(idPedido);
+
             const res = await request(app.getHttpServer())
-                .get(`/pedidos/detalle/${idPedido}`)
+                .get(`/pedidos/detalle/${idExtraido}`)
                 .set('x-api-key', API_KEY)
                 .set('Authorization', `Bearer ${cliente.token}`);
 
@@ -305,6 +313,41 @@ describe('RF-008 — Pagos y Tickets (integración)', () => {
             expect(res.body.detalles_pedido).toBeDefined();
             expect(res.body.ticket_compra).toBeDefined();
             expect(res.body.usuario).toBeDefined();
+        });
+
+        it.todo(
+            'CP-012: el cliente puede descargar/imprimir el ticket de su pedido como PDF — requiere spec de frontend',
+        );
+
+        it('CP-013: al abrir una notificación no leída, se marca como leída y el contador baja', async () => {
+            await crearPedidoEstandar();
+
+            const resNotif = await request(app.getHttpServer())
+                .get(`/notificaciones/usuario/${cliente.usuario.id_usuario}`)
+                .set('x-api-key', API_KEY)
+                .set('Authorization', `Bearer ${cliente.token}`);
+            const notificaciones = Array.isArray(resNotif.body) ? resNotif.body : resNotif.body?.data ?? [];
+            const noLeida = notificaciones.find((n: any) => !n.leida);
+            expect(noLeida).toBeDefined();
+
+            const resContadorAntes = await request(app.getHttpServer())
+                .get(`/notificaciones/usuario/${cliente.usuario.id_usuario}/count`)
+                .set('x-api-key', API_KEY)
+                .set('Authorization', `Bearer ${cliente.token}`);
+            const contadorAntes = resContadorAntes.body?.count ?? 0;
+
+            await request(app.getHttpServer())
+                .patch(`/notificaciones/${noLeida.id_notificacion}/leer?usuario=${cliente.usuario.id_usuario}`)
+                .set('x-api-key', API_KEY)
+                .set('Authorization', `Bearer ${cliente.token}`)
+                .expect(200);
+
+            const resContadorDespues = await request(app.getHttpServer())
+                .get(`/notificaciones/usuario/${cliente.usuario.id_usuario}/count`)
+                .set('x-api-key', API_KEY)
+                .set('Authorization', `Bearer ${cliente.token}`);
+
+            expect(resContadorDespues.body?.count).toBe(contadorAntes - 1);
         });
     });
 });

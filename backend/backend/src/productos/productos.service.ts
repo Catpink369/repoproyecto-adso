@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductoDto } from './dto/create-producto.dto';
 import { UpdateProductoDto } from './dto/update-producto.dto';
@@ -134,6 +134,16 @@ export class ProductosService {
   async remove(id: number) {
     console.log('service - eliminar producto:', JSON.stringify({ id }));
     await this.findOne(id);
+
+    const tienePedidosAsociados = await this.prisma.detalles_pedido.findFirst({
+      where: { id_producto: id },
+    });
+
+    if (tienePedidosAsociados) {
+      throw new ConflictException(
+        'No se puede eliminar el producto porque está asociado a pedidos existentes. Considera desactivarlo en su lugar.',
+      );
+    }
 
     await this.prisma.producto.update({
       where: { id_producto: id },

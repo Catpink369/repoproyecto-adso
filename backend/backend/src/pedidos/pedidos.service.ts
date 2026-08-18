@@ -10,7 +10,7 @@ export class PedidosService {
   constructor(
     private prisma: PrismaService,
     private fcmPush: FcmPushService,
-    private notificacionesService: NotificacionesService, // <-- nuevo
+    private notificacionesService: NotificacionesService,
   ) {}
 
   // -------------------------------------------------------
@@ -178,12 +178,28 @@ export class PedidosService {
       throw new BadRequestException('No se pudo generar un número de ticket único. Intenta nuevamente.');
     }
 
-    // ── Notificar a admins DESPUÉS de que la transacción cerró exitosamente
-    await this.fcmPush.notificarAdmins(
-      'Nuevo pedido recibido',
-      `Pedido #${resultado.num_ticket} - ${resultado.productos_procesados} producto(s)`,
-      { id_pedido: String(resultado.id_pedido), pantalla: '/pedidos_realizados' },
-    );
+    // ── Notificar a admins DESPUÉS de que la transacción cerró exitosamente.
+    // Envuelto en try/catch: el pedido YA está comprometido en BD en este punto,
+    // así que un fallo de FCM (token inválido, servicio caído, etc.) NUNCA debe
+    // traducirse en un 500 hacia el cliente ni hacerle creer que el pedido falló.
+    try {
+      await this.fcmPush.notificarAdmins(
+        'Nuevo pedido recibido',
+        `Pedido #${resultado.num_ticket} - ${resultado.productos_procesados} producto(s)`,
+        { id_pedido: String(resultado.id_pedido), pantalla: '/pedidos_realizados' },
+      );
+    } catch (error) {
+      console.error('No se pudo notificar a admins del nuevo pedido:', error);
+    }
+
+    // ── Notificar al CLIENTE que su pedido se realizó con éxito. Mismo
+    // criterio: el pedido ya está comprometido en BD, así que un fallo acá
+    // nunca debe tumbar la respuesta exitosa de creación del pedido.
+    try {
+      await this.notificacionesService.notificarPedidoCreado(id_usuario, resultado.id_pedido);
+    } catch (error) {
+      console.error('No se pudo notificar al cliente sobre su nuevo pedido:', error);
+    }
 
     return {
       success: true,
@@ -352,6 +368,26 @@ export class PedidosService {
       this.validarTransicionEstado(pedido.estado, dto.estado);
     }
 
+    // RN-002 (RF-008.2): no se puede marcar un pedido como "Entregado" o
+    // "Finalizado" mientras el método de pago siga "Por definir". Se revisa
+    // tanto el método ya guardado en el ticket como uno que venga en el mismo
+    // request (por si algún día se envían estado y metodo_pago juntos).
+    if (dto.estado === 'Entregado' || dto.estado === 'Finalizado') {
+      const ticket = Array.isArray((pedido as any).ticket_compra)
+        ? (pedido as any).ticket_compra[0]
+        : (pedido as any).ticket_compra;
+      const metodoActualId = ticket?.id_met_pago;
+      const seDefineEnEstaPeticion = !!dto.metodo_pago && dto.metodo_pago !== 'Por_definir';
+      const siguePorDefinir = (!metodoActualId || metodoActualId === 'Mtd_PD') && !seDefineEnEstaPeticion;
+
+      if (siguePorDefinir) {
+        throw new BadRequestException(
+          `No se puede marcar el pedido como "${dto.estado}" sin un método de pago definido. ` +
+            `Actualiza primero el método de pago.`,
+        );
+      }
+    }
+
     const metodoPagoMap: Record<string, string> = {
       'Efectivo':      'Mtd_EF',
       'Nequi':         'Mtd_NQ',
@@ -378,13 +414,26 @@ export class PedidosService {
       });
     }
 
-    // ── Notificar al cliente si cambió el estado
+    // ── Notificar al cliente si cambió el estado.
+    // Envuelto en try/catch: `pedidoActualizado` YA está guardado en BD en este
+    // punto. Si esto no se protege, un fallo de notificación (p. ej. usuario sin
+    // token FCM registrado) hace que el endpoint responda 500 aunque el estado
+    // SÍ se haya guardado — el admin ve error, pero al recargar el cambio ya
+    // está ahí. Ese era el bug: el panel se quedaba pegado en modo edición
+    // porque el frontend nunca recibía una respuesta exitosa.
     if (dto.estado) {
-      await this.notificacionesService.notificarCambioEstadoPedido({
-        id_pedido: pedidoActualizado.id_pedido,
-        id_usuario: pedido.id_usuario,
-        estado: dto.estado,
-      });
+      try {
+        await this.notificacionesService.notificarCambioEstadoPedido({
+          id_pedido: pedidoActualizado.id_pedido,
+          id_usuario: pedido.id_usuario,
+          estado: dto.estado,
+        });
+      } catch (error) {
+        console.error(
+          `No se pudo notificar al cliente el cambio de estado del pedido #${pedidoActualizado.id_pedido}:`,
+          error,
+        );
+      }
     }
 
     return pedidoActualizado;

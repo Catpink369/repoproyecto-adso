@@ -7,42 +7,6 @@ import '../../components/css/styles.css';
 import { apiPost } from '../../context/api.js';
 import { secureStorage } from '../../utils/storage';
 
-// ─── Estilos inline del ticket (independientes del CSS externo) ───────────────
-const S = {
-    page: { fontFamily: '"Segoe UI", Arial, sans-serif', maxWidth: 620, margin: '0 auto', background: 'white', color: '#333' },
-    header: { background: 'linear-gradient(135deg,#c45a77,#a94563)', padding: '30px 36px', textAlign: 'center', borderRadius: '18px 18px 0 0' },
-    headerTitle: { color: 'white', fontSize: 28, fontWeight: 800, margin: '0 0 6px' },
-    headerSub: { color: 'rgba(255,255,255,0.85)', fontSize: 15, margin: 0 },
-    body: { padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20 },
-    infoBox: { background: 'linear-gradient(135deg,#fff5f9,#ffeef5)', border: '1.5px solid #f0c8da', borderRadius: 12, padding: '18px 20px' },
-    infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', marginBottom: 12 },
-    infoLabel: { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#9a7a8a', marginBottom: 4 },
-    infoValue: { fontSize: 18, fontWeight: 800, color: '#c45a77', margin: 0 },
-    infoRight: { textAlign: 'right' },
-    divider: { paddingTop: 12, borderTop: '1px solid #f0d0e0' },
-    infoDate: { fontSize: 15, fontWeight: 600, color: '#5a3d54', margin: 0 },
-    section: { borderBottom: '1px solid #f5e8ef', paddingBottom: 18 },
-    sectionTitle: { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#9a7a8a', marginBottom: 12 },
-    clienteNombre: { fontSize: 17, fontWeight: 700, color: '#4b004b', margin: '0 0 6px' },
-    clienteInfo: { fontSize: 14, color: '#666', margin: '0 0 4px' },
-    productoItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '12px 14px', background: '#fdf8fb', borderRadius: 10, border: '1px solid #f0d8e5', marginBottom: 8 },
-    productoNombre: { fontWeight: 600, color: '#5a3d54', fontSize: 15, margin: '0 0 3px' },
-    productoCantidad: { fontSize: 13, color: '#888', margin: 0 },
-    productoTotal: { fontWeight: 700, color: '#c45a77', fontSize: 16, flexShrink: 0, margin: 0 },
-    totales: { background: '#fdf8fb', borderRadius: 12, padding: '16px 18px', border: '1.5px solid #f0d8e5' },
-    subtotalRow: { display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#666', paddingBottom: 8, borderBottom: '1px solid #f0d0e0', marginBottom: 8 },
-    totalRow: { display: 'flex', justifyContent: 'space-between', fontSize: 20, fontWeight: 800, color: '#4b004b' },
-    pagoBox: { background: 'linear-gradient(135deg,#fff5f9,#ffeef5)', border: '1.5px solid #f0c8da', borderLeft: '4px solid #c45a77', borderRadius: 10, padding: '14px 18px' },
-    pagoRow: { display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#5a3d54', marginBottom: 8 },
-    pagoValor: { fontWeight: 700, color: '#c45a77' },
-    pagaNota: { fontSize: 13, color: '#9a7a8a', lineHeight: 1.5, margin: 0 },
-    estadoContainer: { textAlign: 'center' },
-    estadoBadge: { display: 'inline-block', padding: '8px 20px', background: '#d1fae5', color: '#065f46', borderRadius: 20, fontSize: 14, fontWeight: 700 },
-    footer: { textAlign: 'center', paddingTop: 6 },
-    footerGracias: { fontSize: 17, fontWeight: 700, color: '#c45a77', margin: '0 0 4px' },
-    footerEmpresa: { fontSize: 13, color: '#9a7a8a', margin: 0 },
-};
-
 const TicketCompra = () => {
     const { clearCart } = useCart();
     const navigate = useNavigate();
@@ -51,11 +15,7 @@ const TicketCompra = () => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        // CP-004 (RF-007.1): un usuario sin sesión iniciada no puede registrar
-        // un pedido, ni siquiera accediendo directamente a esta pantalla por
-        // URL con datos de pago ya guardados en sessionStorage. Antes, si no
-        // había usuario, se armaba el pedido con id_usuario='GUEST' en vez de
-        // redirigir al login.
+        // CP-004 (RF-007.1): Protección de ruta sin sesión activa
         const datosUsuario = secureStorage.getItem('user', sessionStorage) || secureStorage.getItem('user', localStorage);
         if (!datosUsuario || !datosUsuario.id_usuario) {
             sessionStorage.removeItem('paymentData');
@@ -118,7 +78,7 @@ const TicketCompra = () => {
                 productos:  pedidoData.cartItems,
                 subtotal:   pedidoData.subtotal,
                 total:      pedidoData.total,
-                metodo_pago: 'Por definir',
+                metodo_pago: pedidoData.metodoPago || 'Por definir',
                 estado:      resData.estado || 'Pendiente',
                 nota: 'Puede realizar el pago en la tienda física o coordinar con el administrador.',
             });
@@ -266,11 +226,9 @@ const TicketCompra = () => {
     </div>
   </div>
   <script>
-    // Imprime automáticamente al abrir y cierra la ventana al terminar
     window.onload = function() {
       window.print();
       window.onafterprint = function() { window.close(); };
-      // Fallback por si onafterprint no se dispara
       setTimeout(function() { window.close(); }, 15000);
     };
   </script>
@@ -342,7 +300,6 @@ const TicketCompra = () => {
             <Header />
             <main className="ticket-main">
 
-                {/* Vista del ticket en pantalla (usa las clases CSS normales) */}
                 <div className="ticket-container">
                     <div className="ticket-header">
                         <h1 className="ticket-header-title">¡Pedido Generado!</h1>
@@ -378,8 +335,8 @@ const TicketCompra = () => {
                         <div className="ticket-section">
                             <h3 className="ticket-section-title">Productos</h3>
                             <div className="ticket-productos-lista">
-                                {ticketData.productos.map((producto, index) => (
-                                    <div key={index} className="ticket-producto-item">
+                                {ticketData.productos.map((producto) => (
+                                    <div key={producto.id || producto.id_producto} className="ticket-producto-item">
                                         <div className="ticket-producto-info">
                                             <p className="ticket-producto-nombre">{producto.name}</p>
                                             <p className="ticket-producto-cantidad">{producto.cantidad} x {formatPrice(producto.price)}</p>
@@ -415,7 +372,6 @@ const TicketCompra = () => {
                     </div>
                 </div>
 
-                {/* Botones */}
                 <div className="ticket-acciones">
                     <button onClick={handlePrint} className="ticket-btn-descargar">
                         Imprimir / Guardar PDF

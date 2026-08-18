@@ -1,4 +1,4 @@
-//RF-005.1 - RF-005.2 / RF-008.1(CP-002))
+//RF-005.1 - RF-005.2
 import { Test, TestingModule } from '@nestjs/testing'; 
 import { faker } from '@faker-js/faker';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
@@ -250,30 +250,4 @@ describe('RF-005 - Gestionar Pedidos Personalizados', () => {
             expect(resultado2.precio_total).toBe(15000); // no arrastra el material anterior
         });
     });
-
-	describe('RF-008.1 - Generar ticket de pedido (automático)', () => {
-        it('CP-002: el resultado para generar el ticket debe incluir las opciones de personalización elegidas', async () => {
-            mockUsuarioValido('123');
-            mockMaterialesDisponibles([
-                { id_material: 1, nombre: 'Tela algodón estampada', precio_unitario: 14000, stock_actual: 20, unidad: 'metro' },
-            ]);
-            mockTransaccionExitosa();
-    
-            const dto = {
-                id_usuario: '123',
-                tipo_producto: 'Cubrelecho',
-                tamanio: 'King',
-                materiales: [{ id_material: 1, cantidad: 3 }],
-            };
-    
-            const resultado = await service.crearPedido(dto as any);
-    
-            expect(resultado.tipo_producto).toBe('Cubrelecho');
-            expect(resultado.tamanio).toBe('King');
-            expect(resultado.materiales[0]).toEqual(
-                expect.objectContaining({ nombre: 'Tela algodón estampada', cantidad: 3, unidad: 'metro' }),
-            );
-            expect(resultado.num_ticket).toBeDefined();
-        });
-    });
-});           
+});

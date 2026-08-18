@@ -30,7 +30,7 @@ export class ProductosController {
     try {
       return await this.productosService.create(dto);
     } catch (error: any) {
-      if (error.code === '23505') throw new ConflictException('El producto ya existe.');
+      if (error.code === '23505' || error.code === 'P2002') throw new ConflictException('El producto ya existe.');
       throw new InternalServerErrorException('Error al crear el producto.');
     }
   }
@@ -121,7 +121,7 @@ export class ProductosController {
       if (error instanceof NotFoundException || error instanceof BadRequestException) {
         throw error;
       }
-      if (error.code === '23505') {
+      if (error.code === '23505' || error.code === 'P2002') {
         throw new ConflictException('Ya existe un producto con este codigo o nombre.');
       }
       throw new InternalServerErrorException('Error al actualizar el producto.'); 
@@ -131,7 +131,7 @@ export class ProductosController {
   // DELETE /productos/:id
   @Delete(':id')
   @Roles(RolesEnum.ADMIN)
-  @ApiOperation({ summary: 'Eliminar un producto del sistema' })
+  @ApiOperation({ summary: 'Eliminar producto del sistema' })
   @ApiResponse({ status: 200, description: 'Producto eliminado exitosamente.' })
   @ApiResponse({ status: 400, description: 'El ID proporcionado no es un número válido.' })
   @ApiResponse({ status: 403, description: 'Prohibido - Solo el Administrador puede borrar productos.' })
@@ -151,20 +151,21 @@ export class ProductosController {
         id: id
       };
     } catch (error: any) {
-      // 1. Relanzar errores de Nest (404, 403, 400)
-      if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ForbiddenException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException ||
+        error instanceof ConflictException
+      ) {
         throw error;
       }
 
-      // 2. Manejo de error de llave foránea (Error 23503 en Postgres)
-      // Esto pasa si el producto está en la tabla 'detalles_pedidos'
       if (error.code === '23503') {
         throw new ConflictException(
           'No se puede eliminar el producto porque está asociado a pedidos existentes. Considera desactivarlo en su lugar.'
         );
       }
 
-      // 3. Error genérico de servidor
       throw new InternalServerErrorException('Ocurrió un error inesperado al eliminar el producto');
     }
   }
@@ -186,12 +187,11 @@ export class ProductosController {
     }),
     fileFilter: (req, file, cb) => {
       if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
-        // Usamos BadRequestException para que el cliente reciba un 400 claro
         return cb(new BadRequestException('Formato de archivo no permitido. Use jpg, jpeg, png o webp'), false);
       }
       cb(null, true);
     },
-    limits: { fileSize: 5 * 1024 * 1024 }, // Límite de 5MB
+    limits: { fileSize: 5 * 1024 * 1024 },
   }))
   @ApiOperation({ summary: 'Subir o actualizar la imagen de un producto' })
   @ApiResponse({ status: 200, description: 'Imagen actualizada correctamente.' })
@@ -202,7 +202,6 @@ export class ProductosController {
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File
   ) {
-    // Si el archivo es rechazado por el filtro o no se envía, Multer devuelve undefined
     if (!file) {
       throw new BadRequestException('Debe proporcionar una imagen válida en el campo "imagen_producto"');
     }
@@ -216,12 +215,10 @@ export class ProductosController {
 
       return productoActualizado;
     } catch (error: any) {
-      // Relanzamos errores conocidos (404, 400)
       if (error instanceof NotFoundException || error instanceof BadRequestException) {
         throw error;
       }
 
-      // Si falla la base de datos, lo manejamos como error interno
       throw new InternalServerErrorException('Error al intentar actualizar la imagen en la base de datos');
     }
   }

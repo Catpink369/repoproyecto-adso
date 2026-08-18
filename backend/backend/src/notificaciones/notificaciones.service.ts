@@ -1,33 +1,50 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { FcmPushService } from './fcm-push.service';
-import { TaskService } from '../task/task.service';
 
 @Injectable()
 export class NotificacionesService {
-  private readonly logger = new Logger(NotificacionesService.name);
-
   constructor(
     private prisma: PrismaService,
     private fcmPush: FcmPushService,
-    private taskService: TaskService,
   ) {}
 
   // -------------------------------------------------------
   // TODAS LAS NOTIFICACIONES ACTIVAS
   // -------------------------------------------------------
   async findAll(query: any) {
+    
     const hace7Dias = new Date();
     hace7Dias.setDate(hace7Dias.getDate() - 7);
-    const pedidos = await this.prisma.pedido.findMany({
-      where: { fecha: { gte: hace7Dias } },
-      orderBy: { fecha: 'desc' },
-      take: 100,
-      include: { ticket_compra: true } as any,
-    });
 
+    const [stockBajo, agotados, pedidos] = await Promise.all([
+      // Stock bajo
+      this.prisma.producto.findMany({
+        where: {
+          estado: true,
+          stock_actual: { lte: this.prisma.producto.fields.stock_minimo as any, gt: 0 },
+        },
+      }),
+
+      // Agotados
+      this.prisma.producto.findMany({
+        where: { estado: true, stock_actual: 0 },
+      }),
+
+      // Pedidos recientes
+      this.prisma.pedido.findMany({
+        where: { fecha: { gte: hace7Dias } },
+        orderBy: { fecha: 'desc' },
+        take: 100,
+        include: { ticket_compra: true } as any,
+      }),
+    ]);
+
+    // Obtener usuarios de los pedidos
     const idUsuarios = [...new Set(pedidos.map((p) => p.id_usuario))];
-    const usuarios = await this.prisma.usuario.findMany({ where: { id_usuario: { in: idUsuarios } } });
+    const usuarios = await this.prisma.usuario.findMany({
+      where: { id_usuario: { in: idUsuarios } },
+    });
     const usuarioMap = Object.fromEntries(usuarios.map((u) => [u.id_usuario, u]));
 
     const notifStockBajo = await this._getStockBajo();
@@ -38,6 +55,8 @@ export class NotificacionesService {
       const nombre = usuario ? `${usuario.nom_1} ${usuario.ape_1}` : p.id_usuario;
       const ticket = (p as any).ticket_compra?.[0];
       const tipo_pedido = p.id_tipo === 'P_P' ? 'Personalizado' : 'Estándar';
+      
+      console.log('controller - todas las notificaciones:', JSON.stringify(query));
       return {
         tipo: 'pedido',
         id_notificacion: `pedido-${p.id_pedido}`,
@@ -66,15 +85,13 @@ export class NotificacionesService {
     const hace7Dias = new Date();
     hace7Dias.setDate(hace7Dias.getDate() - 7);
 
-    const [stockBajoRaw, alertas_agotados, nuevos_pedidos] = await Promise.all([
-      this.prisma.$queryRaw<any[]>`
-        SELECT COUNT(*) as total FROM producto
-        WHERE estado = 1 AND stock_actual <= stock_minimo AND stock_actual > 0
-      `,
+    const [alertas_stock_bajo, alertas_agotados, nuevos_pedidos] = await Promise.all([
+      this.prisma.producto.count({
+        where: { estado: true, stock_actual: { lte: this.prisma.producto.fields.stock_minimo as any, gt: 0 } },
+      }),
       this.prisma.producto.count({ where: { estado: true, stock_actual: 0 } }),
       this.prisma.pedido.count({ where: { fecha: { gte: hace7Dias } } }),
     ]);
-    const alertas_stock_bajo = Number(stockBajoRaw[0]?.total ?? 0);
 
     return {
       alertas_stock_bajo,
@@ -155,33 +172,27 @@ async pedidosRecientes(dias = 7) {
   // -------------------------------------------------------
   // ESTADÍSTICAS
   // -------------------------------------------------------
-  async estadisticas(query: any) {
+  async estadisticas(query :  any) {
+    console.log('controller - estadísticas:', JSON.stringify(query));
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     const hace7Dias = new Date();
     hace7Dias.setDate(hace7Dias.getDate() - 7);
 
-    const [productos_agotados, stockBajoRaw, pedidos_hoy, pedidos_semana, pedidos_pendientes] =
+    const [productos_agotados, productos_stock_bajo, pedidos_hoy, pedidos_semana, pedidos_pendientes] =
       await Promise.all([
         this.prisma.producto.count({ where: { estado: true, stock_actual: 0 } }),
-        this.prisma.$queryRaw<any[]>`
-          SELECT COUNT(*) as total FROM producto
-          WHERE estado = 1 AND stock_actual <= stock_minimo AND stock_actual > 0
-        `,
+        this.prisma.producto.count({
+          where: { estado: true, stock_actual: { lte: this.prisma.producto.fields.stock_minimo as any, gt: 0 } },
+        }),
         this.prisma.pedido.count({ where: { fecha: { gte: hoy } } }),
         this.prisma.pedido.count({ where: { fecha: { gte: hace7Dias } } }),
         this.prisma.pedido.count({ where: { estado: 'Pendiente' } }),
       ]);
 
-    return {
-      productos_agotados,
-      productos_stock_bajo: Number(stockBajoRaw[0]?.total ?? 0),
-      pedidos_hoy,
-      pedidos_semana,
-      pedidos_pendientes,
-    };
+    return { productos_agotados, productos_stock_bajo, pedidos_hoy, pedidos_semana, pedidos_pendientes };
   }
-  
+
   // -------------------------------------------------------
   // HELPERS PRIVADOS
   // -------------------------------------------------------
@@ -212,10 +223,10 @@ async pedidosRecientes(dias = 7) {
     }));
   }
 
-  private async _getAgotados() {
-    const productos = await this.prisma.$queryRaw<any[]>`
-      SELECT p.id_producto, p.nom_producto, p.stock_actual, p.stock_minimo,
-            p.ultima_actualiz, c.nombre_c as categoria, p.ruta_imagen
+    private async _getAgotados() {
+      const productos = await this.prisma.$queryRaw<any[]>`
+        SELECT p.id_producto, p.nom_producto, p.stock_actual, p.stock_minimo,
+              p.ultima_actualiz, c.nombre_c as categoria, p.ruta_imagen
         FROM producto p
         LEFT JOIN categoria c ON p.id_categoria = c.id_categoria
         WHERE p.estado = 1 AND p.stock_actual = 0
@@ -238,12 +249,11 @@ async pedidosRecientes(dias = 7) {
         ruta_imagen: p.ruta_imagen,
       }));
     }
-  
-  // -------------------------------------------------------
+    // -------------------------------------------------------
   // PERSISTENCIA EN TABLA notificacion (FCM real)
   // -------------------------------------------------------
 
-  // Crea una notificación para un usuario específico. 
+  /** Crea una notificación para un usuario específico. */
   async crearNotificacion(
     id_usuario: string,
     titulo: string,
@@ -255,7 +265,7 @@ async pedidosRecientes(dias = 7) {
     });
   }
 
-  // Crea la misma notificación para todos los admins y trabajadores (rol 1 y 3). 
+  /** Crea la misma notificación para todos los admins y trabajadores (rol 1 y 3). */
   async crearNotificacionAdmins(
     titulo: string,
     mensaje: string,
@@ -271,7 +281,7 @@ async pedidosRecientes(dias = 7) {
     });
   }
 
-  //Devuelve todas las notificaciones de un usuario, más recientes primero.
+  /** Devuelve todas las notificaciones de un usuario, más recientes primero. */
   async notificacionesPorUsuario(id_usuario: string) {
     return this.prisma.notificacion.findMany({
       where: { id_usuario },
@@ -279,92 +289,93 @@ async pedidosRecientes(dias = 7) {
     });
   }
 
-  //Cuenta las no leídas (para el badge).
+  // -------------------------------------------------------
+  // NOTIFICACIONES DE CICLO DE VIDA DEL PEDIDO (para el cliente)
+  // -------------------------------------------------------
+
+  // Mensaje breve por cada estado del flujo (RF-008.2). "Anulado" y
+  // "Pendiente" (estado inicial, ya cubierto por notificarPedidoCreado) no
+  // necesitan entrada acá si no se quiere duplicar aviso.
+  private readonly MENSAJES_POR_ESTADO: Record<string, string> = {
+    'En preparación': 'ya se está preparando',
+    'Pagado':         'fue marcado como pagado',
+    'Entregado':      'fue entregado',
+    'Finalizado':     'fue finalizado',
+    'Anulado':        'fue anulado',
+  };
+
+  /**
+   * Notificación al cliente justo al crear el pedido (RF-00X).
+   * Se llama desde PedidosService.create() apenas la transacción cierra.
+   */
+  async notificarPedidoCreado(id_usuario: string, id_pedido: number) {
+    const titulo = 'Pedido realizado con éxito';
+    const mensaje =
+      `Tu pedido #${id_pedido} fue realizado exitosamente. ` +
+      `Te notificaremos cuando se esté preparando.`;
+
+    // tipo 'pedido_estado' para que el Header del cliente lo trate igual que
+    // el resto de avisos de pedido: color azul y clic abre el ticket (extrae
+    // el "#<id>" del mensaje, ver Header_c.jsx → extraerIdPedido).
+    await this.crearNotificacion(id_usuario, titulo, mensaje, 'pedido_estado');
+
+    try {
+      await this.fcmPush.notificarUsuario(id_usuario, titulo, mensaje, {
+        id_pedido: String(id_pedido),
+        pantalla: '/pedidos_realizados',
+      });
+    } catch (error) {
+      console.error(`No se pudo enviar push de confirmación para el pedido #${id_pedido}:`, error);
+    }
+  }
+
+  /**
+   * Notificación al cliente cuando cambia el estado de su pedido.
+   * Se llama desde PedidosService.update() cuando dto.estado viene en el body.
+   */
+  async notificarCambioEstadoPedido(params: {
+    id_pedido: number;
+    id_usuario: string;
+    estado: string;
+  }) {
+    const { id_pedido, id_usuario, estado } = params;
+    const detalle = this.MENSAJES_POR_ESTADO[estado] ?? `cambió de estado a "${estado}"`;
+
+    const titulo = 'Actualización de tu pedido';
+    const mensaje = `Tu pedido #${id_pedido} ${detalle}.`;
+
+    await this.crearNotificacion(id_usuario, titulo, mensaje, 'pedido_estado');
+
+    try {
+      await this.fcmPush.notificarUsuario(id_usuario, titulo, mensaje, {
+        id_pedido: String(id_pedido),
+        pantalla: '/pedidos_realizados',
+      });
+    } catch (error) {
+      console.error(`No se pudo enviar push de cambio de estado para el pedido #${id_pedido}:`, error);
+    }
+  }
+
+  /** Cuenta las no leídas (para el badge). */
   async contarNoLeidas(id_usuario: string): Promise<number> {
     return this.prisma.notificacion.count({
       where: { id_usuario, leida: false },
     });
   }
 
-  //Marca una notificación como leída (solo si pertenece al usuario). 
-    async marcarLeida(id_notificacion: number, id_usuario: string) {
-      return this.prisma.notificacion.updateMany({
-        where: { id_notificacion, id_usuario },
-        data: { leida: true },
-      });
-    }
+  /** Marca una notificación como leída (solo si pertenece al usuario). */
+  async marcarLeida(id_notificacion: number, id_usuario: string) {
+    return this.prisma.notificacion.updateMany({
+      where: { id_notificacion, id_usuario },
+      data: { leida: true },
+    });
+  }
 
-    //Marca todas las notificaciones de un usuario como leídas.
-    async marcarTodasLeidas(id_usuario: string) {
-      return this.prisma.notificacion.updateMany({
-        where: { id_usuario, leida: false },
-        data: { leida: true },
-      });
-    }
-
-    async notificarCambioEstadoPedido(pedido: {
-      id_pedido: number;
-      id_usuario: string;
-      estado: string;
-    }) {
-      const usuario = await this.prisma.usuario.findUnique({
-        where: { id_usuario: pedido.id_usuario },
-      });
-      if (!usuario) return;
-
-      const ticket = await this.prisma.ticket_compra.findFirst({
-        where: { id_pedido: pedido.id_pedido },
-      });
-
-    const mensajesCortos: Record<string, string> = {
-      'Pendiente':      'está pendiente de confirmación.',
-      'Pagado':         'tuvo su pago confirmado.',
-      'En preparación': 'está siendo preparado con cariño.',
-      'Entregado':      'fue entregado.',
-      'Finalizado':     'fue finalizado. ¡Gracias por tu compra!',
-      'Anulado':        'fue anulado. Si tienes dudas, contáctanos.',
-    };
-    const mensajeCorto = mensajesCortos[pedido.estado] ?? `cambió de estado a "${pedido.estado}"`;
-
-
-    
-    const resultados = await Promise.allSettled([
-      // 1 Notificación persistida (panel del cliente)
-      this.crearNotificacion(
-        pedido.id_usuario,
-        'Actualización de pedido',
-        `Tu pedido #${pedido.id_pedido} ${mensajeCorto}`,
-        'pedido_estado',
-      ),
-
-      // 2 Push (si tiene token FCM)
-      this.fcmPush.notificarUsuario(
-        pedido.id_usuario,
-        'Actualización de tu pedido',
-        `Tu pedido #${pedido.id_pedido} ${mensajeCorto}`,
-        { id_pedido: String(pedido.id_pedido), pantalla: '/mis_pedidos' },
-      ),
-
-      // 3) Correo con más detalle
-      usuario.correo
-        ? this.taskService.enviarCambioEstadoPedido({
-            correo: usuario.correo,
-            nombreCliente: `${usuario.nom_1} ${usuario.ape_1}`,
-            idPedido: pedido.id_pedido,
-            estado: pedido.estado,
-            numTicket: ticket?.num_ticket != null ? String(ticket.num_ticket) : null,
-            totalTicket: ticket?.total_ticket != null ? Number(ticket.total_ticket) : null,
-          })
-        : Promise.resolve(),
-    ]);
-    
-    const canales = ['notificación en app', 'notificación push', 'correo electrónico'];
-    resultados.forEach((r, i) => {
-      if (r.status === 'rejected') {
-      this.logger.warn(
-        `Fallo al enviar ${canales[i]} para el pedido #${pedido.id_pedido} (usuario ${pedido.id_usuario}): ${r.reason}`,
-      );
-    }
-  });
-}
+  /** Marca todas las notificaciones de un usuario como leídas. */
+  async marcarTodasLeidas(id_usuario: string) {
+    return this.prisma.notificacion.updateMany({
+      where: { id_usuario, leida: false },
+      data: { leida: true },
+    });
+  }
 }

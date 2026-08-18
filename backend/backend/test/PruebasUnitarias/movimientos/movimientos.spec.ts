@@ -70,7 +70,6 @@ describe('RF-009 - Gestion de Historial y Reportes', () => {
   // RF-009.2 
   describe('RF-009.2 - Generar reporte general', () => {
     it('CP-004: debe generar el reporte con las estadísticas correctas del periodo', async () => {
-      // resumenGeneral() usa this.prisma.$queryRaw (tagged template), no $queryRawUnsafe
       prisma.$queryRaw.mockResolvedValue([
         { totalEntradas: 50, totalSalidas: 20 },
       ]);

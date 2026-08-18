@@ -26,14 +26,21 @@ model detalle_pedido_personalizado {
   id_detalle      Int     @id @default(autoincrement())
   id_ped_personal Int
   id_material     Int
+  id_color        Int?
+  id_diseno       Int?
   cantidad        Decimal @db.Decimal(10, 2)
   subtotal        Decimal @db.Decimal(10, 2)
+  concepto        String? @db.VarChar(40)
 
   pedido_personalizado pedido_personalizado @relation(fields: [id_ped_personal], references: [id_ped_personal])
   material             material             @relation(fields: [id_material], references: [id_material])
+  color                material_color?      @relation(fields: [id_color], references: [id_color], onDelete: SetNull)
+  diseno               material_diseno?     @relation(fields: [id_diseno], references: [id_diseno], onDelete: SetNull)
 
   @@index([id_material], map: "fk_det_pers_material")
   @@index([id_ped_personal], map: "fk_det_pers_pedido")
+  @@index([id_color], map: "fk_detpp_color")
+  @@index([id_diseno], map: "fk_detpp_diseno")
 }
 
 model detalles_pedido {
@@ -69,10 +76,10 @@ model material {
   estado          Boolean?        @default(true)
 
   material_color               material_color[]
-  material_diseno               material_diseno[]
-  movimientos                   movimiento[]
-  movimiento_material           movimiento_material[]
-  detalle_pedido_personalizado  detalle_pedido_personalizado[]
+  material_diseno              material_diseno[]
+  movimientos                  movimiento[]
+  movimiento_material          movimiento_material[]
+  detalle_pedido_personalizado detalle_pedido_personalizado[]
 }
 
 model material_color {
@@ -82,7 +89,8 @@ model material_color {
   codigo_hex  String? @db.VarChar(7)
   estado      Boolean @default(true)
 
-  material material @relation(fields: [id_material], references: [id_material])
+  material                     material                       @relation(fields: [id_material], references: [id_material])
+  detalle_pedido_personalizado detalle_pedido_personalizado[]
 
   @@index([id_material], map: "fk_color_material")
 }
@@ -94,7 +102,8 @@ model material_diseno {
   ruta_imagen String? @db.VarChar(255)
   estado      Boolean @default(true)
 
-  material material @relation(fields: [id_material], references: [id_material])
+  material                     material                       @relation(fields: [id_material], references: [id_material])
+  detalle_pedido_personalizado detalle_pedido_personalizado[]
 
   @@index([id_material], map: "fk_diseno_material")
 }
@@ -129,18 +138,18 @@ model movimiento {
 
 model movimiento_material {
   id_movimiento_material Int                  @id @default(autoincrement())
-  cantidad_m              Decimal              @db.Decimal(10, 2)
-  fecha_m                 DateTime             @default(now()) @db.DateTime(0)
-  observaciones           String?              @db.VarChar(80)
-  id_m                    tipo_movimiento_id_m
-  id_material             Int
-  id_usuario              String               @db.VarChar(15)
-  id_ped_personal         Int?
+  cantidad_m             Decimal              @db.Decimal(10, 2)
+  fecha_m                DateTime             @default(now()) @db.DateTime(0)
+  observaciones          String?              @db.VarChar(80)
+  id_m                   tipo_movimiento_id_m
+  id_material            Int
+  id_usuario             String               @db.VarChar(15)
+  id_ped_personal        Int?
 
   tipo_movimiento      tipo_movimiento       @relation(fields: [id_m], references: [id_m])
-  material              material              @relation(fields: [id_material], references: [id_material])
-  usuario                usuario               @relation(fields: [id_usuario], references: [id_usuario])
-  pedido_personalizado  pedido_personalizado? @relation(fields: [id_ped_personal], references: [id_ped_personal])
+  material             material              @relation(fields: [id_material], references: [id_material])
+  usuario              usuario               @relation(fields: [id_usuario], references: [id_usuario])
+  pedido_personalizado pedido_personalizado? @relation(fields: [id_ped_personal], references: [id_ped_personal])
 
   @@index([id_material], map: "fk_movmat_material")
   @@index([id_m], map: "fk_movmat_tipo")
@@ -184,10 +193,10 @@ model pedido_personalizado {
   id_pedido       Int
   tipo_producto   pedido_personalizado_tipo_producto
   tamanio         String                             @db.VarChar(30)
-  precio_total    Decimal                             @db.Decimal(10, 2)
+  precio_total    Decimal                            @db.Decimal(10, 2)
 
-  pedido   pedido                          @relation(fields: [id_pedido], references: [id_pedido])
-  detalles detalle_pedido_personalizado[]
+  pedido              pedido                         @relation(fields: [id_pedido], references: [id_pedido])
+  detalles            detalle_pedido_personalizado[]
   movimiento_material movimiento_material[]
 
   @@index([id_pedido], map: "fk_personalizado_pedido")
@@ -256,7 +265,7 @@ model tipo_movimiento {
   id_m           tipo_movimiento_id_m           @id
   nom_movimiento tipo_movimiento_nom_movimiento
 
-  movimientos movimiento[]
+  movimientos         movimiento[]
   movimiento_material movimiento_material[]
 }
 
@@ -268,32 +277,32 @@ model tipo_pedido {
 }
 
 model usuario {
-  id_usuario       String               @id @db.VarChar(15)
-  nom_1            String               @db.VarChar(50)
-  nom_2            String?              @db.VarChar(50)
-  ape_1            String               @db.VarChar(50)
-  ape_2            String?              @db.VarChar(50)
-  correo           String               @db.VarChar(40)
-  telefono         BigInt
-  contrasena       String               @db.VarChar(255)
-  codigo           String?              @unique(map: "codigo") @db.VarChar(255)
-  id_rol_usuario   String               @db.VarChar(20)
-  t_doc            tipo_documento_t_doc
-  img_perfil       String?              @db.VarChar(255)
-  codigo_visible   String?              @db.VarChar(20)
-  reset_codigo     String?              @db.VarChar(255)
-  reset_expira     DateTime?            @db.DateTime(0)
-  estado           Int                  @default(1)
-  fcm_token        String?              @db.VarChar(255)
-  bloqueado_hasta  DateTime?            @db.DateTime(3)
-  intentos_fallidos Int                 @default(0)
+  id_usuario        String               @id @db.VarChar(15)
+  nom_1             String               @db.VarChar(50)
+  nom_2             String?              @db.VarChar(50)
+  ape_1             String               @db.VarChar(50)
+  ape_2             String?              @db.VarChar(50)
+  correo            String               @db.VarChar(40)
+  telefono          BigInt
+  contrasena        String               @db.VarChar(255)
+  codigo            String?              @unique(map: "codigo") @db.VarChar(255)
+  id_rol_usuario    String               @db.VarChar(20)
+  t_doc             tipo_documento_t_doc
+  img_perfil        String?              @db.VarChar(255)
+  codigo_visible    String?              @db.VarChar(20)
+  reset_codigo      String?              @db.VarChar(255)
+  reset_expira      DateTime?            @db.DateTime(0)
+  estado            Int                  @default(1)
+  fcm_token         String?              @db.VarChar(255)
+  bloqueado_hasta   DateTime?            @db.DateTime(3)
+  intentos_fallidos Int                  @default(0)
 
-  rol            rol_usuario    @relation(fields: [id_rol_usuario], references: [id_rol_usuario])
-  tipo_documento tipo_documento @relation(fields: [t_doc], references: [t_doc])
-  pedidos        pedido[]
-  movimientos    movimiento[]
+  rol                 rol_usuario           @relation(fields: [id_rol_usuario], references: [id_rol_usuario])
+  tipo_documento      tipo_documento        @relation(fields: [t_doc], references: [t_doc])
+  pedidos             pedido[]
+  movimientos         movimiento[]
   movimiento_material movimiento_material[]
-  notificaciones  notificacion[]
+  notificaciones      notificacion[]
 
   @@index([id_rol_usuario], map: "id_rol_usuario")
   @@index([t_doc], map: "t_doc")

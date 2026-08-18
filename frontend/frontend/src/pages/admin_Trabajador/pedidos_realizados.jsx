@@ -54,7 +54,11 @@ export default function PedidosRealizados() {
     };
 
     // ─── CARGAR PEDIDOS ───────────────────────────────────────────────────────
-    const cargarPedidos = async () => {
+    // silent=true: se usa para resincronizar en segundo plano después de
+    // guardar un cambio, sin mostrar la pantalla de "Cargando pedidos..."
+    // (evita el parpadeo/perder la fila expandida en cada guardado).
+    const cargarPedidos = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const responseEstandar = await apiGet('/pedidos');
             const estandar = (Array.isArray(responseEstandar)
@@ -89,9 +93,9 @@ export default function PedidosRealizados() {
             setPedidos(todos);
         } catch (error) {
             console.error('Error al cargar pedidos:', error);
-            alert('Error al cargar los pedidos');
+            if (!silent) alert('Error al cargar los pedidos');
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
@@ -159,17 +163,53 @@ export default function PedidosRealizados() {
     const handleCancelarEstado = () => { setEditandoId(null); setNuevoEstadoTemp(''); };
 
     const handleGuardarEstado = async (pedido) => {
+        // RN-002 (RF-008.2): no permitir Entregado/Finalizado sin método de pago.
+        // Se valida también acá (además del backend) para dar feedback inmediato
+        // sin gastar un round-trip al servidor.
+        if (ESTADOS_QUE_REQUIEREN_PAGO.includes(nuevoEstadoTemp) && !metodoPagoDefinido(pedido)) {
+            alert(
+                `⚠ No puedes marcar este pedido como "${nuevoEstadoTemp}" sin antes definir el método de pago.\n` +
+                `Usa el botón "Editar Pago" primero.`
+            );
+            return;
+        }
+
         const idParaPatch = pedido._tipo === 'personalizado'
             ? pedido.id_pedido_ref
             : pedido.id_pedido;
         try {
             await apiPatch(`/pedidos/${idParaPatch}`, { estado: nuevoEstadoTemp });
+
+            // Actualización optimista del listado. Se compara por id_pedido +
+            // _tipo porque los pedidos personalizados usan un id_ped_personal
+            // que puede coincidir numéricamente con el id de un pedido estándar
+            // (son autoincrementales de tablas distintas) — comparar solo por
+            // id_pedido podía terminar actualizando la fila equivocada.
             setPedidos(prev => prev.map(p =>
-                p.id_pedido === pedido.id_pedido
+                (p.id_pedido === pedido.id_pedido && p._tipo === pedido._tipo)
                     ? { ...p, estado: nuevoEstadoTemp }
                     : p
             ));
+
+            // Actualizar detalle cacheado si existe
+            setDetallesPedido(prev => {
+                if (!prev[pedido.id_pedido]) return prev;
+                return {
+                    ...prev,
+                    [pedido.id_pedido]: {
+                        ...prev[pedido.id_pedido],
+                        estado: nuevoEstadoTemp
+                    }
+                };
+            });
+
             setEditandoId(null);
+            setNuevoEstadoTemp('');
+
+            // Resincroniza en segundo plano contra el backend (sin loading
+            // screen) para reflejar cualquier dato derivado (p. ej. estado del
+            // ticket) y como red de seguridad ante cualquier desajuste local.
+            cargarPedidos(true);
         } catch (error) {
             console.error('Error al actualizar estado:', error);
             alert(error?.response?.data?.message || error?.message || 'Error al actualizar el estado');
@@ -177,13 +217,17 @@ export default function PedidosRealizados() {
     };
 
     // ─── ANULAR PEDIDO ────────────────────────────────────────────────────────
-    // Estados finales: coincide con ESTADOS_INMUTABLES del backend (pedidos.service.ts)
     const ESTADOS_FINALES = ['Entregado', 'Finalizado', 'Anulado'];
-    // Backend (ESTADOS_INMUTABLES en pedidos.service.ts) ya rechaza cualquier
-    // cambio de estado/pago sobre estos 3 estados — esto solo evita mostrar
-    // botones que de todas formas fallarían al guardar.
     const esEstadoFinal = (pedido) => ESTADOS_FINALES.includes(pedido.estado);
     const puedeAnularse = (pedido) => !esEstadoFinal(pedido);
+
+    // Espejo de la regla RN-002 (RF-008.2) del backend: no se puede marcar
+    // Entregado/Finalizado mientras el método de pago siga "Por definir".
+    const ESTADOS_QUE_REQUIEREN_PAGO = ['Entregado', 'Finalizado'];
+    const metodoPagoDefinido = (pedido) => {
+        const metodo = pedido.ticket_compra?.metodo_pago?.nom_metodo;
+        return !!metodo && metodo !== 'Por_definir';
+    };
 
     const handleAnularPedido = async (pedido) => {
         const confirmar = window.confirm(
@@ -198,11 +242,12 @@ export default function PedidosRealizados() {
         try {
             await apiPatch(`/pedidos/${idParaPatch}`, { estado: 'Anulado' });
             setPedidos(prev => prev.map(p =>
-                p.id_pedido === pedido.id_pedido
+                (p.id_pedido === pedido.id_pedido && p._tipo === pedido._tipo)
                     ? { ...p, estado: 'Anulado' }
                     : p
             ));
             alert('✅ Pedido anulado correctamente.');
+            cargarPedidos(true);
         } catch (error) {
             console.error('Error al anular pedido:', error);
             alert(error?.response?.data?.message || 'Error al anular el pedido');
@@ -231,7 +276,7 @@ export default function PedidosRealizados() {
             alert('✅ Método de pago actualizado correctamente.');
 
             setPedidos(prev => prev.map(p => {
-                if (p.id_pedido !== pedido.id_pedido) return p;
+                if (p.id_pedido !== pedido.id_pedido || p._tipo !== pedido._tipo) return p;
                 return {
                     ...p,
                     ticket_compra: {
@@ -244,6 +289,7 @@ export default function PedidosRealizados() {
                 };
             }));
             setEditandoMetodoId(null);
+            cargarPedidos(true);
         } catch (error) {
             console.error('Error al actualizar método:', error);
             alert(`Error: ${error.message}`);
@@ -268,13 +314,26 @@ export default function PedidosRealizados() {
         });
     };
 
+    // ─── ESTILOS Y BADGES DE ESTADO ───────────────────────────────────────────
+    const getEstadoStyle = (estado) => {
+        const estilos = {
+            'Pendiente':      { backgroundColor: '#f39c12', color: '#fff' },
+            'En preparación': { backgroundColor: '#3498db', color: '#fff' },
+            'Pagado':         { backgroundColor: '#1399b2', color: '#fff' },
+            'Entregado':      { backgroundColor: '#2ecc71', color: '#fff' },
+            'Finalizado':     { backgroundColor: '#8e44ad', color: '#fff' },
+            'Anulado':        { backgroundColor: '#e74c3c', color: '#fff' },
+        };
+        return estilos[estado] || { backgroundColor: '#95a5a6', color: '#fff' };
+    };
+
     const getEstadoClass = (estado) => {
         const clases = {
             'Pendiente':      'estado-pendiente',
             'Pagado':         'estado-en-proceso',
             'En preparación': 'estado-en-preparacion',
-            'Entregado':      'estado-Entegado',
-            'Finalizado':     'estado-Finalizado',
+            'Entregado':      'estado-entregado',
+            'Finalizado':     'estado-finalizado',
             'Anulado':        'estado-anulado',
         };
         return `pedido-estado-badge ${clases[estado] || ''}`;
@@ -688,12 +747,30 @@ export default function PedidosRealizados() {
                                                                 onChange={(e) => setNuevoEstadoTemp(e.target.value)}
                                                                 className="pedido-estado-select"
                                                             >
-                                                                {opcionesEstadoPara(pedido.estado).map(op =>
-                                                                    <option key={op} value={op}>{op}</option>
-                                                                )}
+                                                                {opcionesEstadoPara(pedido.estado).map(op => {
+                                                                    const requierePago =
+                                                                        ESTADOS_QUE_REQUIEREN_PAGO.includes(op) &&
+                                                                        !metodoPagoDefinido(pedido);
+                                                                    return (
+                                                                        <option key={op} value={op} disabled={requierePago}>
+                                                                            {op}{requierePago ? ' (requiere método de pago)' : ''}
+                                                                        </option>
+                                                                    );
+                                                                })}
                                                             </select>
                                                         ) : (
-                                                            <span className={getEstadoClass(pedido.estado)}>
+                                                            <span 
+                                                                className={getEstadoClass(pedido.estado)}
+                                                                style={{
+                                                                    display: 'inline-block',
+                                                                    padding: '4px 12px',
+                                                                    borderRadius: '12px',
+                                                                    fontWeight: 'bold',
+                                                                    fontSize: '12px',
+                                                                    textAlign: 'center',
+                                                                    ...getEstadoStyle(pedido.estado)
+                                                                }}
+                                                            >
                                                                 {pedido.estado}
                                                             </span>
                                                         )}

@@ -4,37 +4,58 @@ import Header from '../../components/Header_c.jsx';
 import Footer from '../../components/Footer.jsx';
 import '../../components/css/styles.css';
 
-const TicketPersonalizado = () => {
+export default function TicketPersonalizado() {
     const navigate = useNavigate();
     const [ticket, setTicket] = useState(null);
 
     useEffect(() => {
-        const data = sessionStorage.getItem('ticketPersonalizado');
-        console.log("DATA RAW:", data);
-        if (data) {
-            const parsed = JSON.parse(data);
-            console.log("DATA PARSED:", parsed);
-            setTicket(parsed);
+        const rawData = sessionStorage.getItem('ticketPersonalizado');
+        if (!rawData) {
+            navigate('/pedidos_personalizados');
+            return;
         }
-    }, []);
+        try {
+            const parsed = JSON.parse(rawData);
+            setTicket(parsed);
+        } catch (e) {
+            console.error('Error procesando ticket:', e);
+            navigate('/pedidos_personalizados');
+        }
+    }, [navigate]);
+
+    if (!ticket) return null;
 
     const formatPrice = (price) =>
         Number(price)?.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
 
-    // ─── Impresión: ventana nueva con HTML+CSS autosuficiente ─────────────────
-    const handlePrint = () => {
-        if (!ticket) return;
+    const materiales = ticket.materiales || [];
 
+    const handlePrint = () => {
         const fecha = new Date().toLocaleString('es-CO', {
             year: 'numeric', month: '2-digit', day: '2-digit',
             hour: '2-digit', minute: '2-digit'
         });
 
+        const filasMateriales = materiales.map(m => `
+            <tr style="border-bottom: 1px solid #f0d0e0;">
+                <td style="padding: 8px 0;">
+                    <strong>${m.concepto || 'Material'}</strong>
+                    <div style="font-size: 12px; color: #666;">${m.nombre || ''}</div>
+                </td>
+                <td style="font-size: 12px; color: #666;">
+                    ${m.color_nombre ? `<div>Color: ${m.color_nombre}</div>` : ''}
+                    ${m.diseno_nombre ? `<div>Diseño: ${m.diseno_nombre}</div>` : ''}
+                </td>
+                <td style="text-align: right;">${m.cantidad || 1} ${m.unidad || 'm'}</td>
+                <td style="text-align: right; font-weight: bold; color: #c45a77;">${formatPrice(m.subtotal)}</td>
+            </tr>
+        `).join('');
+
         const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
-  <title>Ticket Personalizado TKT-${ticket.num_ticket}</title>
+  <title>Ticket Personalizado #${ticket.num_ticket || ticket.id_pedido || ''}</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:"Segoe UI",Arial,sans-serif; background:#f8f4f6; display:flex; justify-content:center; padding:30px 20px; }
@@ -56,11 +77,9 @@ const TicketPersonalizado = () => {
     .t-info-line { font-size:13px; color:#666; margin-bottom:3px; }
     .t-tipo-row { font-size:14px; color:#5a3d54; margin-bottom:12px; }
     .t-tipo-row strong { color:#4b004b; }
-    .t-producto { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; padding:10px 12px; background:#fdf8fb; border-radius:8px; border:1px solid #f0d8e5; margin-bottom:7px; }
-    .t-prod-nombre { font-weight:600; color:#5a3d54; font-size:14px; margin-bottom:2px; }
-    .t-prod-cant   { font-size:12px; color:#888; }
-    .t-prod-total  { font-weight:700; color:#c45a77; font-size:15px; white-space:nowrap; }
-    .t-totales { background:#fdf8fb; border-radius:10px; padding:14px 16px; border:1.5px solid #f0d8e5; margin-bottom:18px; }
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th { text-align:left; font-size:11px; text-transform:uppercase; color:#9a7a8a; padding-bottom:8px; border-bottom:1px solid #f0d0e0; }
+    .t-totales { background:#fdf8fb; border-radius:10px; padding:14px 16px; border:1.5px solid #f0d8e5; margin:18px 0; }
     .t-total { display:flex; justify-content:space-between; font-size:19px; font-weight:800; color:#4b004b; }
     .t-pago { background:#fff5f9; border:1.5px solid #f0c8da; border-left:4px solid #c45a77; border-radius:8px; padding:12px 16px; margin-bottom:18px; }
     .t-pago-row { display:flex; justify-content:space-between; font-size:13px; color:#5a3d54; margin-bottom:6px; }
@@ -89,11 +108,11 @@ const TicketPersonalizado = () => {
         <div class="t-info-grid">
           <div>
             <div class="t-label">Nº Ticket</div>
-            <div class="t-value">TKT-${ticket.num_ticket}</div>
+            <div class="t-value">TKT-${ticket.num_ticket || ticket.id_pedido || ''}</div>
           </div>
           <div class="t-info-right">
             <div class="t-label">Nº Pedido</div>
-            <div class="t-value">#${ticket.id_pedido}</div>
+            <div class="t-value">#${ticket.id_pedido || ''}</div>
           </div>
         </div>
         <div class="t-divider">
@@ -105,7 +124,6 @@ const TicketPersonalizado = () => {
       <div class="t-section">
         <div class="t-section-title">Cliente</div>
         <div class="t-nombre">${ticket.usuario?.nombre || 'N/A'}</div>
-        <div class="t-info-line">ID: ${ticket.usuario?.id_usuario || 'N/A'}</div>
         <div class="t-info-line">Correo: ${ticket.usuario?.correo || 'N/A'}</div>
         <div class="t-info-line">Teléfono: ${ticket.usuario?.telefono || 'N/A'}</div>
       </div>
@@ -113,23 +131,27 @@ const TicketPersonalizado = () => {
       <div class="t-section">
         <div class="t-section-title">Detalles del Pedido</div>
         <div class="t-tipo-row">
-          <strong>Tipo:</strong> ${ticket.tipo || 'N/A'} &mdash; <strong>Tamaño:</strong> ${ticket.tamanio || 'N/A'}
+          <strong>Producto:</strong> ${ticket.tipo_producto || ticket.tipo || 'N/A'} &mdash; <strong>Tamaño:</strong> ${ticket.tamanio || 'N/A'}
         </div>
-        ${(ticket.materiales || []).map(mat => `
-          <div class="t-producto">
-            <div>
-              <div class="t-prod-nombre">${mat.nombre}</div>
-              <div class="t-prod-cant">${mat.cantidad} ${mat.unidad}</div>
-            </div>
-            <div class="t-prod-total">${Number(mat.subtotal).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 })}</div>
-          </div>
-        `).join('')}
+        <table>
+          <thead>
+            <tr>
+              <th>Concepto / Material</th>
+              <th>Detalle</th>
+              <th style="text-align:right;">Cant.</th>
+              <th style="text-align:right;">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filasMateriales}
+          </tbody>
+        </table>
       </div>
 
       <div class="t-totales">
         <div class="t-total">
           <span>Total estimado</span>
-          <span>${Number(ticket.precio_total).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 })}</span>
+          <span>${formatPrice(ticket.precio_total)}</span>
         </div>
       </div>
 
@@ -174,125 +196,67 @@ const TicketPersonalizado = () => {
         ventana.document.close();
     };
 
-    // ─── Sin datos ────────────────────────────────────────────────────────────
-    if (!ticket) return (
-        <>
-            <Header />
-            <main style={{ textAlign: 'center', padding: '60px' }}>
-                <h2>No hay información de pedido</h2>
-                <button className="ticket-btn-volver" onClick={() => navigate('/pedidos_personalizados')}>
-                    Volver
-                </button>
-            </main>
-            <Footer />
-        </>
-    );
-
-    // ─── Ticket en pantalla ───────────────────────────────────────────────────
     return (
-        <div className="ticket-page">
+        <div className="app-container">
             <Header />
-            <main className="ticket-main">
-
-                <div className="ticket-container">
-                    <div className="ticket-header">
-                        <h1 className="ticket-header-title">¡Pedido Personalizado Generado!</h1>
-                        <p className="ticket-header-subtitle">Tu pedido ha sido registrado. Te contactaremos pronto.</p>
+            <main className="personalizar-main" style={{ maxWidth: '600px', margin: '40px auto' }}>
+                <div className="cuadro-blanco" style={{ padding: '30px', borderRadius: '12px', border: '1px solid #e8d5e0' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                        <h2 style={{ color: '#da819f', margin: 0 }}>¡Pedido Realizado!</h2>
+                        <p style={{ color: '#888', marginTop: '5px' }}>Ticket de Compra #{ticket.num_ticket || ticket.id_pedido}</p>
                     </div>
 
-                    <div className="ticket-body">
+                    <div style={{ borderTop: '1px dashed #ccc', borderBottom: '1px dashed #ccc', padding: '15px 0', margin: '15px 0' }}>
+                        <p><strong>Cliente:</strong> {ticket.usuario?.nombre || 'N/A'}</p>
+                        <p><strong>Correo:</strong> {ticket.usuario?.correo || 'N/A'}</p>
+                        <p><strong>Teléfono:</strong> {ticket.usuario?.telefono || 'N/A'}</p>
+                        <p><strong>Producto:</strong> {ticket.tipo_producto || ticket.tipo}</p>
+                        <p><strong>Tamaño:</strong> {ticket.tamanio}</p>
+                    </div>
 
-                        <div className="ticket-info-box">
-                            <div className="ticket-info-grid">
-                                <div>
-                                    <p className="ticket-info-label">Nº Ticket</p>
-                                    <p className="ticket-info-value">TKT-{ticket.num_ticket}</p>
-                                </div>
-                                <div className="ticket-info-right">
-                                    <p className="ticket-info-label">Nº Pedido</p>
-                                    <p className="ticket-info-value">#{ticket.id_pedido}</p>
-                                </div>
-                            </div>
-                            <div className="ticket-info-divider">
-                                <p className="ticket-info-label">Fecha</p>
-                                <p className="ticket-info-date">
-                                    {new Date().toLocaleString('es-CO', {
-                                        year: 'numeric', month: '2-digit', day: '2-digit',
-                                        hour: '2-digit', minute: '2-digit'
-                                    })}
-                                </p>
-                            </div>
-                        </div>
+                    <h4 style={{ color: '#5a3d54', marginBottom: '10px' }}>Desglose de Materiales</h4>
+                    <table style={{ width: '100%', marginBottom: '20px', fontSize: '14px', borderCollapse: 'collapse' }}>
+                        <thead>
+                            <tr style={{ borderBottom: '1px solid #eee', textAlign: 'left' }}>
+                                <th style={{ padding: '8px 0' }}>Concepto / Material</th>
+                                <th>Detalle</th>
+                                <th style={{ textAlign: 'right' }}>Cant.</th>
+                                <th style={{ textAlign: 'right' }}>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {materiales.map((m, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid #fafafa' }}>
+                                    <td style={{ padding: '8px 0' }}>
+                                        <strong>{m.concepto || 'Material'}</strong>
+                                        <div style={{ fontSize: '12px', color: '#666' }}>{m.nombre}</div>
+                                    </td>
+                                    <td style={{ fontSize: '12px', color: '#666' }}>
+                                        {m.color_nombre && <div>Color: {m.color_nombre}</div>}
+                                        {m.diseno_nombre && <div>Diseño: {m.diseno_nombre}</div>}
+                                    </td>
+                                    <td style={{ textAlign: 'right' }}>{m.cantidad} {m.unidad || 'm'}</td>
+                                    <td style={{ textAlign: 'right' }}>{formatPrice(m.subtotal)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
 
-                        <div className="ticket-section">
-                            <h3 className="ticket-section-title">Cliente</h3>
-                            <p className="ticket-cliente-nombre">{ticket.usuario.nombre}</p>
-                            <p className="ticket-cliente-info">ID: {ticket.usuario.id_usuario}</p>
-                            <p className="ticket-cliente-info">Correo: {ticket.usuario.correo}</p>
-                            <p className="ticket-cliente-info">Teléfono: {ticket.usuario.telefono}</p>
-                        </div>
+                    <div style={{ textAlign: 'right', fontSize: '18px', fontWeight: 'bold', color: '#da819f' }}>
+                        Total: {formatPrice(ticket.precio_total)}
+                    </div>
 
-                        <div className="ticket-section">
-                            <h3 className="ticket-section-title">Detalles del Pedido</h3>
-                            <p style={{ marginBottom: '8px' }}>
-                                <strong>Tipo:</strong> {ticket.tipo} &mdash; <strong>Tamaño:</strong> {ticket.tamanio}
-                            </p>
-                            <div className="ticket-productos-lista">
-                                {ticket.materiales?.map((mat, i) => (
-                                    <div key={i} className="ticket-producto-item">
-                                        <div className="ticket-producto-info">
-                                            <p className="ticket-producto-nombre">{mat.nombre}</p>
-                                            <p className="ticket-producto-cantidad">{mat.cantidad} {mat.unidad}</p>
-                                        </div>
-                                        <p className="ticket-producto-total">{formatPrice(mat.subtotal)}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="ticket-totales">
-                            <div className="ticket-total">
-                                <span>Total estimado</span>
-                                <span>{formatPrice(ticket.precio_total)}</span>
-                            </div>
-                        </div>
-
-                        <div className="ticket-pago-box">
-                            <div className="ticket-pago-metodo">
-                                <span>Pago:</span>
-                                <span className="ticket-pago-valor">Presencial en tienda</span>
-                            </div>
-                            <p className="ticket-nota-pago">
-                                Tu pedido está en estado <strong>Pendiente</strong>.
-                                El administrador lo revisará y te notificará cuando esté listo para recoger.
-                            </p>
-                        </div>
-
-                        <div className="ticket-estado-container">
-                            <span className="ticket-estado-badge">Estado: Pendiente</span>
-                        </div>
-
-                        <div className="ticket-footer">
-                            <p className="ticket-footer-gracias">¡Gracias por tu pedido personalizado!</p>
-                            <p className="ticket-footer-empresa">Gurama Online — Productos Artesanales</p>
-                        </div>
-
+                    <div style={{ marginTop: '25px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                        <button onClick={handlePrint} className="btn-confirmar-ped">
+                            Imprimir / Guardar PDF
+                        </button>
+                        <button onClick={() => navigate('/pedidos_personalizados')} className="btn-confirmar-ped" style={{ background: '#6c757d' }}>
+                            Volver a Pedidos
+                        </button>
                     </div>
                 </div>
-
-                <div className="ticket-acciones">
-                    <button onClick={handlePrint} className="ticket-btn-descargar">
-                        Imprimir / Guardar PDF
-                    </button>
-                    <button onClick={() => navigate('/cliente')} className="ticket-btn-inicio">
-                        Volver al Inicio
-                    </button>
-                </div>
-
             </main>
             <Footer />
         </div>
     );
-};
-
-export default TicketPersonalizado;
+}

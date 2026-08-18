@@ -54,7 +54,7 @@ export class PedidosPersonalizadosService {
   // --------------------------------------------------------
   //  OBTENER COLORES Y DISEÑOS DE UN MATERIAL
   // --------------------------------------------------------
-    // ── Colores de un material ─────────────────────────────
+  // ── Colores de un material ─────────────────────────────
   async getColoresMaterial(id_material: number) {
     return this.prisma.material_color.findMany({
       where: { id_material, estado: true },
@@ -161,61 +161,62 @@ export class PedidosPersonalizadosService {
       data: { estado: false },
     });
   }
+
   // --------------------------------------------------------
   // CREAR MATERIAL
   // --------------------------------------------------------
   async crearMaterial(dto: CreateMaterialDto) {
-      return this.prisma.material.create({
-          data: {
-              nombre: dto.nombre,
-              tipo: dto.tipo as any,
-              unidad: dto.unidad as any,
-              precio_unitario: dto.precio_unitario,
-              stock_actual: dto.stock_actual ?? 0,
-              stock_minimo: dto.stock_minimo ?? 5,
-              estado: true,
-          },
-      });
+    return this.prisma.material.create({
+      data: {
+        nombre: dto.nombre,
+        tipo: dto.tipo as any,
+        unidad: dto.unidad as any,
+        precio_unitario: dto.precio_unitario,
+        stock_actual: dto.stock_actual ?? 0,
+        stock_minimo: dto.stock_minimo ?? 5,
+        estado: true,
+      },
+    });
   }
 
   // --------------------------------------------------------
   // ACTUALIZAR MATERIAL
   // --------------------------------------------------------
   async actualizarMaterial(id: number, dto: UpdateMaterialDto) {
-      const material = await this.prisma.material.findUnique({
-          where: { id_material: id }
-      });
-      if (!material) throw new NotFoundException(`Material ${id} no encontrado`);
+    const material = await this.prisma.material.findUnique({
+      where: { id_material: id },
+    });
+    if (!material) throw new NotFoundException(`Material ${id} no encontrado`);
 
-      return this.prisma.material.update({
-          where: { id_material: id },
-          data: {
-              ...dto,
-              tipo: dto.tipo as any,
-              unidad: dto.unidad as any,
-          },
-      });
+    return this.prisma.material.update({
+      where: { id_material: id },
+      data: {
+        ...dto,
+        tipo: dto.tipo as any,
+        unidad: dto.unidad as any,
+      },
+    });
   }
 
   // --------------------------------------------------------
   // ACTUALIZAR IMAGEN DE MATERIAL
   // --------------------------------------------------------
   async actualizarImagenMaterial(id: number, file: Express.Multer.File) {
-      if (!file) throw new BadRequestException('No se recibió ningún archivo');
+    if (!file) throw new BadRequestException('No se recibió ningún archivo');
 
-      const material = await this.prisma.material.findUnique({
-          where: { id_material: id }
-      });
-      if (!material) throw new NotFoundException(`Material ${id} no encontrado`);
+    const material = await this.prisma.material.findUnique({
+      where: { id_material: id },
+    });
+    if (!material) throw new NotFoundException(`Material ${id} no encontrado`);
 
-      const ruta_imagen = `/uploads/materiales/${file.filename}`;
+    const ruta_imagen = `/uploads/materiales/${file.filename}`;
 
-      await this.prisma.material.update({
-          where: { id_material: id },
-          data: { ruta_imagen },
-      });
+    await this.prisma.material.update({
+      where: { id_material: id },
+      data: { ruta_imagen },
+    });
 
-      return { statusCode: 200, message: 'Imagen actualizada', ruta_imagen };
+    return { statusCode: 200, message: 'Imagen actualizada', ruta_imagen };
   }
 
   // --------------------------------------------------------
@@ -305,7 +306,7 @@ export class PedidosPersonalizadosService {
       }
       if (material.stock_actual < item.cantidad) {
         throw new BadRequestException(
-          `Stock insuficiente para ${material.nombre}. Disponible: ${material.stock_actual}`
+          `Stock insuficiente para ${material.nombre}. Disponible: ${material.stock_actual}`,
         );
       }
     }
@@ -352,7 +353,9 @@ export class PedidosPersonalizadosService {
               precio_total,
               detalles: {
                 create: detalles.map(({ id_material, cantidad, subtotal }) => ({
-                  id_material, cantidad, subtotal,
+                  id_material,
+                  cantidad,
+                  subtotal,
                 })),
               },
             },
@@ -452,37 +455,37 @@ export class PedidosPersonalizadosService {
   // --------------------------------------------------------
   async findAll(query: any) {
     return this.prisma.pedido_personalizado.findMany({
-        include: {
-            pedido: {
-                include: {                    
-                    usuario: {
-                        select: {
-                            nom_1: true,
-                            ape_1: true,
-                            telefono: true,
-                            correo: true,
-                        }
-                    },
-                    ticket_compra: {
-                        include: {
-                            estado_pago: true,
-                            metodo_pago: true,
-                        }
-                    }
-                }
+      include: {
+        pedido: {
+          include: {                    
+            usuario: {
+              select: {
+                nom_1: true,
+                ape_1: true,
+                telefono: true,
+                correo: true,
+              },
             },
-            detalles: {
-                include: {
-                    material: {
-                        select: {
-                            nombre: true,
-                            tipo: true,
-                            unidad: true,
-                        }
-                    },
-                },
+            ticket_compra: {
+              include: {
+                estado_pago: true,
+                metodo_pago: true,
+              },
             },
+          },
         },
+        detalles: {
+          include: {
+            material: {
+              select: {
+                nombre: true,
+                tipo: true,
+                unidad: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 

@@ -380,3 +380,10 @@ INSERT INTO `tipo_pedido` (`id_tipo`, `tipo_pedido`) VALUES
 --  "t_doc": "CC",
 --  "estado": 1
 --}
+
+ALTER TABLE `detalle_pedido_personalizado`
+  ADD COLUMN `id_color` INT NULL AFTER `id_material`,
+  ADD COLUMN `id_diseno` INT NULL AFTER `id_color`,
+  ADD COLUMN `concepto` VARCHAR(40) NULL AFTER `subtotal`,
+  ADD CONSTRAINT `fk_detpp_color` FOREIGN KEY (`id_color`) REFERENCES `material_color` (`id_color`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_detpp_diseno` FOREIGN KEY (`id_diseno`) REFERENCES `material_diseno` (`id_diseno`) ON DELETE SET NULL;

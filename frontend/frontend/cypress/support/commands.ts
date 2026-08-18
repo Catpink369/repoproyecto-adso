@@ -50,7 +50,7 @@ Cypress.Commands.add('loginTrabajador', () => {
 Cypress.Commands.add('loginCliente', () => {
     cy.session('admin-session', () => {
         cy.visit(`${FRONT_URL}/login`);
-        cy.get('#correo').type('prueba@gmail.com');
+        cy.get('#correo').type('catpink369@gmail.com');
         cy.get('#contrasena').type('123456');
         cy.get('button[type="submit"]').click();
 
