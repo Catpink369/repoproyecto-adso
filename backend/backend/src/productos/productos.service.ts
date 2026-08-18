@@ -71,7 +71,7 @@ export class ProductosService {
         where: {
           nom_producto: {
             equals: dto.nom_producto.trim(),
-            mode: 'insensitive', // Evita duplicados por mayúsculas/minúsculas
+            //mode: 'insensitive', // Evita duplicados por mayúsculas/minúsculas
           },
           estado: true,
         },
@@ -117,7 +117,7 @@ export class ProductosService {
         where: {
           nom_producto: {
             equals: dto.nom_producto.trim(),
-            mode: 'insensitive',
+            //mode: 'insensitive',
           },
           estado: true,
           NOT: { id_producto: id }, // Excluye el producto que se está editando

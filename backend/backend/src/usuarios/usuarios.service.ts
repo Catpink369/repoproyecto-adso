@@ -244,6 +244,23 @@ export class UsuariosService {
 // --------------------------------------------------------
   // TOGGLE ESTADO (ACTIVO/INACTIVO)
   // --------------------------------------------------------
+    async remove(id: string) {
+    // Verificar si el usuario existe antes de actualizar/eliminar
+    const usuario = await this.findOne(id);
+    if (!usuario) {
+      return null;
+    }
+  
+    // Ejemplo para realizar un borrado lógico (desactivar usuario):
+    return await this.prisma.usuario.update({
+      where: { id_usuario: id },
+      data: { estado: 0 },
+    });
+  
+    // O si deseas realizar un borrado físico directamente:
+    // return await this.prisma.usuario.delete({ where: { id_usuario: id } });
+  }
+  
   async toggleEstado(id: string) {
   const usuario = await this.prisma.usuario.findUnique({
     where: { id_usuario: id },

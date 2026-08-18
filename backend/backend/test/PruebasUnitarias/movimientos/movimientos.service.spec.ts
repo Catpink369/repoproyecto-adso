@@ -1,7 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { MovimientosService } from '../../src/movimientos/movimientos.service';
-import { PrismaService } from '../../src/prisma/prisma.service';
-import { CreateMovimientoDto } from '../../src/movimientos/dto/create-movimiento.dto';
+import { MovimientosService } from '../../../src/movimientos/movimientos.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { CreateMovimientoDto } from '../../../src/movimientos/dto/create-movimiento.dto';
 
 describe('MovimientosService (unit)', () => {
   let service: MovimientosService;

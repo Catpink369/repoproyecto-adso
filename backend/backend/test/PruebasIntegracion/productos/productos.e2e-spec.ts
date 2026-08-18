@@ -1,4 +1,4 @@
-// RF-002 — Gestión de Productos (integración)
+// RF-002 — Gestión de Productos (integración) - Opción A (Nombres Duplicados Permitidos)
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
@@ -47,9 +47,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
   });
 
   afterAll(async () => {
-    // Filtramos undefined: si algún test falló antes de llegar al push
-    // (ej. por un 401/400 inesperado en la creación), no queremos que
-    // deleteMany reciba `undefined` dentro del `in` y truene la limpieza.
+    // Filtramos undefined para evitar fallos si un test no agregó un ID válido
     const idsProductosValidos = idsProductosCreados.filter(
       (id): id is number => id !== undefined && id !== null,
     );
@@ -89,36 +87,43 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
       idsProductosCreados.push(res.body.id_producto);
     });
 
-    it('CP-002: debe rechazar la creación con un nombre de producto que ya existe', async () => {
-      const nombreDuplicado = `Producto Duplicado ${sufijo}`;
+    it('CP-002: debe permitir crear un producto con un nombre ya existente (Opción A: flexibilidad de nombres)', async () => {
+      const nombreCompartido = `Producto Duplicado ${sufijo}`;
 
+      // Primer producto
       const primero = await apiRequest(app)
         .post('/productos')
         .set('Authorization', `Bearer ${admin.token}`)
         .send({
-          nom_producto: nombreDuplicado,
+          nom_producto: nombreCompartido,
           precio_unitario: 15000,
           stock_actual: 5,
           stock_minimo: 1,
           descripcion: 'Primer producto',
           id_categoria: CATALOGOS.CATEGORIAS[0],
         });
-      if (primero.status === 201) idsProductosCreados.push(primero.body.id_producto);
 
-      const res = await apiRequest(app)
+      expect(primero.status).toBe(201);
+      idsProductosCreados.push(primero.body.id_producto);
+
+      // Segundo producto con el mismo nombre
+      const segundo = await apiRequest(app)
         .post('/productos')
         .set('Authorization', `Bearer ${admin.token}`)
         .send({
-          nom_producto: nombreDuplicado,
+          nom_producto: nombreCompartido,
           precio_unitario: 18000,
           stock_actual: 8,
           stock_minimo: 1,
-          descripcion: 'Segundo producto con mismo nombre',
+          descripcion: 'Segundo producto con el mismo nombre',
           id_categoria: CATALOGOS.CATEGORIAS[0],
         });
 
-      expect(res.status).toBe(409);
-      if (res.status === 201) idsProductosCreados.push(res.body.id_producto);
+      expect(segundo.status).toBe(201);
+      idsProductosCreados.push(segundo.body.id_producto);
+      
+      // Verifica que sean dos registros independientes con IDs diferentes
+      expect(segundo.body.id_producto).not.toBe(primero.body.id_producto);
     });
 
     it('CP-003: debe rechazar la creación dejando campos obligatorios vacíos', async () => {
