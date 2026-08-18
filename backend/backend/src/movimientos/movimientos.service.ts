@@ -100,7 +100,7 @@ export class MovimientosService {
 
       SELECT 
 
-        m.id_movimiento, m.Cantidad_m, m.fecha_m, m.observaciones,
+        m.id_movimiento, m.id_producto, m.Cantidad_m, m.fecha_m, m.observaciones,
 
         CASE m.id_m WHEN 'M-E' THEN 'entrada' WHEN 'M-S' THEN 'salida' END AS tipo,
 
@@ -390,7 +390,10 @@ export class MovimientosService {
 
     const fila = results[0] ?? {};
 
-    return { totalEntradas: fila.totalEntradas ?? 0, totalSalidas: fila.totalSalidas ?? 0 };
+    return {
+      totalEntradas: Number(fila.totalEntradas ?? 0),
+      totalSalidas: Number(fila.totalSalidas ?? 0),
+    };
 
   }
 

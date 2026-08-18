@@ -65,6 +65,23 @@ export class ProductosService {
   async create(dto: CreateProductoDto) {
     console.log('service - crear producto:', JSON.stringify(dto));
 
+    // Validar si ya existe un producto activo con el mismo nombre
+    if (dto.nom_producto) {
+      const productoExistente = await this.prisma.producto.findFirst({
+        where: {
+          nom_producto: {
+            equals: dto.nom_producto.trim(),
+            mode: 'insensitive', // Evita duplicados por mayúsculas/minúsculas
+          },
+          estado: true,
+        },
+      });
+
+      if (productoExistente) {
+        throw new ConflictException(`Ya existe un producto con el nombre "${dto.nom_producto}".`);
+      }
+    }
+
     const valorTamaño = this._obtenerTamaño(dto);
 
     return this.prisma.producto.create({
@@ -85,15 +102,32 @@ export class ProductosService {
       },
     });
   }
-
   // --------------------------------------------------------
   // ACTUALIZAR PRODUCTO
   // --------------------------------------------------------
   async update(id: number, dto: UpdateProductoDto) {
     console.log('service - actualizar producto:', { id, dto });
 
-    // Verifica que el producto existe, lanza 404 si no
+    // 1. Verifica que el producto existe, lanza 404 si no
     await this.findOne(id);
+
+    // 2. Si se edita el nombre, verificar que no pertenezca a OTRO producto activo
+    if (dto.nom_producto) {
+      const productoExistente = await this.prisma.producto.findFirst({
+        where: {
+          nom_producto: {
+            equals: dto.nom_producto.trim(),
+            mode: 'insensitive',
+          },
+          estado: true,
+          NOT: { id_producto: id }, // Excluye el producto que se está editando
+        },
+      });
+
+      if (productoExistente) {
+        throw new ConflictException(`Ya existe otro producto con el nombre "${dto.nom_producto}".`);
+      }
+    }
 
     const data: any = {};
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
@@ -107,8 +107,23 @@ export class UsuariosService {
   // --------------------------------------------------------
   async update(id_usuario: string, dto: UpdateUsuarioDto) {
     console.log('service - actualizar usuario:', { id_usuario, dto });
-    // verificar que existe
+    
+    // 1. Verificar que el usuario existe
     await this.findOne(id_usuario);
+
+    // 2. Si se envía correo, verificar que no pertenezca a OTRO usuario
+    if (dto.correo) {
+      const usuarioConMismoCorreo = await this.prisma.usuario.findFirst({
+        where: {
+          correo: dto.correo,
+          NOT: { id_usuario }, // Ignora al propio usuario que se está editando
+        },
+      });
+
+      if (usuarioConMismoCorreo) {
+        throw new ConflictException('El correo electrónico ya está registrado por otro usuario.');
+      }
+    }
 
     const data: any = { ...dto };
 
@@ -116,12 +131,12 @@ export class UsuariosService {
       data.telefono = Number(dto.telefono);
     }
 
-    // hashear contraseña si se está actualizando
+    // Hashear contraseña si se actualiza
     if (dto.contrasena) {
       data.contrasena = await bcrypt.hash(dto.contrasena, SALT_ROUNDS);
     }
 
-    // hashear código si se está actualizando
+    // Hashear código si se actualiza
     if (dto.codigo) {
       data.codigo = await bcrypt.hash(dto.codigo.toString(), SALT_ROUNDS);
       data.codigo_visible = dto.codigo.toString();
@@ -131,29 +146,6 @@ export class UsuariosService {
       where: { id_usuario },
       data,
     });
-  }
-
-  // --------------------------------------------------------
-  // ELIMINAR USUARIO
-  // --------------------------------------------------------
-  async remove(id_usuario: string) {
-    console.log('service - eliminar usuario:', JSON.stringify({ id_usuario }));
-    await this.findOne(id_usuario); // lanza NotFoundException si no existe
-
-    try {
-      await this.prisma.usuario.delete({
-        where: { id_usuario },
-      });
-
-      return { message: `Usuario ${id_usuario} eliminado exitosamente` };
-    } catch (error : any) {
-      if (error.code === 'P2003') {
-        throw new BadRequestException(
-          'No se puede eliminar este usuario porque tiene registros relacionados.',
-        );
-      }
-      throw error;
-    }
   }
 
   // --------------------------------------------------------

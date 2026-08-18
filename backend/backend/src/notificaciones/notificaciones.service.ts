@@ -13,32 +13,24 @@ export class NotificacionesService {
   // TODAS LAS NOTIFICACIONES ACTIVAS
   // -------------------------------------------------------
   async findAll(query: any) {
-    
+    console.log('controller - todas las notificaciones:', JSON.stringify(query));
+
     const hace7Dias = new Date();
     hace7Dias.setDate(hace7Dias.getDate() - 7);
 
-    const [stockBajo, agotados, pedidos] = await Promise.all([
-      // Stock bajo
-      this.prisma.producto.findMany({
-        where: {
-          estado: true,
-          stock_actual: { lte: this.prisma.producto.fields.stock_minimo as any, gt: 0 },
-        },
-      }),
-
-      // Agotados
-      this.prisma.producto.findMany({
-        where: { estado: true, stock_actual: 0 },
-      }),
-
-      // Pedidos recientes
-      this.prisma.pedido.findMany({
-        where: { fecha: { gte: hace7Dias } },
-        orderBy: { fecha: 'desc' },
-        take: 100,
-        include: { ticket_compra: true } as any,
-      }),
-    ]);
+    // Pedidos recientes. Las notificaciones de stock bajo/agotados NO salen
+    // de aquí (bajaban vía producto.findMany antes, pero ese resultado nunca
+    // se usaba: _getStockBajo()/_getAgotados() más abajo ya las traen por
+    // SQL crudo). Esas dos llamadas muertas también rompían los tests
+    // unitarios, porque su `where` usaba `this.prisma.producto.fields
+    // .stock_minimo` — una referencia de campo a campo que solo existe en un
+    // PrismaClient real, no en el mock de las pruebas.
+    const pedidos = await this.prisma.pedido.findMany({
+      where: { fecha: { gte: hace7Dias } },
+      orderBy: { fecha: 'desc' },
+      take: 100,
+      include: { ticket_compra: true } as any,
+    });
 
     // Obtener usuarios de los pedidos
     const idUsuarios = [...new Set(pedidos.map((p) => p.id_usuario))];
@@ -55,8 +47,7 @@ export class NotificacionesService {
       const nombre = usuario ? `${usuario.nom_1} ${usuario.ape_1}` : p.id_usuario;
       const ticket = (p as any).ticket_compra?.[0];
       const tipo_pedido = p.id_tipo === 'P_P' ? 'Personalizado' : 'Estándar';
-      
-      console.log('controller - todas las notificaciones:', JSON.stringify(query));
+
       return {
         tipo: 'pedido',
         id_notificacion: `pedido-${p.id_pedido}`,
@@ -86,9 +77,7 @@ export class NotificacionesService {
     hace7Dias.setDate(hace7Dias.getDate() - 7);
 
     const [alertas_stock_bajo, alertas_agotados, nuevos_pedidos] = await Promise.all([
-      this.prisma.producto.count({
-        where: { estado: true, stock_actual: { lte: this.prisma.producto.fields.stock_minimo as any, gt: 0 } },
-      }),
+      this._contarStockBajo(),
       this.prisma.producto.count({ where: { estado: true, stock_actual: 0 } }),
       this.prisma.pedido.count({ where: { fecha: { gte: hace7Dias } } }),
     ]);
@@ -182,9 +171,7 @@ async pedidosRecientes(dias = 7) {
     const [productos_agotados, productos_stock_bajo, pedidos_hoy, pedidos_semana, pedidos_pendientes] =
       await Promise.all([
         this.prisma.producto.count({ where: { estado: true, stock_actual: 0 } }),
-        this.prisma.producto.count({
-          where: { estado: true, stock_actual: { lte: this.prisma.producto.fields.stock_minimo as any, gt: 0 } },
-        }),
+        this._contarStockBajo(),
         this.prisma.pedido.count({ where: { fecha: { gte: hoy } } }),
         this.prisma.pedido.count({ where: { fecha: { gte: hace7Dias } } }),
         this.prisma.pedido.count({ where: { estado: 'Pendiente' } }),
@@ -196,6 +183,19 @@ async pedidosRecientes(dias = 7) {
   // -------------------------------------------------------
   // HELPERS PRIVADOS
   // -------------------------------------------------------
+  // Cuenta productos con stock bajo vía SQL crudo (equivalente a
+  // `stock_actual <= stock_minimo AND stock_actual > 0`) en lugar de la
+  // referencia campo-a-campo de Prisma Client (`fields.stock_minimo`), que
+  // requiere un PrismaClient real y no funciona contra los mocks de test.
+  private async _contarStockBajo(): Promise<number> {
+    const filas = await this.prisma.$queryRaw<{ total: bigint | number }[]>`
+      SELECT COUNT(*) as total
+      FROM producto
+      WHERE estado = 1 AND stock_actual <= stock_minimo AND stock_actual > 0
+    `;
+    return Number(filas?.[0]?.total ?? 0);
+  }
+
   private async _getStockBajo() {
     const productos = await this.prisma.$queryRaw<any[]>`
       SELECT p.id_producto, p.nom_producto, p.stock_actual, p.stock_minimo,
@@ -205,7 +205,6 @@ async pedidosRecientes(dias = 7) {
       WHERE p.estado = 1 AND p.stock_actual <= p.stock_minimo AND p.stock_actual > 0
       ORDER BY p.stock_actual ASC
     `;
-
     return productos.map((p) => ({
       tipo: 'stock-bajo',
       id_notificacion: `stock-bajo-${p.id_producto}`,
