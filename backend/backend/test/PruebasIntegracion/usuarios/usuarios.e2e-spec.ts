@@ -6,10 +6,10 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import { AppModule } from '../../../src/app.module';
 import { TaskService } from '../../../src/task/task.service';
+import { apiRequest } from '../../utils/http';
 import { loginComoCliente, loginConCodigo, loginComoTrabajador } from '../../utils/auth-helper';
 import { crearUsuarioFake, crearAdminFake, CATALOGOS } from '../../utils/faker-factories';
 
@@ -61,8 +61,11 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
   // ────────────────────────────────────────────────────────────
   describe('RF-001.1 — Registrar usuario', () => {
     it('CP-001: debe registrar un nuevo usuario con rol Cliente de forma exitosa', async () => {
-      const idNuevo = `cli-${sufijo}-1`;
-      const res = await request(app.getHttpServer())
+      // id_usuario numérico: el DTO rechaza con 400 los documentos con
+      // letras/guiones. Usamos el sufijo (timestamp) + un dígito fijo
+      // para mantener unicidad entre corridas.
+      const idNuevo = `${sufijo}01`;
+      const res = await apiRequest(app)
         .post('/usuarios')
         .send({
           id_usuario: idNuevo,
@@ -81,8 +84,8 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
     });
 
     it('CP-002: debe registrar un nuevo usuario con rol Trabajador desde el panel autorizado', async () => {
-      const idNuevo = `trab-${sufijo}-1`;
-      const res = await request(app.getHttpServer())
+      const idNuevo = `${sufijo}02`;
+      const res = await apiRequest(app)
         .post('/usuarios')
         .set('Authorization', `Bearer ${admin.token}`)
         .send({
@@ -102,8 +105,8 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
     });
 
     it('CP-003: debe registrar un nuevo usuario con rol Administrador de forma exitosa', async () => {
-      const idNuevo = `admin-${sufijo}-1`;
-      const res = await request(app.getHttpServer())
+      const idNuevo = `${sufijo}03`;
+      const res = await apiRequest(app)
         .post('/usuarios')
         .set('Authorization', `Bearer ${admin.token}`)
         .send({
@@ -123,7 +126,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
     });
 
     it('CP-004: debe rechazar el registro con un número de documento que ya existe', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post('/usuarios')
         .send({
           id_usuario: cliente.usuario.id_usuario, // documento ya usado por 'cliente'
@@ -140,10 +143,10 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
     });
 
     it('CP-005: debe rechazar el registro dejando campos obligatorios vacíos', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post('/usuarios')
         .send({
-          id_usuario: `incompleto-${sufijo}`,
+          id_usuario: `${sufijo}05`,
           nom_1: '', // obligatorio y vacío
           ape_1: 'Test',
           correo: `incompleto.${sufijo}@test.com`,
@@ -157,10 +160,10 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
     });
 
     it('CP-006: debe rechazar el registro con una contraseña que no cumple las políticas de seguridad (longitud mínima)', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post('/usuarios')
         .send({
-          id_usuario: `pwdcorta-${sufijo}`,
+          id_usuario: `${sufijo}06`,
           nom_1: 'Test',
           ape_1: 'Test',
           correo: `pwdcorta.${sufijo}@test.com`,
@@ -179,7 +182,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
   // ────────────────────────────────────────────────────────────
   describe('RF-001.2 — Visualizar usuarios', () => {
     it('CP-007: debe visualizar la lista completa de usuarios desde el rol Administrador', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .get('/usuarios')
         .set('Authorization', `Bearer ${admin.token}`);
 
@@ -189,7 +192,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
     });
 
     it('CP-008: el filtro por nombre/correo en query no afecta el resultado (backend no filtra aún)', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .get('/usuarios')
         .query({ search: 'esteTextoNoDeberiaFiltrarNada' })
         .set('Authorization', `Bearer ${admin.token}`);
@@ -200,7 +203,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
     });
 
     it('CP-009: debe bloquear la visualización de la lista a un rol no autorizado (Cliente)', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .get('/usuarios')
         .set('Authorization', `Bearer ${cliente.token}`);
 
@@ -214,7 +217,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
   // ────────────────────────────────────────────────────────────
   describe('RF-001.4 — Recuperar contraseña', () => {
     it('CP-017: debe enviar el código de verificación con un correo registrado', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post('/usuarios/solicitar-reset')
         .send({ correo: cliente.usuario.correo });
 
@@ -222,7 +225,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
     });
 
     it('CP-018: debe rechazar la solicitud con un correo que no existe en el sistema', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post('/usuarios/solicitar-reset')
         .send({ correo: `no-existe-${sufijo}@test.com` });
 
@@ -230,11 +233,11 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
     });
 
     it('CP-019: debe rechazar el restablecimiento con un código inválido', async () => {
-      await request(app.getHttpServer())
+      await apiRequest(app)
         .post('/usuarios/solicitar-reset')
         .send({ correo: cliente.usuario.correo });
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post('/usuarios/reset-contrasena')
         .send({
           correo: cliente.usuario.correo,
@@ -251,7 +254,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
   // ────────────────────────────────────────────────────────────
   describe('RF-001.5 — Editar Perfil', () => {
     it('CP-020: debe actualizar exitosamente los datos básicos del perfil del usuario logueado', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .patch(`/usuarios/${cliente.usuario.id_usuario}`)
         .set('Authorization', `Bearer ${cliente.token}`)
         .send({ nom_1: 'NombreActualizado', telefono: 3009998888 });
@@ -261,7 +264,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
     });
 
     it('CP-021: debe rechazar la actualización del correo por uno ya en uso por otro usuario', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .patch(`/usuarios/${trabajador.usuario.id_usuario}`)
         .set('Authorization', `Bearer ${admin.token}`)
         .send({ correo: cliente.usuario.correo });
@@ -278,7 +281,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
       const { usuario, contrasenaFake } = await crearUsuarioFake(CATALOGOS.ROL_CLIENTE);
       idsCreadosEnPruebas.push(usuario.id_usuario);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .patch(`/usuarios/${usuario.id_usuario}/cambiar-contrasena`)
         .send({ contrasenaActual: contrasenaFake, nuevaContrasena: 'ClaveNueva123' });
 
@@ -290,7 +293,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
       const { usuario } = await crearUsuarioFake(CATALOGOS.ROL_CLIENTE);
       idsCreadosEnPruebas.push(usuario.id_usuario);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .patch(`/usuarios/${usuario.id_usuario}/cambiar-contrasena`)
         .send({ contrasenaActual: 'ClaveIncorrecta', nuevaContrasena: 'ClaveNueva123' });
 
@@ -306,7 +309,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
       const { usuario } = await crearAdminFake(CATALOGOS.ROL_TRABAJADOR);
       idsCreadosEnPruebas.push(usuario.id_usuario);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .patch(`/usuarios/${usuario.id_usuario}`)
         .set('Authorization', `Bearer ${admin.token}`)
         .send({ id_rol_usuario: CATALOGOS.ROL_ADMIN });
@@ -316,7 +319,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
     });
 
     it('CP-025: debe rechazar el cambio de rol desde una cuenta sin permisos (Cliente)', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .patch(`/usuarios/${trabajador.usuario.id_usuario}`)
         .set('Authorization', `Bearer ${cliente.token}`)
         .send({ id_rol_usuario: CATALOGOS.ROL_ADMIN });
@@ -333,7 +336,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
       const { usuario } = await crearUsuarioFake(CATALOGOS.ROL_CLIENTE);
       idsCreadosEnPruebas.push(usuario.id_usuario);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .patch(`/usuarios/${usuario.id_usuario}/estado`)
         .set('Authorization', `Bearer ${admin.token}`);
 
@@ -348,12 +351,12 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
       idsCreadosEnPruebas.push(usuario.id_usuario);
 
       // primer toggle: activo -> inactivo
-      await request(app.getHttpServer())
+      await apiRequest(app)
         .patch(`/usuarios/${usuario.id_usuario}/estado`)
         .set('Authorization', `Bearer ${admin.token}`);
 
       // segundo toggle: inactivo -> activo
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .patch(`/usuarios/${usuario.id_usuario}/estado`)
         .set('Authorization', `Bearer ${admin.token}`);
 
@@ -368,7 +371,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
       if (!adminPrincipal) {
         adminPrincipal = await prisma.usuario.create({
           data: {
-            id_usuario: `admprincipal-${sufijo}`,
+            id_usuario: `${sufijo}09`,
             nom_1: 'Admin',
             ape_1: 'Principal',
             correo: 'valruiz@gmail.com',
@@ -382,7 +385,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
         creadoEnEstaPrueba = true;
       }
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .patch(`/usuarios/${adminPrincipal.id_usuario}/estado`)
         .set('Authorization', `Bearer ${admin.token}`);
 

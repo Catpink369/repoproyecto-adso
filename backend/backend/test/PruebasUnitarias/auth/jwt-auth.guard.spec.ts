@@ -24,7 +24,7 @@ describe('Usuario sin permisos no puede realizar acciones protegidas', () => {
         } as unknown as ExecutionContext;
     }
 
-    it('RF-007.1 - CP-004: una ruta protegida (no @Public) sin token debe delegar en la estrategia JWT, que rechaza la petición', () => {
+    it('RF-007.1 - CP-004: Un usuario sin sesión iniciada no puede registrar un pedido', () => {
         const context = mockContext('/pedidos/crear', false);
         const superCanActivate = jest
         .spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype), 'canActivate')

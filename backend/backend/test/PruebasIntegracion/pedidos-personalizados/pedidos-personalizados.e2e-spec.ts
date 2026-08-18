@@ -1,4 +1,4 @@
-// RF-005.1 / RF-005.2 
+// RF-005.1 / RF-005.2
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -150,22 +150,7 @@ describe('RF-005 — Pedidos Personalizados (integración)', () => {
             expect(resSinColores.body).toHaveLength(0);
         });
 
-        it('CP-004: el backend debe rechazar (400) un pedido personalizado sin materiales seleccionados', async () => {
-            const res = await request(app.getHttpServer())
-                .post('/pedidos-personalizados')
-                .set('x-api-key', API_KEY)
-                .set('Authorization', `Bearer ${token}`)
-                .send({
-                id_usuario: idUsuario,
-                tipo_producto: 'Cubrelecho',
-                tamanio: 'Queen',
-                materiales: [], // sin tela seleccionada
-                });
-
-            expect(res.status).toBe(400);
-        });
-
-        it('CP-004: el backend debe rechazar (400) un pedido sin tipo_producto', async () => {
+        it('CP-004: el backend debe rechazar (400) un pedido sin tipo_producto (campo obligatorio faltante)', async () => {
         const res = await request(app.getHttpServer())
             .post('/pedidos-personalizados')
             .set('x-api-key', API_KEY)
@@ -174,6 +159,35 @@ describe('RF-005 — Pedidos Personalizados (integración)', () => {
             id_usuario: idUsuario,
             tamanio: 'Queen',
             materiales: [{ id_material: materialTelaA.id_material, cantidad: 1 }],
+            });
+
+        expect(res.status).toBe(400);
+        });
+
+        it('CP-004: el backend debe rechazar (400) un pedido sin tamaño (campo obligatorio faltante)', async () => {
+        const res = await request(app.getHttpServer())
+            .post('/pedidos-personalizados')
+            .set('x-api-key', API_KEY)
+            .set('Authorization', `Bearer ${token}`)
+            .send({
+            id_usuario: idUsuario,
+            tipo_producto: 'Cubrelecho',
+            materiales: [{ id_material: materialTelaA.id_material, cantidad: 1 }],
+            });
+
+        expect(res.status).toBe(400);
+        });
+
+        it('CP-004 (complemento): el backend debe rechazar (400) un pedido personalizado sin materiales seleccionados (no elige tela)', async () => {
+        const res = await request(app.getHttpServer())
+            .post('/pedidos-personalizados')
+            .set('x-api-key', API_KEY)
+            .set('Authorization', `Bearer ${token}`)
+            .send({
+            id_usuario: idUsuario,
+            tipo_producto: 'Cubrelecho',
+            tamanio: 'Queen',
+            materiales: [], // sin tela seleccionada
             });
 
         expect(res.status).toBe(400);
@@ -225,7 +239,7 @@ describe('RF-005 — Pedidos Personalizados (integración)', () => {
         );
         });
 
-        it('CP-007: llamadas consecutivas con combinaciones distintas no deben arrastrar precio entre sí', async () => {
+        it('CP-007: llamadas consecutivas con combinaciones distintas deben recalcular el total sin arrastrar el precio anterior', async () => {
         const res1 = await request(app.getHttpServer())
             .post('/pedidos-personalizados')
             .set('x-api-key', API_KEY)

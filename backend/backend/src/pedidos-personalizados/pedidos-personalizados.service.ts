@@ -276,6 +276,16 @@ export class PedidosPersonalizadosService {
   // CREAR PEDIDO PERSONALIZADO
   // --------------------------------------------------------
   async crearPedido(dto: CreatePedidoPersonalizadoDto) {
+    // ── Guard: el DTO ya valida esto vía ValidationPipe (@ArrayNotEmpty en
+    // materiales, @IsNotEmpty en tipo_producto/tamanio), pero se revalida
+    // aquí como defensa en profundidad — misma paridad que
+    // pedidos.service.ts create() aplica sobre items/id_usuario/metodo_pago.
+    if (!dto.materiales || dto.materiales.length === 0 || !dto.id_usuario || !dto.tipo_producto || !dto.tamanio) {
+      throw new BadRequestException(
+        'Faltan datos obligatorios (materiales, id_usuario, tipo_producto, tamanio)',
+      );
+    }
+
     // Buscar usuario
     const usuario = await this.prisma.usuario.findUnique({
       where: { id_usuario: dto.id_usuario },
@@ -313,7 +323,7 @@ export class PedidosPersonalizadosService {
 
     // calcular precio total
     let precio_total = 0;
-    const detalles: { id_material: number; cantidad: number; subtotal: number; nombre: string; unidad: string }[] = [];
+    const detalles: { id_material: number; cantidad: number; precio_unitario: number; subtotal: number; nombre: string; unidad: string }[] = [];
 
     for (const item of dto.materiales) {
       const material = await this.prisma.material.findUnique({
@@ -324,6 +334,7 @@ export class PedidosPersonalizadosService {
       detalles.push({
         id_material: item.id_material,
         cantidad: item.cantidad,
+        precio_unitario: Number(material!.precio_unitario),
         subtotal,
         nombre: material!.nombre,
         unidad: material!.unidad,

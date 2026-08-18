@@ -1,9 +1,9 @@
 // RF-002 — Gestión de Productos (integración)
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import { AppModule } from '../../../src/app.module';
+import { apiRequest } from '../../utils/http';
 import { loginComoCliente, loginConCodigo, loginComoTrabajador } from '../../utils/auth-helper';
 import { crearProductoFake, crearPedidoCompletoFake, CATALOGOS } from '../../utils/faker-factories';
 
@@ -47,13 +47,22 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
   });
 
   afterAll(async () => {
+    // Filtramos undefined: si algún test falló antes de llegar al push
+    // (ej. por un 401/400 inesperado en la creación), no queremos que
+    // deleteMany reciba `undefined` dentro del `in` y truene la limpieza.
+    const idsProductosValidos = idsProductosCreados.filter(
+      (id): id is number => id !== undefined && id !== null,
+    );
+
     // Orden por dependencias FK: detalles/tickets -> pedidos -> productos -> usuarios
     if (idsPedidosCreados.length) {
       await prisma.detalles_pedido.deleteMany({ where: { id_pedido: { in: idsPedidosCreados } } });
       await prisma.ticket_compra.deleteMany({ where: { id_pedido: { in: idsPedidosCreados } } });
       await prisma.pedido.deleteMany({ where: { id_pedido: { in: idsPedidosCreados } } });
     }
-    await prisma.producto.deleteMany({ where: { id_producto: { in: idsProductosCreados } } });
+    if (idsProductosValidos.length) {
+      await prisma.producto.deleteMany({ where: { id_producto: { in: idsProductosValidos } } });
+    }
     await prisma.usuario.deleteMany({ where: { id_usuario: { in: idsUsuariosCreados } } });
     await prisma.$disconnect();
     await app.close();
@@ -64,7 +73,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
   // ────────────────────────────────────────────────────────────
   describe('RF-002.1 — Crear producto', () => {
     it('CP-001: debe crear un nuevo producto completando todos los campos obligatorios (Administrador/Trabajador)', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post('/productos')
         .set('Authorization', `Bearer ${trabajador.token}`)
         .send({
@@ -83,7 +92,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
     it('CP-002: debe rechazar la creación con un nombre de producto que ya existe', async () => {
       const nombreDuplicado = `Producto Duplicado ${sufijo}`;
 
-      const primero = await request(app.getHttpServer())
+      const primero = await apiRequest(app)
         .post('/productos')
         .set('Authorization', `Bearer ${admin.token}`)
         .send({
@@ -96,7 +105,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
         });
       if (primero.status === 201) idsProductosCreados.push(primero.body.id_producto);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post('/productos')
         .set('Authorization', `Bearer ${admin.token}`)
         .send({
@@ -113,7 +122,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
     });
 
     it('CP-003: debe rechazar la creación dejando campos obligatorios vacíos', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post('/productos')
         .set('Authorization', `Bearer ${admin.token}`)
         .send({
@@ -129,7 +138,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
     });
 
     it('CP-004: debe rechazar la creación con valores numéricos inválidos (precio negativo)', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post('/productos')
         .set('Authorization', `Bearer ${admin.token}`)
         .send({
@@ -145,7 +154,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
     });
 
     it('CP-005: debe subir una imagen válida durante la creación y reflejarla en el producto', async () => {
-      const creado = await request(app.getHttpServer())
+      const creado = await apiRequest(app)
         .post('/productos')
         .set('Authorization', `Bearer ${admin.token}`)
         .send({
@@ -158,7 +167,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
         });
       idsProductosCreados.push(creado.body.id_producto);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post(`/productos/${creado.body.id_producto}/imagen`)
         .set('Authorization', `Bearer ${admin.token}`)
         .attach('imagen_producto', imagenValidaBuffer, { filename: 'test.png', contentType: 'image/png' });
@@ -168,7 +177,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
     });
 
     it('CP-006: debe rechazar un archivo inválido (PDF) en el campo de imagen del producto', async () => {
-      const creado = await request(app.getHttpServer())
+      const creado = await apiRequest(app)
         .post('/productos')
         .set('Authorization', `Bearer ${admin.token}`)
         .send({
@@ -181,7 +190,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
         });
       idsProductosCreados.push(creado.body.id_producto);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post(`/productos/${creado.body.id_producto}/imagen`)
         .set('Authorization', `Bearer ${admin.token}`)
         .attach('imagen_producto', Buffer.from('%PDF-1.4 contenido falso'), {
@@ -193,7 +202,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
     });
 
     it('CP-007: debe bloquear la creación desde una cuenta sin permisos autorizados (Cliente)', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .post('/productos')
         .set('Authorization', `Bearer ${cliente.token}`)
         .send({
@@ -217,11 +226,11 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
       const producto = await crearProductoFake();
       idsProductosCreados.push(producto.id_producto);
 
-      const resSinAuth = await request(app.getHttpServer()).get('/productos');
+      const resSinAuth = await apiRequest(app).get('/productos');
       expect(resSinAuth.status).toBe(200);
       expect(Array.isArray(resSinAuth.body)).toBe(true);
 
-      const resConAuth = await request(app.getHttpServer())
+      const resConAuth = await apiRequest(app)
         .get('/productos')
         .set('Authorization', `Bearer ${admin.token}`);
       expect(resConAuth.status).toBe(200);
@@ -249,7 +258,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
       const producto = await crearProductoFake();
       idsProductosCreados.push(producto.id_producto);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .patch(`/productos/${producto.id_producto}`)
         .set('Authorization', `Bearer ${trabajador.token}`)
         .send({ nom_producto: 'Nombre Actualizado', precio_unitario: 30000 });
@@ -262,7 +271,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
       const producto = await crearProductoFake();
       idsProductosCreados.push(producto.id_producto);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .patch(`/productos/${producto.id_producto}`)
         .set('Authorization', `Bearer ${admin.token}`)
         .send({ stock_minimo: -3 });
@@ -274,7 +283,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
       const producto = await crearProductoFake();
       idsProductosCreados.push(producto.id_producto);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .patch(`/productos/${producto.id_producto}`)
         .set('Authorization', `Bearer ${cliente.token}`)
         .send({ nom_producto: 'No debería aplicar' });
@@ -291,7 +300,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
       const producto = await crearProductoFake();
       idsProductosCreados.push(producto.id_producto);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .delete(`/productos/${producto.id_producto}`)
         .set('Authorization', `Bearer ${admin.token}`);
 
@@ -308,7 +317,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
       const { pedido } = await crearPedidoCompletoFake(cliente.usuario.id_usuario, producto.id_producto);
       idsPedidosCreados.push(pedido.id_pedido);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .delete(`/productos/${producto.id_producto}`)
         .set('Authorization', `Bearer ${admin.token}`);
 
@@ -319,7 +328,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
       const producto = await crearProductoFake();
       idsProductosCreados.push(producto.id_producto);
 
-      const res = await request(app.getHttpServer())
+      const res = await apiRequest(app)
         .delete(`/productos/${producto.id_producto}`)
         .set('Authorization', `Bearer ${trabajador.token}`); // solo ADMIN tiene permiso
 

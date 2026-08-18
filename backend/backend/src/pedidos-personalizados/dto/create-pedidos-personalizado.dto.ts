@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsString, IsNotEmpty, IsNumber, Min, IsOptional, MaxLength, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, Min, IsOptional, MaxLength, IsArray, ArrayNotEmpty, ValidateNested } from 'class-validator';
 
 export class MaterialItemDto {
     @IsNumber()
@@ -46,6 +46,7 @@ export class MaterialItemDto {
     metodo_pago?: string;
 
     @IsArray()
+    @ArrayNotEmpty({ message: 'Debes seleccionar al menos un material (la tela es obligatoria).' })
     @ValidateNested({ each: true })
     @Type(() => MaterialItemDto)
     materiales!: MaterialItemDto[];

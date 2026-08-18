@@ -1,19 +1,23 @@
 //RF-005.1 - RF-005.2
-import { Test, TestingModule } from '@nestjs/testing'; 
+import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
-import { PedidosPersonalizadosService } from '../../../src/pedidos-personalizados/pedidos-personalizados.service'; 
+import { validate } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
+import { BadRequestException } from '@nestjs/common';
+import { PedidosPersonalizadosService } from '../../../src/pedidos-personalizados/pedidos-personalizados.service';
 import { PrismaService } from '../../../src/prisma/prisma.service';
+import { CreatePedidoPersonalizadoDto } from '../../../src/pedidos-personalizados/dto/create-pedidos-personalizado.dto';
 
 describe('RF-005 - Gestionar Pedidos Personalizados', () => {
     let service: PedidosPersonalizadosService;
     let prisma: any;
 
-    const mockTx = { 
+    const mockTx = {
         pedido: { create: jest.fn() },
         pedido_personalizado: { create: jest.fn() },
         ticket_compra: { create: jest.fn() },
-        material: { update: jest.fn() },
+        material: { findUnique: jest.fn(), update: jest.fn() },
+        $executeRaw: jest.fn(),
     };
 
     beforeEach(async () => {
@@ -62,19 +66,28 @@ describe('RF-005 - Gestionar Pedidos Personalizados', () => {
         const mat = materiales.find((m) => m.id_material === where.id_material);
         return Promise.resolve(mat ? { ...mat, estado: mat.estado ?? true } : null);
         });
+        // el descuento de stock dentro de la transacción también consulta
+        // material vía tx.material.findUnique — se usa la misma fuente de datos.
+        mockTx.material.findUnique.mockImplementation(({ where }: any) => {
+        const mat = materiales.find((m) => m.id_material === where.id_material);
+        return Promise.resolve(mat ? { stock_actual: mat.stock_actual, nombre: mat.nombre } : null);
+        });
     }
 
     function mockTransaccionExitosa() {
         mockTx.pedido.create.mockResolvedValue({
         id_pedido: faker.number.int({ min: 1, max: 9999 }),
         });
-        mockTx.pedido_personalizado.create.mockResolvedValue({});
+        mockTx.pedido_personalizado.create.mockResolvedValue({
+        id_ped_personal: faker.number.int({ min: 1, max: 9999 }),
+        });
         mockTx.ticket_compra.create.mockResolvedValue({});
         mockTx.material.update.mockResolvedValue({});
+        mockTx.$executeRaw.mockResolvedValue(undefined);
     }
 
-    // RF-005.1 - Personalizar producto (validaciones)
-    describe('RF-005.1 - Validaciones de pedido personalizado', () => {
+    // RF-005.1 - Personalizar producto
+    describe('RF-005.1 - Personalizar producto', () => {
         it('CP-001: debe guardar la configuración de ambos lados de un cubrelecho de forma independiente', async () => {
         mockUsuarioValido('123');
         mockMaterialesDisponibles([
@@ -146,20 +159,56 @@ describe('RF-005 - Gestionar Pedidos Personalizados', () => {
             expect(colores).toHaveLength(2);
         });
 
-        it('CP-004 debe rechazar el pedido si un material no tiene stock suficiente', async () => {
-            mockUsuarioValido('123');
-            mockMaterialesDisponibles([
-            { id_material: 1, nombre: 'Tela algodón', precio_unitario: 10000, stock_actual: 2, unidad: 'metro' },
-            ]);
+        it('CP-004: no debe permitir confirmar la personalización si faltan campos obligatorios (tipo_producto, tamaño o la tela)', async () => {
+            const base = { id_usuario: '123', materiales: [{ id_material: 1, cantidad: 1 }] };
 
+            // No elige tipo_producto
+            const sinTipoProducto = plainToInstance(CreatePedidoPersonalizadoDto, { ...base, tamanio: 'Queen' });
+            const erroresTipoProducto = await validate(sinTipoProducto);
+            expect(erroresTipoProducto.some((e) => e.property === 'tipo_producto')).toBe(true);
+
+            // No elige tamaño
+            const sinTamanio = plainToInstance(CreatePedidoPersonalizadoDto, { ...base, tipo_producto: 'Cubrelecho' });
+            const erroresTamanio = await validate(sinTamanio);
+            expect(erroresTamanio.some((e) => e.property === 'tamanio')).toBe(true);
+
+            // No elige la tela: el ítem de material llega sin id_material
+            const sinTela = plainToInstance(CreatePedidoPersonalizadoDto, {
+                id_usuario: '123',
+                tipo_producto: 'Cubrelecho',
+                tamanio: 'Queen',
+                materiales: [{ cantidad: 1 }],
+            });
+            const erroresSinTela = await validate(sinTela);
+            const errorMateriales = erroresSinTela.find((e) => e.property === 'materiales');
+            const erroresAnidados = errorMateriales?.children?.[0]?.children ?? [];
+            expect(erroresAnidados.some((c: any) => c.property === 'id_material')).toBe(true);
+        });
+
+        it('CP-004 (complemento): no debe permitir confirmar si no se elige ninguna tela (materiales: [])', async () => {
+            // A nivel de DTO: @ArrayNotEmpty() en materiales (fix aplicado)
+            const sinMateriales = plainToInstance(CreatePedidoPersonalizadoDto, {
+                id_usuario: '123',
+                tipo_producto: 'Cubrelecho',
+                tamanio: 'Queen',
+                materiales: [],
+            });
+            const errores = await validate(sinMateriales);
+            expect(errores.some((e) => e.property === 'materiales')).toBe(true);
+
+            // A nivel de servicio: defensa en profundidad (paridad con
+            // pedidos.service.ts create()), por si se invoca sin pasar por
+            // el ValidationPipe.
+            mockUsuarioValido('123');
             const dto = {
-            id_usuario: '123',
-            tipo_producto: 'Cubrelecho',
-            tamanio: 'Queen',
-            materiales: [{ id_material: 1, cantidad: 5 }],
+                id_usuario: '123',
+                tipo_producto: 'Cubrelecho',
+                tamanio: 'Queen',
+                materiales: [] as any[],
             };
 
             await expect(service.crearPedido(dto as any)).rejects.toThrow(BadRequestException);
+            expect(prisma.usuario.findUnique).not.toHaveBeenCalled();
             expect(mockTx.pedido.create).not.toHaveBeenCalled();
         });
     });
@@ -192,7 +241,6 @@ describe('RF-005 - Gestionar Pedidos Personalizados', () => {
             expect(resultado.materiales[0].subtotal).toBe(30000);
             expect(resultado.materiales[1].subtotal).toBe(10000);
         });
-        
 
         it('CP-006: la respuesta de crearPedido() debe mostrar el desglose del precio por cada material antes de confirmar', async () => {
             mockUsuarioValido('123');
@@ -222,7 +270,7 @@ describe('RF-005 - Gestionar Pedidos Personalizados', () => {
             expect(resultado.precio_total).toBe(30000);
         });
 
-        it('CP-007: crearPedido() debe ser idempotente — llamadas repetidas con distintas combinaciones de materiales no arrastran estado entre sí', async () => {
+        it('CP-007: crearPedido() debe recalcular el precio al instante y sin arrastrar estado entre llamadas consecutivas con distintas combinaciones', async () => {
             mockUsuarioValido('123');
             mockMaterialesDisponibles([
             { id_material: 1, nombre: 'Tela algodón', precio_unitario: 10000, stock_actual: 20, unidad: 'metro' },
