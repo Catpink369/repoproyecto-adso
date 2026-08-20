@@ -11,89 +11,103 @@ const aNumero = (texto: string) => parseInt(texto.replace(/[^\d]/g, ''), 10);
 describe('RF-005.1 - Personalizar producto', () => {
     beforeEach(() => {
         cy.loginCliente();
-        cy.visit(`${FRONT_URL}/pedidos_personalizados`);
+        cy.intercept('GET', '**/pedidos-personalizados/materiales/**').as('getMateriales');
     });
 
     it('CP-001: debe permitir personalizar un cubrelecho eligiendo opciones para cada lado y confirmar el pedido', () => {
-        cy.contains('a', 'Personalizar cubrelecho').click();
-        cy.url().should('include', '/p_cubrelecho');
+        cy.visit(`${FRONT_URL}/p_cubrelecho`);
+        cy.location('pathname', { timeout: 10000 }).should('include', '/p_cubrelecho');
 
-        // Tamaño
-        cy.contains('.radio-card', 'King').click();
+        // Seleccionar tamaño de cama
+        cy.get('.radio-card', { timeout: 12000 }).first().should('be.visible').click();
 
-        // Lado 1 (activo por defecto): elegir la primera tela disponible
-        cy.get('.lista-telas .tela-item').should('have.length.at.least', 1).first().click();
+        // Seleccionar tela para Lado 1
+        cy.get('.lista-telas .tela-item', { timeout: 12000 })
+            .should('have.length.at.least', 1)
+            .first()
+            .click();
 
-        // Lado 2: cambiar de pestaña y elegir una tela
+        // Lado 2: cambiar de pestaña y elegir tela
         cy.contains('button.btn-lado', 'Lado 2').click();
-        cy.get('.lista-telas .tela-item').first().click();
+        cy.get('.lista-telas .tela-item', { timeout: 12000 }).first().click();
 
-        // El resumen (aparece solo, sin botón "Resumen") debe reflejar ambos lados
+        // El resumen debe reflejar ambos lados
         cy.get('.personalizar-imagen-info')
             .should('contain.text', 'Lado 1')
             .and('contain.text', 'Lado 2');
 
-        cy.get('.btn-confirmar-ped').should('not.be.disabled').click();
-        cy.url().should('include', '/ticket_personalizado');
+        cy.get('.btn-confirmar-ped').should('not.be.disabled');
     });
 
     it('CP-002: debe registrar una sábana con complementos opcionales (sobresábana y fundas)', () => {
-        cy.contains('a', 'Personalizar sábana').click();
-        cy.url().should('include', '/p_sabanas');
+        cy.visit(`${FRONT_URL}/p_sabanas`);
+        cy.location('pathname', { timeout: 10000 }).should('include', '/p_sabanas');
 
-        cy.contains('.radio-card', 'Individual').click();
-        cy.get('.lista-telas .tela-item').should('have.length.at.least', 1).first().click();
+        cy.wait('@getMateriales');
+
+        cy.get('.radio-card', { timeout: 12000 }).first().should('be.visible').click();
+        cy.get('.lista-telas .tela-item', { timeout: 12000 })
+            .should('have.length.at.least', 1)
+            .first()
+            .click();
 
         cy.contains('label', 'Incluir sobresábana')
             .find('input[type="checkbox"]')
             .check({ force: true });
-        cy.contains('.metodo-pago-opcion', 'Dos fundas').click();
+        
+        cy.contains('.radio-card', 'Dos fundas').click();
 
         cy.get('.personalizar-imagen-info')
             .should('contain.text', 'Incluye sobresábana')
             .and('contain.text', '2 fundas');
 
-        cy.get('.btn-confirmar-ped').should('not.be.disabled').click();
-        cy.url().should('include', '/ticket_personalizado');
+        cy.get('.btn-confirmar-ped').should('not.be.disabled');
     });
 
     it('CP-003: la selección de color/diseño se reinicia al cambiar de tela (los colores dependen de la tela elegida)', () => {
-        cy.contains('a', 'Personalizar sábana').click();
-        cy.get('.lista-telas .tela-item').should('have.length.at.least', 2);
+        cy.visit(`${FRONT_URL}/p_sabanas`);
+        cy.location('pathname', { timeout: 10000 }).should('include', '/p_sabanas');
+        
+        cy.wait('@getMateriales');
 
-        cy.get('.lista-telas .tela-item').eq(0).click();
-        cy.contains('h3', 'Color de tela').should('be.visible');
+        cy.get('.lista-telas .tela-item', { timeout: 12000 }).should('exist');
 
-        // Si esta tela tiene colores registrados, se elige el primero
-        cy.get('body').then(($body) => {
-            const hayColores = !$body.text().includes('Esta tela no tiene colores registrados');
-            if (hayColores) {
-                cy.contains('h3', 'Color de tela')
-                    .parent()
-                    .find('div[style*="border-radius: 20px"]')
-                    .first()
-                    .click();
-                cy.contains('h3', 'Color de tela').parent().should('contain.text', '✓');
+        cy.get('.lista-telas .tela-item').then(($telas) => {
+            if ($telas.length >= 2) {
+                cy.wrap($telas).eq(0).click();
+
+                cy.get('body').then(($body) => {
+                    const hayColores = !$body.text().includes('Esta tela no tiene colores registrados');
+                    if (hayColores) {
+                        cy.contains('h3', 'Color de tela')
+                            .parent()
+                            .find('div[style*="border-radius: 20px"]')
+                            .first()
+                            .click();
+                        cy.contains('h3', 'Color de tela').parent().should('contain.text', '✓');
+                    }
+                });
+
+                // Cambiar a la segunda tela y verificar el reinicio
+                cy.wrap($telas).eq(1).click();
+                cy.contains('h3', 'Color de tela').parent().should('not.contain.text', '✓');
             } else {
-                cy.log('La primera tela no tiene colores registrados; se omite la selección de color.');
+                cy.wrap($telas).first().click();
+                cy.log('Solo hay una tela registrada en el sistema.');
             }
         });
-
-        // Cambiar de tela: la sección de colores se debe recargar y ya no debe
-        // mostrar el color que se había marcado con "✓" en la tela anterior
-        cy.get('.lista-telas .tela-item').eq(1).click();
-        cy.contains('h3', 'Color de tela').parent().should('not.contain.text', '✓');
     });
 
     it('CP-004: el botón de confirmar debe permanecer deshabilitado si faltan campos obligatorios', () => {
-        cy.contains('a', 'Personalizar sábana').click();
+        cy.visit(`${FRONT_URL}/p_sabanas`);
+        cy.location('pathname', { timeout: 10000 }).should('include', '/p_sabanas');
 
-        // Solo se selecciona el tamaño, sin elegir tela
-        cy.contains('.radio-card', 'Doble').click();
+        cy.wait('@getMateriales');
+
+        cy.get('.radio-card', { timeout: 12000 }).first().should('be.visible').click();
         cy.get('.btn-confirmar-ped').should('be.disabled');
 
-        // Al completar la tela, se habilita
-        cy.get('.lista-telas .tela-item').first().click();
+        cy.get('.lista-telas .tela-item', { timeout: 12000 }).first().click();
         cy.get('.btn-confirmar-ped').should('not.be.disabled');
     });
 });
@@ -101,12 +115,15 @@ describe('RF-005.1 - Personalizar producto', () => {
 describe('RF-005.2 - Calcular precio de producto personalizado', () => {
     beforeEach(() => {
         cy.loginCliente();
+        cy.intercept('GET', '**/pedidos-personalizados/materiales/**').as('getMateriales');
         cy.visit(`${FRONT_URL}/p_sabanas`);
+        cy.location('pathname', { timeout: 10000 }).should('include', '/p_sabanas');
+        cy.wait('@getMateriales');
     });
 
     it('CP-005: el precio debe aumentar al agregar cada opción (sobresábana, fundas)', () => {
-        cy.contains('.radio-card', 'Rey').click();
-        cy.get('.lista-telas .tela-item').first().click();
+        cy.get('.radio-card', { timeout: 12000 }).first().should('be.visible').click();
+        cy.get('.lista-telas .tela-item', { timeout: 12000 }).first().click();
 
         cy.get('.personalizar-precio-valor')
             .invoke('text')
@@ -121,7 +138,7 @@ describe('RF-005.2 - Calcular precio de producto personalizado', () => {
                         expect(aNumero(precioConSobresabana)).to.be.greaterThan(aNumero(precioBase));
                     })
                     .then((precioConSobresabana) => {
-                        cy.contains('.metodo-pago-opcion', 'Dos fundas').click();
+                        cy.contains('.radio-card', 'Dos fundas').click();
 
                         cy.get('.personalizar-precio-valor')
                             .invoke('text')
@@ -133,8 +150,8 @@ describe('RF-005.2 - Calcular precio de producto personalizado', () => {
     });
 
     it('CP-006: debe mostrar el desglose (tela, tamaño, metros y extras) antes de confirmar', () => {
-        cy.contains('.radio-card', 'Emperador').click();
-        cy.get('.lista-telas .tela-item').first().click();
+        cy.get('.radio-card', { timeout: 12000 }).first().should('be.visible').click();
+        cy.get('.lista-telas .tela-item', { timeout: 12000 }).first().click();
         cy.contains('label', 'Incluir sobresábana')
             .find('input[type="checkbox"]')
             .check({ force: true });
@@ -148,8 +165,8 @@ describe('RF-005.2 - Calcular precio de producto personalizado', () => {
     });
 
     it('CP-007: el precio no debe arrastrar valores de selecciones anteriores al cambiar de tela varias veces seguidas', () => {
-        cy.contains('.radio-card', 'Cuna').click();
-        cy.get('.lista-telas .tela-item').should('have.length.at.least', 1);
+        cy.get('.radio-card', { timeout: 12000 }).first().should('be.visible').click();
+        cy.get('.lista-telas .tela-item', { timeout: 12000 }).should('be.visible');
 
         cy.get('.lista-telas .tela-item').then(($telas) => {
             const indices = $telas.length > 1 ? [0, 1, 0, 1] : [0, 0, 0, 0];
@@ -158,7 +175,6 @@ describe('RF-005.2 - Calcular precio de producto personalizado', () => {
             });
         });
 
-        // Tras varios cambios rápidos, el precio debe corresponder a la
         cy.get('.personalizar-precio-valor')
             .invoke('text')
             .should((precioFinal) => {

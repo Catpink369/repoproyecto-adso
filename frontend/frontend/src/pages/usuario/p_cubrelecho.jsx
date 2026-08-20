@@ -150,22 +150,30 @@ const PersonalizarCubrelecho = () => {
         setMensaje({ text: '', type: '' });
 
         const mitad = calcularMetros() / 2;
-        const materiales = [
-            {
+        let materiales = [];
+
+        // Si se selecciona exactamente el mismo material para ambos lados, se agrupa la cantidad total
+        if (telaLado1.id_material === telaLado2.id_material) {
+            materiales.push({
+                id_material: telaLado1.id_material,
+                cantidad: calcularMetros(),
+                id_color: colorL1?.id_color || colorL2?.id_color || null,
+                id_diseno: disenoL1?.id_diseno || disenoL2?.id_diseno || null,
+            });
+        } else {
+            materiales.push({
                 id_material: telaLado1.id_material,
                 cantidad: mitad,
-                id_color: colorL1?.id_color,
-                id_diseno: disenoL1?.id_diseno,
-                concepto: 'Lado 1',
-            },
-            {
+                id_color: colorL1?.id_color || null,
+                id_diseno: disenoL1?.id_diseno || null,
+            });
+            materiales.push({
                 id_material: telaLado2.id_material,
                 cantidad: mitad,
-                id_color: colorL2?.id_color,
-                id_diseno: disenoL2?.id_diseno,
-                concepto: 'Lado 2',
-            },
-        ];
+                id_color: colorL2?.id_color || null,
+                id_diseno: disenoL2?.id_diseno || null,
+            });
+        }
 
         const dto = {
             id_usuario:    usuarioActual.id_usuario,

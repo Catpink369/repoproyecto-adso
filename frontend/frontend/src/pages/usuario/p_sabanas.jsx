@@ -24,12 +24,12 @@ const METROS_ALMOHADA    = 1;
 const METROS_SOBRESABANA = 2;
 
 const TAMANO_LABEL = {
-    cuna:        'Cuna (100x145 cm)',
-    individual:  'Individual (180x275 cm)',
-    doble:       'Doble (230x275 cm)',
-    rey:         'Rey (275x275 cm)',
-    rey_europeo: 'Rey europeo (300x275 cm)',
-    emperador:   'Emperador (320x290 cm)',
+    cuna:        'Cuna',
+    individual:  'Individual',
+    doble:       'Doble',
+    rey:         'Rey',
+    rey_europeo: 'Rey europeo',
+    emperador:   'Emperador',
 };
 
 const TAMANOS = [
@@ -74,6 +74,7 @@ const PersonalizarSabana = () => {
         fetchTelas();
     }, []);
 
+    // Cargar colores y diseños cuando cambia la tela seleccionada
     useEffect(() => {
         if (!telaSeleccionada) {
             setColores([]);
@@ -91,8 +92,6 @@ const PersonalizarSabana = () => {
                 ]);
                 setColores(Array.isArray(cols) ? cols : []);
                 setDisenos(Array.isArray(dis) ? dis : []);
-                setColorSeleccionado(null);
-                setDisenoSeleccionado(null);
             } catch (err) {
                 console.error('Error al cargar colores/diseños:', err);
             } finally {
@@ -101,6 +100,15 @@ const PersonalizarSabana = () => {
         };
         fetchOpciones();
     }, [telaSeleccionada]);
+
+    // Función para cambiar de tela y REINICIAR explícitamente color y diseño
+    const handleSeleccionarTela = (tela) => {
+        if (telaSeleccionada?.id_material !== tela.id_material) {
+            setTelaSeleccionada(tela);
+            setColorSeleccionado(null);
+            setDisenoSeleccionado(null);
+        }
+    };
 
     const formatPrice = (price) =>
         Number(price)?.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
@@ -135,44 +143,21 @@ const PersonalizarSabana = () => {
         setEnviando(true);
         setMensaje({ text: '', type: '' });
 
-        const metrosBase = METROS_POR_TAMANO[tamano] || 0;
-        const materiales = [
-            {
-                id_material: telaSeleccionada.id_material,
-                cantidad: metrosBase,
-                id_color: colorSeleccionado?.id_color,
-                id_diseno: disenoSeleccionado?.id_diseno,
-                concepto: 'Tela base',
-            },
-        ];
-
-        if (sobresabana) {
-            materiales.push({
-                id_material: telaSeleccionada.id_material,
-                cantidad: METROS_SOBRESABANA,
-                id_color: colorSeleccionado?.id_color,
-                id_diseno: disenoSeleccionado?.id_diseno,
-                concepto: 'Sobresábana',
-            });
-        }
-
-        const numFundas = almohadas === 'una' ? 1 : almohadas === 'dos' ? 2 : 0;
-        if (numFundas > 0) {
-            materiales.push({
-                id_material: telaSeleccionada.id_material,
-                cantidad: METROS_ALMOHADA * numFundas,
-                id_color: colorSeleccionado?.id_color,
-                id_diseno: disenoSeleccionado?.id_diseno,
-                concepto: `Funda x${numFundas}`,
-            });
-        }
+        const cantidadTotalMetros = calcularMetros();
 
         const dto = {
             id_usuario:    usuarioActual.id_usuario,
-            tipo_producto: 'Sábana',
+            tipo_producto: 'Sabana',
             tamanio:       TAMANO_LABEL[tamano],
             metodo_pago:   'Mtd_PD',
-            materiales,
+            materiales: [
+                {
+                    id_material: telaSeleccionada.id_material,
+                    cantidad: cantidadTotalMetros,
+                    id_color: colorSeleccionado?.id_color || null,
+                    id_diseno: disenoSeleccionado?.id_diseno || null,
+                }
+            ],
         };
 
         try {
@@ -271,7 +256,7 @@ const PersonalizarSabana = () => {
                                     {telas.map(tela => (
                                         <div key={tela.id_material}
                                             className={`tela-item ${telaSeleccionada?.id_material === tela.id_material ? 'activo' : ''}`}
-                                            onClick={() => setTelaSeleccionada(tela)}>
+                                            onClick={() => handleSeleccionarTela(tela)}>
                                             {telaSeleccionada?.id_material === tela.id_material ? '✓ ' : ''}
                                             {tela.nombre}
                                             <small style={{ color: '#9a7a8a', marginLeft: '8px' }}>
@@ -285,7 +270,7 @@ const PersonalizarSabana = () => {
 
                         {telaSeleccionada && (
                             <div className="opcion-seccion">
-                                <h3>Color</h3>
+                                <h3>Color de tela</h3>
                                 {cargandoOpciones ? (
                                     <p style={{ color: '#9a7a8a' }}>Cargando colores...</p>
                                 ) : colores.length === 0 ? (
@@ -353,8 +338,8 @@ const PersonalizarSabana = () => {
                             <div className="opciones-radio-grid">
                                 {[
                                     { value: 'no', label: 'Sin fundas' },
-                                    { value: 'una', label: '1 funda (+1m)' },
-                                    { value: 'dos', label: '2 fundas (+2m)' },
+                                    { value: 'una', label: 'Una funda (+1m)' },
+                                    { value: 'dos', label: 'Dos fundas (+2m)' },
                                 ].map(o => (
                                     <label key={o.value} className={`radio-card ${almohadas === o.value ? 'seleccionado' : ''}`}>
                                         <input type="radio" name="almohadas" value={o.value}

@@ -14,7 +14,7 @@ const stubConfirm = (retorna: boolean) => {
 
 describe('RF-006 - Gestión de carrito', { testIsolation: false }, () => {
     before(() => {
-        cy.on('window:alert', () => true); // este sí es seguro dejarlo fijo, nunca se alterna
+        cy.on('window:alert', () => true); 
         cy.loginCliente();
         cy.visit(`${FRONT_URL}/catalogo_c`);
         cy.get('.contenedor-productos > div').should('have.length.at.least', 1);

@@ -48,7 +48,7 @@ Cypress.Commands.add('loginTrabajador', () => {
 
 //logear cliente para pruebas
 Cypress.Commands.add('loginCliente', () => {
-    cy.session('admin-session', () => {
+    cy.session('cliente-session', () => {
         cy.visit(`${FRONT_URL}/login`);
         cy.get('#correo').type('catpink369@gmail.com');
         cy.get('#contrasena').type('123456');

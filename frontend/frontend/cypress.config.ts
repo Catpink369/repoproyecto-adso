@@ -11,5 +11,6 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 export default defineConfig({
   e2e: {
     baseUrl: 'http://localhost:5173',
+    numTestsKeptInMemory: 1,
   },
 });
