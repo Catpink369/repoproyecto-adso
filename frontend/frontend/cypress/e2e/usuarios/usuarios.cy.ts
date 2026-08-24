@@ -25,7 +25,7 @@ describe('RF-001.1 Registrar usuario', () => {
     const idUnico = Date.now().toString().slice(-9)
 
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
       cy.get('button[type="submit"]').click()
@@ -62,7 +62,7 @@ describe('RF-001.1 Registrar usuario', () => {
 
       cy.contains('button', 'Registrar').click({ force: true })
       cy.url().should('include', '/usuarios')
-    })
+    
   })
 
   it('CP-003: debe permitir registrar un usuario Administrador desde el panel autorizado', () => {
@@ -70,7 +70,7 @@ describe('RF-001.1 Registrar usuario', () => {
     const correoAdmin = `admin.nuevo.${idUnico}@example.com`
 
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
       cy.get('button[type="submit"]').click()
@@ -106,7 +106,7 @@ describe('RF-001.1 Registrar usuario', () => {
 
       cy.contains('button', 'Registrar').click({ force: true })
       cy.url().should('include', '/usuarios')
-    })
+    
   })
 
   it('CP-004: no debe permitir registrar con un documento ya existente', () => {
@@ -159,7 +159,7 @@ describe('RF-001.2 Visualizar usuarios', () => {
 
   it('CP-007: debe permitir visualizar la lista completa de usuarios registrados desde el rol Administrador', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
       cy.get('button[type="submit"]').click()
@@ -171,12 +171,12 @@ describe('RF-001.2 Visualizar usuarios', () => {
       cy.url().should('include', '/usuarios')
 
       cy.get('table tbody tr').should('have.length.greaterThan', 0)
-    })
+    
   })
 
   it('CP-008: debe permitir filtrar y buscar un usuario específico en la lista por su nombre o correo', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
       cy.get('button[type="submit"]').click()
@@ -194,12 +194,12 @@ describe('RF-001.2 Visualizar usuarios', () => {
 
       cy.get('table tbody tr').should('have.length', 1)
       cy.contains('td', 'valruiz@gmail.com').should('be.visible')
-    })
+    
   })
 
   it('CP-009: no debe permitir visualizar la lista de usuarios con un rol no autorizado (Cliente)', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['clienteEmail', 'clientePassword']).then((env) => {
+    const env = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
       cy.get('#correo').type(env.clienteEmail, { log: false })
       cy.get('#contrasena').type(env.clientePassword, { log: false })
       cy.get('button[type="submit"]').click()
@@ -210,7 +210,7 @@ describe('RF-001.2 Visualizar usuarios', () => {
 
       cy.url().should('not.include', '/usuarios')
       cy.url().should('include', '/cliente')
-    })
+    
   })
 
 })
@@ -219,18 +219,18 @@ describe('RF-001.3 Iniciar sesión', () => {
 
   it('CP-010: debe permitir iniciar sesión exitosamente con credenciales válidas de Cliente', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['clienteEmail', 'clientePassword']).then((env) => {
+    const env = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
       cy.get('#correo').type(env.clienteEmail, { log: false })
       cy.get('#contrasena').type(env.clientePassword, { log: false })
       cy.get('button[type="submit"]').click()
 
       cy.url().should('include', '/cliente')
-    })
+    
   })
 
   it('CP-011: debe permitir iniciar sesión exitosamente con credenciales válidas de Trabajador', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['trabajadorEmail', 'trabajadorPassword', 'trabajadorCode']).then((env) => {
+    const env = { trabajadorEmail: Cypress.env('trabajadorEmail'), trabajadorPassword: Cypress.env('trabajadorPassword'), trabajadorCode: Cypress.env('trabajadorCode') };
       cy.get('#correo').type(env.trabajadorEmail, { log: false })
       cy.get('#contrasena').type(env.trabajadorPassword, { log: false })
       cy.get('button[type="submit"]').click()
@@ -239,7 +239,7 @@ describe('RF-001.3 Iniciar sesión', () => {
       cy.get('button[type="submit"]').click()
 
       cy.url().should('include', '/panel_control')
-    })
+    
   })
 
   it('CP-012: debe redirigir al inicio del administrador', () => {
@@ -249,7 +249,7 @@ describe('RF-001.3 Iniciar sesión', () => {
     cy.contains('Iniciar sesión').click()
     cy.url().should('include', '/login')
 
-    cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
       cy.get('button[type="submit"]').click()
@@ -259,19 +259,19 @@ describe('RF-001.3 Iniciar sesión', () => {
       cy.get('button[type="submit"]').click()
 
       cy.url().should('include', '/panel_control')
-    })
+    
   })
 
   it('CP-013: no debe permitir iniciar sesión con una contraseña incorrecta', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['clienteEmail']).then((env) => {
+    const env = { clienteEmail: Cypress.env('clienteEmail') };
       cy.get('#correo').type(env.clienteEmail, { log: false })
       cy.get('#contrasena').type('ContrasenaErronea123!')
 
       cy.get('button[type="submit"]').click()
 
       cy.url().should('include', '/login')
-    })
+    
   })
 
   it('CP-014: no debe permitir iniciar sesión con un correo que no está registrado', () => {
@@ -287,7 +287,7 @@ describe('RF-001.3 Iniciar sesión', () => {
 
   it('CP-015: debe bloquear temporalmente la cuenta tras ingresar la contraseña incorrecta 5 veces seguidas', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['clienteEmail']).then((env) => {
+    const env = { clienteEmail: Cypress.env('clienteEmail') };
       cy.get('#correo').type(env.clienteEmail, { log: false })
 
         cy.get('#contrasena').clear().type('ContrasenaErronea123!')
@@ -302,49 +302,49 @@ describe('RF-001.3 Iniciar sesión', () => {
         cy.get('button[type="submit"]').click()
 
       // Confirma que, mientras está bloqueada, no deja iniciar sesión ni con la contraseña correcta
-      cy.env(['clientePassword']).then((envPass) => {
+      const envPass = { clientePassword: Cypress.env('clientePassword') };
         cy.get('#contrasena').clear().type(envPass.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
         cy.url().should('include', '/login')
-      })
+      
 
       // Espera a que se levante el bloqueo para no afectar otras pruebas que usan esta cuenta
       cy.wait(60000)
 
-    })
+    
   })
 
   it('CP-016: debe validar la redirección correcta según el rol del usuario', () => {
     // Cliente -> /cliente
     cy.visit('http://localhost:5173/login')
-    cy.env(['clienteEmail', 'clientePassword']).then((env) => {
-      cy.get('#correo').type(env.clienteEmail, { log: false })
-      cy.get('#contrasena').type(env.clientePassword, { log: false })
+    const envCliente = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
+      cy.get('#correo').type(envCliente.clienteEmail, { log: false })
+      cy.get('#contrasena').type(envCliente.clientePassword, { log: false })
       cy.get('button[type="submit"]').click()
       cy.url().should('include', '/cliente')
-    })
+    
 
     // Trabajador -> /panel_control
     cy.visit('http://localhost:5173/login')
-    cy.env(['trabajadorEmail', 'trabajadorPassword', 'trabajadorCode']).then((env) => {
-      cy.get('#correo').type(env.trabajadorEmail, { log: false })
-      cy.get('#contrasena').type(env.trabajadorPassword, { log: false })
+    const envTrabajador = { trabajadorEmail: Cypress.env('trabajadorEmail'), trabajadorPassword: Cypress.env('trabajadorPassword'), trabajadorCode: Cypress.env('trabajadorCode') };
+      cy.get('#correo').type(envTrabajador.trabajadorEmail, { log: false })
+      cy.get('#contrasena').type(envTrabajador.trabajadorPassword, { log: false })
       cy.get('button[type="submit"]').click()
-      cy.get('#codigo').type(env.trabajadorCode)
+      cy.get('#codigo').type(envTrabajador.trabajadorCode)
       cy.get('button[type="submit"]').click()
       cy.url().should('include', '/panel_control')
-    })
+    
 
     // Administrador -> /panel_control
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
-      cy.get('#correo').type(env.adminEmail, { log: false })
-      cy.get('#contrasena').type(env.adminPassword, { log: false })
+    const envAdmin = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
+      cy.get('#correo').type(envAdmin.adminEmail, { log: false })
+      cy.get('#contrasena').type(envAdmin.adminPassword, { log: false })
       cy.get('button[type="submit"]').click()
-      cy.get('#codigo').type(env.adminCode)
+      cy.get('#codigo').type(envAdmin.adminCode)
       cy.get('button[type="submit"]').click()
       cy.url().should('include', '/panel_control')
-    })
+    
   })
 
 })
@@ -356,14 +356,14 @@ describe('RF-001.4 Recuperar contraseña', () => {
     cy.contains('¿Olvidó su contraseña?').click()
     cy.url().should('include', '/olvide_c')
  
-    cy.env(['clienteEmail']).then((env) => {
+    const env = { clienteEmail: Cypress.env('clienteEmail') };
       cy.get('#correo').type(env.clienteEmail, { log: false })
       cy.get('button[type="submit"]').click()
  
       // Al enviarse el código, el mismo formulario muestra el campo para ingresarlo
       cy.url().should('include', '/olvide_c')
       cy.get('#codigo').should('be.visible')
-    })
+    
   })
 
   it('CP-018: no debe permitir completar la recuperación con un correo que no existe en el sistema', () => {
@@ -384,7 +384,7 @@ describe('RF-001.4 Recuperar contraseña', () => {
     cy.contains('¿Olvidó su contraseña?').click()
     cy.url().should('include', '/olvide_c')
  
-    cy.env(['clienteEmail']).then((env) => {
+    const env = { clienteEmail: Cypress.env('clienteEmail') };
       cy.get('#correo').type(env.clienteEmail, { log: false })
       cy.get('button[type="submit"]').click()
  
@@ -394,7 +394,7 @@ describe('RF-001.4 Recuperar contraseña', () => {
       cy.contains('button', 'Restablecer Contraseña').click()
  
       cy.url().should('include', '/olvide_c')
-    })
+    
   })
 
 })
@@ -403,7 +403,7 @@ describe('RF-001.5 Editar Perfil', () => {
 
   it('CP-020: debe permitir actualizar la información del perfil del usuario', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
       cy.get('button[type="submit"]').click()
@@ -422,12 +422,12 @@ describe('RF-001.5 Editar Perfil', () => {
       cy.contains('button', 'Guardar').click({ force: true })
 
       cy.url().should('include', '/perfil_admin')
-    })
+    
   })
 
   it('CP-021: no debe permitir actualizar el correo del perfil por uno que ya está en uso por otro usuario', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode', 'trabajadorEmail']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode'), trabajadorEmail: Cypress.env('trabajadorEmail') };
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
       cy.get('button[type="submit"]').click()
@@ -446,7 +446,7 @@ describe('RF-001.5 Editar Perfil', () => {
       cy.contains('button', 'Guardar').click({ force: true })
  
       cy.contains('Error de conexión. Intenta de nuevo.').should('be.visible')
-    })
+    
   })
 
 })
@@ -455,7 +455,7 @@ describe('RF-001.6 Cambiar Contraseña', () => {
 
   it('CP-022: debe permitir cambiar la contraseña desde la vista de perfil', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
 
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
@@ -482,12 +482,12 @@ describe('RF-001.6 Cambiar Contraseña', () => {
       cy.contains('button', 'Cambiar Contraseña').click({ force: true })
 
       cy.url().should('include', '/perfil_admin')
-    })
+    
   })
 
   it('CP-023: no debe permitir cambiar la contraseña si la contraseña actual es incorrecta', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
 
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
@@ -509,7 +509,7 @@ describe('RF-001.6 Cambiar Contraseña', () => {
 
       cy.url().should('include', '/cambiar_contrasena')
       cy.get('.alerta.error').should('be.visible')
-    })
+    
   })
 
 })
@@ -520,7 +520,7 @@ describe('RF-001.7 Editar Código y Rol', () => {
     const correoTrabajador = 'harry@gmail.com'
  
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
       cy.get('button[type="submit"]').click()
@@ -554,18 +554,18 @@ describe('RF-001.7 Editar Código y Rol', () => {
         .type(correoTrabajador)
       cy.contains('td', correoTrabajador).should('be.visible')
 
-    })
+    
   })
   
 
   it('CP-025: no debe permitir cambiar el rol de un usuario desde una cuenta sin permisos (Cliente/Trabajador)', () => {
     // Trabajador: la sección "Usuarios" no debe aparecer en su panel
     cy.visit('http://localhost:5173/login')
-    cy.env(['trabajadorEmail', 'trabajadorPassword', 'trabajadorCode']).then((env) => {
-      cy.get('#correo').type(env.trabajadorEmail, { log: false })
-      cy.get('#contrasena').type(env.trabajadorPassword, { log: false })
+    const envTrabajador = { trabajadorEmail: Cypress.env('trabajadorEmail'), trabajadorPassword: Cypress.env('trabajadorPassword'), trabajadorCode: Cypress.env('trabajadorCode') };
+      cy.get('#correo').type(envTrabajador.trabajadorEmail, { log: false })
+      cy.get('#contrasena').type(envTrabajador.trabajadorPassword, { log: false })
       cy.get('button[type="submit"]').click()
-      cy.get('#codigo').type(env.trabajadorCode)
+      cy.get('#codigo').type(envTrabajador.trabajadorCode)
       cy.get('button[type="submit"]').click()
 
       cy.contains('Usuarios').should('not.exist')
@@ -574,13 +574,13 @@ describe('RF-001.7 Editar Código y Rol', () => {
       cy.visit('http://localhost:5173/usuarios')
       cy.url().should('include', '/panel_control')
       cy.url().should('not.include', '/usuarios')
-    })
+    
 
     // Cliente: tampoco tiene acceso al apartado de usuarios
     cy.visit('http://localhost:5173/login')
-    cy.env(['clienteEmail', 'clientePassword']).then((env) => {
-      cy.get('#correo').type(env.clienteEmail, { log: false })
-      cy.get('#contrasena').type(env.clientePassword, { log: false })
+    const envCliente = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
+      cy.get('#correo').type(envCliente.clienteEmail, { log: false })
+      cy.get('#contrasena').type(envCliente.clientePassword, { log: false })
       cy.get('button[type="submit"]').click()
 
       cy.contains('Usuarios').should('not.exist')
@@ -589,7 +589,7 @@ describe('RF-001.7 Editar Código y Rol', () => {
       cy.visit('http://localhost:5173/usuarios')
       cy.url().should('include', '/cliente')
       cy.url().should('not.include', '/usuarios')
-    })
+    
   })
 
 })
@@ -598,7 +598,7 @@ describe('RF-001.8 Desactivar Usuario', () => {
 
   it('CP-026: debe permitir desactivar la cuenta de un usuario (bloqueo lógico) desde el panel de Administrador', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode', 'clienteEmail']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode'), clienteEmail: Cypress.env('clienteEmail') };
       // 1. Iniciar sesión como Administrador
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
@@ -625,11 +625,11 @@ describe('RF-001.8 Desactivar Usuario', () => {
 
 
 
-    })
+    
   })
   it('CP-027: no debe permitir iniciar sesión con una cuenta que ha sido previamente desactivada por el Administrador', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['clienteEmail', 'clientePassword']).then((env) => {
+    const env = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
       cy.get('#correo').type(env.clienteEmail, { log: false })
       cy.get('#contrasena').type(env.clientePassword, { log: false })
       cy.get('button[type="submit"]').click()
@@ -638,11 +638,11 @@ describe('RF-001.8 Desactivar Usuario', () => {
       cy.contains('Tu cuenta se encuentra desactivada. Contacta al administrador.')
         .should('be.visible')
       cy.url().should('include', '/login')
-    })
+    
   })
   it('CP-028: debe permitir reactivar la cuenta de un usuario previamente desactivado desde el rol Administrador', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode', 'clienteEmail']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode'), clienteEmail: Cypress.env('clienteEmail') };
       // 1. Iniciar sesión como Administrador
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
@@ -666,12 +666,12 @@ describe('RF-001.8 Desactivar Usuario', () => {
         .within(() => {
           cy.contains('button', 'Activar').click()
         })
-    })
+    
   })
 
   it('CP-029: no debe permitir desactivar a un usuario Administrador principal (restricción de seguridad del sistema)', () => {
     cy.visit('http://localhost:5173/login')
-    cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+    const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
       cy.get('#correo').type(env.adminEmail, { log: false })
       cy.get('#contrasena').type(env.adminPassword, { log: false })
       cy.get('button[type="submit"]').click()
@@ -689,7 +689,7 @@ describe('RF-001.8 Desactivar Usuario', () => {
           cy.contains('button', 'Desactivar').should('not.exist')
           cy.contains('Protegido').should('be.visible')
         })
-    })
+    
   })
 
 })

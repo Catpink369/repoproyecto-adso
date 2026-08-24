@@ -9,7 +9,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
       const nombreProducto = `Producto Prueba ${idUnico}`
 
       cy.visit('http://localhost:5173/login')
-      cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+      const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
         cy.get('#correo').type(env.adminEmail, { log: false })
         cy.get('#contrasena').type(env.adminPassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -32,7 +32,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.contains('button', 'Registrar Nuevo Producto').click({ force: true })
         cy.contains(nombreProducto).should('be.visible')
-      })
+      
     })
 
     // CP-002: NO APLICA A NIVEL DE UI
@@ -40,7 +40,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
     it('CP-003: Intento de crear un producto dejando campos obligatorios vacíos', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+      const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
         cy.get('#correo').type(env.adminEmail, { log: false })
         cy.get('#contrasena').type(env.adminPassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -56,14 +56,14 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.get('input[placeholder="Nombre completo del producto"]:invalid').should('exist')
         cy.get('input[placeholder="Precio al que se venderá"]:invalid').should('exist')
         cy.get('input[placeholder="Cantidad inicial en inventario"]:invalid').should('exist')
-      })
+      
     })
 
     it('CP-004: Intento de crear un producto con valores numéricos inválidos', () => {
       const idUnico = Date.now().toString().slice(-6)
 
       cy.visit('http://localhost:5173/login')
-      cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+      const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
         cy.get('#correo').type(env.adminEmail, { log: false })
         cy.get('#contrasena').type(env.adminPassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -86,14 +86,14 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.get('input[placeholder="Precio al que se venderá"]:invalid').should('exist')
         cy.get('input[placeholder="Cantidad inicial en inventario"]:invalid').should('exist')
-      })
+      
     })
 
     it('CP-006: Intento de subir un archivo inválido (ej. PDF) en el campo de imagen', () => {
       cy.writeFile('cypress/fixtures/documento.pdf', 'Contenido de prueba PDF')
 
       cy.visit('http://localhost:5173/login')
-      cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+      const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
         cy.get('#correo').type(env.adminEmail, { log: false })
         cy.get('#contrasena').type(env.adminPassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -106,12 +106,12 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.get('input[type="file"]').selectFile('cypress/fixtures/documento.pdf', { force: true })
         cy.get('img.preview-imagen').should('not.exist')
-      })
+      
     })
 
     it('CP-007: Intentar crear un producto desde una cuenta sin permisos autorizados (Cliente)', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['clienteEmail', 'clientePassword']).then((env) => {
+      const env = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
         cy.get('#correo').type(env.clienteEmail, { log: false })
         cy.get('#contrasena').type(env.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -121,7 +121,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.visit('http://localhost:5173/registro_prod', { failOnStatusCode: false })
         cy.url().should('not.include', '/registro_prod')
-      })
+      
     })
   })
 
@@ -129,37 +129,37 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
     it('CP-008: Visualizar la lista completa de productos disponibles en el catálogo', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['clienteEmail', 'clientePassword']).then((env) => {
-        cy.get('#correo').type(env.clienteEmail, { log: false })
-        cy.get('#contrasena').type(env.clientePassword, { log: false })
+      const envCliente = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
+        cy.get('#correo').type(envCliente.clienteEmail, { log: false })
+        cy.get('#contrasena').type(envCliente.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
         cy.get('.cerrar').click()
 
         cy.contains('Catálogo').click()
         cy.contains('Catálogo de productos').should('be.visible')
         cy.contains('Virgencitas').should('be.visible')
-      })
+      
 
       cy.clearCookies()
       cy.clearLocalStorage()
 
       cy.visit('http://localhost:5173/login')
-      cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
-        cy.get('#correo').type(env.adminEmail, { log: false })
-        cy.get('#contrasena').type(env.adminPassword, { log: false })
+      const envAdmin = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
+        cy.get('#correo').type(envAdmin.adminEmail, { log: false })
+        cy.get('#contrasena').type(envAdmin.adminPassword, { log: false })
         cy.get('button[type="submit"]').click()
 
-        cy.get('#codigo').should('be.visible').type(env.adminCode)
+        cy.get('#codigo').should('be.visible').type(envAdmin.adminCode)
         cy.get('button[type="submit"]').click()
 
         cy.contains('Productos').click()
         cy.get('table tbody tr').should('have.length.greaterThan', 0)
-      })
+      
     })
 
     it('CP-009: Verificar la paginación o scroll infinito del catálogo', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['clienteEmail', 'clientePassword']).then((env) => {
+      const env = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
         cy.get('#correo').type(env.clienteEmail, { log: false })
         cy.get('#contrasena').type(env.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -170,7 +170,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.scrollTo('bottom')
         cy.get('img').should('have.length.greaterThan', 4)
-      })
+      
     })
   })
 
@@ -178,7 +178,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
     it('CP-010: Buscar un producto específico utilizando la barra de búsqueda por nombre', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['clienteEmail', 'clientePassword']).then((env) => {
+      const env = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
         cy.get('#correo').type(env.clienteEmail, { log: false })
         cy.get('#contrasena').type(env.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -189,12 +189,12 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.get('input[placeholder="Buscar productos..."]').type('Perritos Snoopy para pareja{enter}')
         cy.contains('Perritos Snoopy para pareja').should('be.visible')
-      })
+      
     })
 
     it('CP-011: Filtrar productos por categoría', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['clienteEmail', 'clientePassword']).then((env) => {
+      const env = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
         cy.get('#correo').type(env.clienteEmail, { log: false })
         cy.get('#contrasena').type(env.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -205,12 +205,12 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.contains('button', 'Amigurumis').click()
         cy.contains('Virgencitas').should('be.visible')
-      })
+      
     })
 
     it('CP-012: Filtrar productos por clasificación', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['clienteEmail', 'clientePassword']).then((env) => {
+      const env = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
         cy.get('#correo').type(env.clienteEmail, { log: false })
         cy.get('#contrasena').type(env.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -221,12 +221,12 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.contains('button', 'En_oferta').click()
         cy.contains('Virgencitas').should('be.visible')
-      })
+      
     })
 
     it('CP-013: Aplicar múltiples filtros simultáneamente', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['clienteEmail', 'clientePassword']).then((env) => {
+      const env = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
         cy.get('#correo').type(env.clienteEmail, { log: false })
         cy.get('#contrasena').type(env.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -239,12 +239,12 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.contains('button', 'En_oferta').click()
 
         cy.contains('Virgencitas').should('be.visible')
-      })
+      
     })
 
     it('CP-014: Realizar una búsqueda con caracteres especiales o texto vacío', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['clienteEmail', 'clientePassword']).then((env) => {
+      const env = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
         cy.get('#correo').type(env.clienteEmail, { log: false })
         cy.get('#contrasena').type(env.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -255,7 +255,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.get('input[placeholder="Buscar productos..."]').clear().type('!@#$%^&*()_+=~{enter}')
         cy.contains(/No se encontraron|Sin resultados/i).should('be.visible')
-      })
+      
     })
   })
 
@@ -268,7 +268,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
       const nuevaDescripcion = `Descripción actualizada por prueba automatizada ${timestamp}`
 
       cy.visit('http://localhost:5173/login')
-      cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+      const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
         cy.get('#correo').type(env.adminEmail, { log: false })
         cy.get('#contrasena').type(env.adminPassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -289,12 +289,12 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.contains('button', 'Guardar Cambios').click()
         cy.contains(nuevoNombre).should('be.visible')
-      })
+      
     })
 
     it('CP-016: Intento de modificar precio o stock mínimo con caracteres no numéricos o negativos', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+      const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
         cy.get('#correo').type(env.adminEmail, { log: false })
         cy.get('#contrasena').type(env.adminPassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -313,12 +313,12 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.contains('button', 'Guardar Cambios').click()
         cy.contains('button', 'Guardar Cambios').should('be.visible')
         cy.url().should('include', '/editar')
-      })
+      
     })
 
     it('CP-017: Intentar modificar los datos de un producto desde un rol no autorizado (Cliente)', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['clienteEmail', 'clientePassword']).then((env) => {
+      const env = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
         cy.get('#correo').type(env.clienteEmail, { log: false })
         cy.get('#contrasena').type(env.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -326,7 +326,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.visit('http://localhost:5173/editar_producto/1', { failOnStatusCode: false })
         cy.url().should('not.include', '/editar_producto')
-      })
+      
     })
   })
 
@@ -334,7 +334,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
     it('CP-018: Desactivar producto exitosamente', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+      const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
         cy.get('#correo').type(env.adminEmail, { log: false })
         cy.get('#contrasena').type(env.adminPassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -357,12 +357,12 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.on('window:alert', (str) => {
           expect(str).to.exist
         })
-      })
+      
     })
 
     it('CP-019: Intentar eliminar un producto con pedidos asociados', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+      const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
         cy.get('#correo').type(env.adminEmail, { log: false })
         cy.get('#contrasena').type(env.adminPassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -382,12 +382,12 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.on('window:alert', (str) => {
           expect(str).to.match(/error|no se puede|asociado|pedidos/i)
         })
-      })
+      
     })
 
     it('CP-020: Usuario cancela la operación de eliminación', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
+      const env = { adminEmail: Cypress.env('adminEmail'), adminPassword: Cypress.env('adminPassword'), adminCode: Cypress.env('adminCode') };
         cy.get('#correo').type(env.adminEmail, { log: false })
         cy.get('#contrasena').type(env.adminPassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -409,12 +409,12 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.get('table tbody tr').should('have.length.at.least', 1)
         cy.url().should('include', '/productos')
-      })
+      
     })
 
     it('CP-021: Intentar eliminar o desactivar un producto desde un usuario sin permisos (Cliente)', () => {
       cy.visit('http://localhost:5173/login')
-      cy.env(['clienteEmail', 'clientePassword']).then((env) => {
+      const env = { clienteEmail: Cypress.env('clienteEmail'), clientePassword: Cypress.env('clientePassword') };
         cy.get('#correo').type(env.clienteEmail, { log: false })
         cy.get('#contrasena').type(env.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
@@ -426,7 +426,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         }).then((response) => {
           expect(response.status).to.be.oneOf([401, 403])
         })
-      })
+      
     })
   })
 })

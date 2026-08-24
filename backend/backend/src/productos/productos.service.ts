@@ -20,13 +20,38 @@ export class ProductosService {
   // OBTENER TODOS LOS PRODUCTOS ACTIVOS
   // --------------------------------------------------------
   async findAll(query: any) {
-    const productos = await this.prisma.producto.findMany({
-      where: { estado: true },
+    const { search, id_categoria, id_clasificacion, page, limit } = query;
+
+    const where: any = { estado: true };
+
+    if (search) {
+      where.nom_producto = { contains: search };
+    }
+    if (id_categoria !== undefined) {
+      where.id_categoria = Number(id_categoria);
+    }
+    if (id_clasificacion !== undefined) {
+      where.id_clasificacion = Number(id_clasificacion);
+    }
+
+    const opciones: any = {
+      where,
       include: {
         categoria: { select: { nombre_c: true } },
         clasificacion: { select: { nombre_clas: true } },
       },
-    });
+    };
+
+    // Paginación solo si el cliente la pide explícitamente,
+    // para no romper al frontend que hoy espera el catálogo completo
+    if (page !== undefined && limit !== undefined) {
+      const pageNum = Math.max(Number(page), 1);
+      const limitNum = Math.max(Number(limit), 1);
+      opciones.skip = (pageNum - 1) * limitNum;
+      opciones.take = limitNum;
+    }
+
+    const productos = await this.prisma.producto.findMany(opciones);
 
     return productos.map((p) => this._aplanarProducto(p));
   }
