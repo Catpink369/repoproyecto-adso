@@ -1,6 +1,6 @@
 // RF-001 — Gestión de Usuarios (integración)
 //
-// CP-016 y CP-020 de tu matriz general son de UI (redirección de frontend,
+// CP-016 - CP-027 son de UI (redirección de frontend,
 // "usuario cancela la operación") y no se pueden verificar a nivel de API,
 // así que no están aquí.
 
@@ -198,8 +198,7 @@ describe('RF-001 — Gestión de Usuarios (integración)', () => {
         .set('Authorization', `Bearer ${admin.token}`);
 
       expect(res.status).toBe(200);
-      // Si tu backend llega a implementar el filtro, este test debe actualizarse
-      // para esperar solo los usuarios que coincidan con "search".
+
     });
 
     it('CP-009: debe bloquear la visualización de la lista a un rol no autorizado (Cliente)', async () => {
