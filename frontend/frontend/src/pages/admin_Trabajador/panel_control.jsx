@@ -556,8 +556,6 @@ function Reportes() {
         .filter(p => !p.estado.toLowerCase().includes('pendiente'))
         .reduce((s, p) => s + p.total, 0);
 
-    if (loading) return <p className="panel-loading">Generando reportes...</p>;
-
     return (
         <div className="reporte-imprimible">
             <div className="panel-filtros-fila">
@@ -574,6 +572,7 @@ function Reportes() {
                         className="filtro-date-input" />
                 </div>
                 <button className="btn-registrar btn-no-imprimir" onClick={handlePrint}>Imprimir Reporte</button>
+                {loading && <span className="panel-loading-inline">Actualizando…</span>}
             </div>
 
             {resumenGeneral && (

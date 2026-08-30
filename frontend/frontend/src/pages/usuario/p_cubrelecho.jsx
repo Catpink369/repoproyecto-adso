@@ -126,6 +126,15 @@ const PersonalizarCubrelecho = () => {
     const precio         = calcularPrecio();
     const puedeConfirmar = tamano && telaLado1 && telaLado2;
 
+    // Lado 1 se considera "completo" cuando ya se eligió tela y, si esa tela
+    // tiene colores y/o diseños registrados, también se eligieron. Mientras
+    // no esté completo, no se puede pasar al Lado 2.
+    const lado1Completo =
+        !!telaLado1 &&
+        !cargandoOpcionesL1 &&
+        (coloresL1.length === 0 || !!colorL1) &&
+        (disenosL1.length === 0 || !!disenoL1);
+
     const telaActual    = ladoActivo === 'lado1' ? telaLado1 : telaLado2;
     const setTelaActual = ladoActivo === 'lado1' ? setTelaLado1 : setTelaLado2;
     const coloresActual      = ladoActivo === 'lado1' ? coloresL1 : coloresL2;
@@ -152,13 +161,16 @@ const PersonalizarCubrelecho = () => {
         const mitad = calcularMetros() / 2;
         let materiales = [];
 
-        // Si se selecciona exactamente el mismo material para ambos lados, se agrupa la cantidad total
+        // Se agrega "concepto" en cada línea para que el ticket pueda mostrar
+        // el detalle de cada lado (color/diseño) por separado, incluso cuando
+        // ambos lados usan la misma tela.
         if (telaLado1.id_material === telaLado2.id_material) {
             materiales.push({
                 id_material: telaLado1.id_material,
                 cantidad: calcularMetros(),
                 id_color: colorL1?.id_color || colorL2?.id_color || null,
                 id_diseno: disenoL1?.id_diseno || disenoL2?.id_diseno || null,
+                concepto: 'Cubrelecho (ambos lados)',
             });
         } else {
             materiales.push({
@@ -166,12 +178,14 @@ const PersonalizarCubrelecho = () => {
                 cantidad: mitad,
                 id_color: colorL1?.id_color || null,
                 id_diseno: disenoL1?.id_diseno || null,
+                concepto: 'Lado 1',
             });
             materiales.push({
                 id_material: telaLado2.id_material,
                 cantidad: mitad,
                 id_color: colorL2?.id_color || null,
                 id_diseno: disenoL2?.id_diseno || null,
+                concepto: 'Lado 2',
             });
         }
 
@@ -285,11 +299,26 @@ const PersonalizarCubrelecho = () => {
                                     onClick={() => setLadoActivo('lado1')} type="button">
                                     Lado 1 {telaLado1 ? '✓' : ''}
                                 </button>
-                                <button className={`btn-lado ${ladoActivo === 'lado2' ? 'activo' : ''}`}
-                                    onClick={() => setLadoActivo('lado2')} type="button">
+                                <button
+                                    className={`btn-lado ${ladoActivo === 'lado2' ? 'activo' : ''}`}
+                                    onClick={() => { if (lado1Completo) setLadoActivo('lado2'); }}
+                                    disabled={!lado1Completo}
+                                    title={!lado1Completo ? 'Completa la tela (y color/diseño si aplica) del Lado 1 primero' : undefined}
+                                    style={!lado1Completo ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                                    type="button"
+                                >
                                     Lado 2 {telaLado2 ? '✓' : ''}
                                 </button>
                             </div>
+                            {ladoActivo === 'lado1' && !lado1Completo && telaLado1 && (
+                                <p style={{ fontSize: '0.82rem', color: '#9a7a8a', marginTop: '6px' }}>
+                                    {coloresL1.length > 0 && !colorL1
+                                        ? 'Selecciona un color para el Lado 1 antes de continuar.'
+                                        : disenosL1.length > 0 && !disenoL1
+                                        ? 'Selecciona un diseño para el Lado 1 antes de continuar.'
+                                        : 'Completa las opciones del Lado 1 antes de continuar.'}
+                                </p>
+                            )}
 
                             <div className="panel-tela">
                                 <div className="grupo-telas">

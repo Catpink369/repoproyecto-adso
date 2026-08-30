@@ -143,21 +143,49 @@ const PersonalizarSabana = () => {
         setEnviando(true);
         setMensaje({ text: '', type: '' });
 
-        const cantidadTotalMetros = calcularMetros();
+        // Se desglosa en varias líneas (una por concepto: sábana, sobresábana,
+        // fundas) para que el ticket pueda mostrar el detalle completo de cada
+        // una con su propio color/diseño, en vez de una sola cantidad de metros
+        // agrupada sin distinción.
+        const metrosBase = METROS_POR_TAMANO[tamano] || 0;
+
+        const materiales = [
+            {
+                id_material: telaSeleccionada.id_material,
+                cantidad: metrosBase,
+                id_color: colorSeleccionado?.id_color || null,
+                id_diseno: disenoSeleccionado?.id_diseno || null,
+                concepto: 'Sábana',
+            },
+        ];
+
+        if (sobresabana) {
+            materiales.push({
+                id_material: telaSeleccionada.id_material,
+                cantidad: METROS_SOBRESABANA,
+                id_color: colorSeleccionado?.id_color || null,
+                id_diseno: disenoSeleccionado?.id_diseno || null,
+                concepto: 'Sobresábana',
+            });
+        }
+
+        if (almohadas !== 'no') {
+            const cantidadFundas = almohadas === 'una' ? 1 : 2;
+            materiales.push({
+                id_material: telaSeleccionada.id_material,
+                cantidad: METROS_ALMOHADA * cantidadFundas,
+                id_color: colorSeleccionado?.id_color || null,
+                id_diseno: disenoSeleccionado?.id_diseno || null,
+                concepto: `Funda${cantidadFundas > 1 ? 's' : ''} de almohada (${cantidadFundas})`,
+            });
+        }
 
         const dto = {
             id_usuario:    usuarioActual.id_usuario,
             tipo_producto: 'Sabana',
             tamanio:       TAMANO_LABEL[tamano],
             metodo_pago:   'Mtd_PD',
-            materiales: [
-                {
-                    id_material: telaSeleccionada.id_material,
-                    cantidad: cantidadTotalMetros,
-                    id_color: colorSeleccionado?.id_color || null,
-                    id_diseno: disenoSeleccionado?.id_diseno || null,
-                }
-            ],
+            materiales,
         };
 
         try {

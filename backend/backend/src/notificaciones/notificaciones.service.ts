@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { FcmPushService } from './fcm-push.service';
+import { TaskService } from '../task/task.service';
 
 @Injectable()
 export class NotificacionesService {
   constructor(
     private prisma: PrismaService,
     private fcmPush: FcmPushService,
+    private taskService: TaskService,
   ) {}
 
   // -------------------------------------------------------
@@ -352,6 +354,33 @@ async pedidosRecientes(dias = 7) {
       });
     } catch (error) {
       console.error(`No se pudo enviar push de cambio de estado para el pedido #${id_pedido}:`, error);
+    }
+
+    // RF-007.2 CP-006: correo de cambio de estado. No estaba implementado —
+    // TaskService.enviarCambioEstadoPedido() ya existía pero nada lo llamaba
+    // desde el flujo de cambio de estado de pedido.
+    try {
+      const usuario = await this.prisma.usuario.findUnique({
+        where: { id_usuario },
+        select: { correo: true, nom_1: true, ape_1: true },
+      });
+
+      if (usuario?.correo) {
+        const ticket = await this.prisma.ticket_compra.findFirst({
+          where: { id_pedido },
+        });
+
+        await this.taskService.enviarCambioEstadoPedido({
+          correo: usuario.correo,
+          nombreCliente: `${usuario.nom_1} ${usuario.ape_1 ?? ''}`.trim(),
+          idPedido: id_pedido,
+          estado,
+          numTicket: ticket?.num_ticket ?? null,
+          totalTicket: ticket?.total_ticket ?? null,
+        });
+      }
+    } catch (error) {
+      console.error(`No se pudo enviar el correo de cambio de estado para el pedido #${id_pedido}:`, error);
     }
   }
 

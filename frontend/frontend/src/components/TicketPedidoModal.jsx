@@ -194,7 +194,16 @@ const TicketPedidoModal = ({ idPedido, onClose }) => {
         <div
             style={{
                 position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                // NOTA QA: en /cliente existe un `.ventana` (popup, aún sin
+                // identificar de qué componente viene — no vino entre los
+                // archivos compartidos) que a veces aparece por encima de
+                // este modal si se demora unos segundos en dispararse
+                // (cypress lo pescó tapando `.ticket-info-value` y el botón
+                // de imprimir en pagos_tickets.cy.ts CP-011/CP-012). Se sube
+                // el z-index bien por encima de cualquier valor típico como
+                // mitigación mientras se localiza y corrige ese popup.
+                zIndex: 999999,
                 padding: '20px', overflowY: 'auto',
             }}
             onClick={onClose}

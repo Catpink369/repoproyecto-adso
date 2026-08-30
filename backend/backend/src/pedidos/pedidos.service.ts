@@ -248,6 +248,12 @@ export class PedidosService {
   async findAll(query: any) {
     console.log('service - todos los pedidos:', JSON.stringify(query));
     return this.prisma.pedido.findMany({
+      // FIX: sin este filtro, los pedidos personalizados (id_tipo 'P_P')
+      // también se traían aquí — aparecían duplicados en el panel de admin:
+      // una vez correctamente vía /pedidos-personalizados, y otra vez acá
+      // como si fueran "estándar" pero sin detalles_pedido (esa tabla es
+      // solo de productos de catálogo), mostrando "Sin items".
+      where: { id_tipo: 'P_E' },
       orderBy: { fecha: 'desc' },
       include: {
         usuario: {

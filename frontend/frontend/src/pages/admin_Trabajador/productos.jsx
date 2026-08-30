@@ -552,7 +552,9 @@ export default function Productos(){
                                                                 objectFit: 'cover',
                                                                 borderRadius: '4px'
                                                             }}
-                                                            onError={(e) => { e.target.src = '/placeholder.png'; }}
+                                                            onError={(e) => { 
+                                                                e.target.onerror = null;
+                                                                e.target.src = '/placeholder.png'; }}
                                                         />
                                                     ) : (
                                                         <span style={{ color: '#999' }}>Sin imagen</span>

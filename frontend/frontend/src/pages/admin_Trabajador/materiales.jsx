@@ -123,6 +123,23 @@ const Materiales = () => {
         finally { setGuardando(false); }
     };
 
+    // ── DESACTIVAR ─────────────────────────────────────────
+    const handleDesactivar = async (id_material, nombre) => {
+        const confirmar = window.confirm(
+            `¿Estás seguro de que deseas desactivar el material "${nombre}"? Esta acción no se puede deshacer.`
+        );
+        if (!confirmar) return;
+
+        try {
+            await apiDelete(`/pedidos-personalizados/materiales/${id_material}`);
+            setMateriales(prev => prev.filter(m => m.id_material !== id_material));
+            alert('Material desactivado con éxito');
+        } catch (error) {
+            console.error('Error al desactivar el material:', error);
+            alert('Error al desactivar el material');
+        }
+    };
+
     // ── EDITAR DATOS ───────────────────────────────────────
     const abrirEdicion = (m) => {
         setEditando(m);
@@ -691,6 +708,9 @@ const Materiales = () => {
                                                         Colores/Diseños
                                                     </button>
                                                 )}
+                                                <button className="eliminar" onClick={() => handleDesactivar(m.id_material, m.nombre)}>
+                                                    Desactivar
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}

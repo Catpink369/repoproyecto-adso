@@ -82,6 +82,7 @@ describe('RF-008 - Gestion de Pagos y Tickets', () => {
 
 				notificaciones = {
 					notificarCambioEstadoPedido: jest.fn(),
+					notificarPedidoCreado: jest.fn(), // faltaba: PedidosService.create() siempre la invoca
 				};
 
 				const module: TestingModule = await Test.createTestingModule({
@@ -303,6 +304,7 @@ describe('RF-008 - Gestion de Pagos y Tickets', () => {
 
 			notificaciones = {
 				notificarCambioEstadoPedido: jest.fn(),
+				notificarPedidoCreado: jest.fn(), // faltaba: PedidosService.create() siempre la invoca
 			};
 
 			const module: TestingModule = await Test.createTestingModule({
@@ -403,6 +405,7 @@ describe('RF-008 - Gestion de Pagos y Tickets', () => {
 
 			notificaciones = {
 				notificarCambioEstadoPedido: jest.fn(),
+				notificarPedidoCreado: jest.fn(), // faltaba: PedidosService.create() siempre la invoca
 			};
 
 			const module: TestingModule = await Test.createTestingModule({
@@ -563,6 +566,7 @@ describe('RF-008 - Gestion de Pagos y Tickets', () => {
 
 				notificaciones = {
 					notificarCambioEstadoPedido: jest.fn(),
+					notificarPedidoCreado: jest.fn(), // faltaba: PedidosService.create() siempre la invoca
 				};
 
 				const module: TestingModule = await Test.createTestingModule({

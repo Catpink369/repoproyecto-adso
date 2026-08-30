@@ -22,6 +22,10 @@ export default function PedidosRealizados() {
 
     const [filtroTipo, setFiltroTipo] = useState('todos');
 
+    // 'desc' = más reciente arriba (default), 'asc' = más antiguo arriba.
+    // El orden es puramente por fecha, sin importar estado ni método de pago.
+    const [ordenFecha, setOrdenFecha] = useState('desc');
+
     const opcionesMetodoPago = ['Por_definir', 'Efectivo', 'Tarjeta', 'Transferencia', 'Nequi', 'DaviPlata'];
 
     // Espejo de TRANSICIONES_VALIDAS en pedidos.service.ts — evita ofrecer en
@@ -40,18 +44,6 @@ export default function PedidosRealizados() {
     };
 
     useEffect(() => { cargarPedidos(); }, []);
-
-    // ─── PRIORIDAD DE ORDENAMIENTO ────────────────────────────────────────────
-    const getPrioridad = (pedido) => {
-        const metodo = pedido.ticket_compra?.metodo_pago?.nom_metodo || 'Por_definir';
-        const estado = pedido.estado || '';
-        const esPendienteMetodo = metodo === 'Por_definir';
-        const esPendienteEstado = estado === 'Pendiente';
-        if (esPendienteMetodo && esPendienteEstado) return 0;
-        if (esPendienteMetodo)                     return 1;
-        if (esPendienteEstado)                     return 2;
-        return 3;
-    };
 
     // ─── CARGAR PEDIDOS ───────────────────────────────────────────────────────
     // silent=true: se usa para resincronizar en segundo plano después de
@@ -84,11 +76,12 @@ export default function PedidosRealizados() {
                 _tipo:           'personalizado',
             }));
 
-            const todos = [...estandar, ...personalizados].sort((a, b) => {
-                const diffPrioridad = getPrioridad(a) - getPrioridad(b);
-                if (diffPrioridad !== 0) return diffPrioridad;
-                return new Date(b.fecha) - new Date(a.fecha);
-            });
+            // Orden base: siempre por fecha, más reciente primero. El orden
+            // visible real (asc/desc) se aplica luego en pedidosFiltrados
+            // según ordenFecha, sin depender de estado ni método de pago.
+            const todos = [...estandar, ...personalizados].sort(
+                (a, b) => new Date(b.fecha) - new Date(a.fecha)
+            );
 
             setPedidos(todos);
         } catch (error) {
@@ -340,11 +333,16 @@ export default function PedidosRealizados() {
     };
 
     // ─── INDICADOR VISUAL DE URGENCIA ─────────────────────────────────────────
+    // Ya no decide el orden (eso ahora es solo por fecha), pero se conserva
+    // como acento visual: pago sin definir + estado Pendiente > pago sin
+    // definir > estado Pendiente > sin urgencia.
     const getRowAccent = (pedido) => {
-        const p = getPrioridad(pedido);
-        if (p === 0) return '#e74c3c';
-        if (p === 1) return '#e67e22';
-        if (p === 2) return '#f1c40f';
+        const metodo = pedido.ticket_compra?.metodo_pago?.nom_metodo || 'Por_definir';
+        const esPendienteMetodo = metodo === 'Por_definir';
+        const esPendienteEstado = pedido.estado === 'Pendiente';
+        if (esPendienteMetodo && esPendienteEstado) return '#e74c3c';
+        if (esPendienteMetodo)                     return '#e67e22';
+        if (esPendienteEstado)                     return '#f1c40f';
         return 'transparent';
     };
 
@@ -422,16 +420,28 @@ export default function PedidosRealizados() {
                         <table className="detalle-tabla-productos">
                             <thead>
                                 <tr>
-                                    <th>Material</th><th>Tipo</th><th>Cantidad</th><th>Subtotal</th>
+                                    <th>Concepto</th>
+                                    <th>Material</th>
+                                    <th>Color</th>
+                                    <th>Diseño</th>
+                                    <th>Cantidad</th>
+                                    <th>Subtotal</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {materiales.map((det, idx) => (
                                     <tr key={idx}>
                                         <td className="detalle-producto-nombre">
-                                            {det.material?.nombre || 'N/A'}
+                                            {det.concepto || '—'}
                                         </td>
-                                        <td>{det.material?.tipo || 'N/A'}</td>
+                                        <td>
+                                            {det.material?.nombre || 'N/A'}
+                                            <div style={{ fontSize: '11px', color: '#999' }}>
+                                                {det.material?.tipo || ''}
+                                            </div>
+                                        </td>
+                                        <td>{det.color?.nombre || '—'}</td>
+                                        <td>{det.diseno?.nombre || '—'}</td>
                                         <td style={{ textAlign: 'center' }}>
                                             <span className="detalle-producto-cantidad-badge">
                                                 {det.cantidad} {det.material?.unidad || ''}
@@ -445,8 +455,8 @@ export default function PedidosRealizados() {
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colSpan="3" className="detalle-total-label">TOTAL:</td>
-                                    <td className="detalle-total-valor">{formatPrice(obtenerTotal(d))}</td>
+                                    <td colSpan="4" className="detalle-total-label">TOTAL:</td>
+                                    <td colSpan="2" className="detalle-total-valor">{formatPrice(obtenerTotal(d))}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -590,12 +600,30 @@ export default function PedidosRealizados() {
         );
     };
 
-    // ─── PEDIDOS FILTRADOS ────────────────────────────────────────────────────
-    const pedidosFiltrados = pedidos.filter(p => {
-        if (filtroTipo === 'estandar')      return p._tipo === 'estandar';
-        if (filtroTipo === 'personalizado') return p._tipo === 'personalizado';
-        return true;
-    });
+    // ─── PEDIDOS FILTRADOS Y ORDENADOS ─────────────────────────────────────────
+    // Los pedidos "Anulados" y los "Finalizados" (Entregado/Finalizado) viven
+    // en sus propias pestañas y quedan excluidos de "Todos", "Estándar" y
+    // "Personalizado". El orden dentro de cualquier pestaña es siempre por
+    // fecha (ordenFecha decide la dirección), sin importar estado ni método
+    // de pago.
+    const ESTADOS_FINALIZADOS = ['Entregado', 'Finalizado'];
+
+    const pedidosFiltrados = pedidos
+        .filter(p => {
+            if (filtroTipo === 'anulados')    return p.estado === 'Anulado';
+            if (filtroTipo === 'finalizados') return ESTADOS_FINALIZADOS.includes(p.estado);
+
+            if (p.estado === 'Anulado')                    return false;
+            if (ESTADOS_FINALIZADOS.includes(p.estado))    return false;
+
+            if (filtroTipo === 'estandar')      return p._tipo === 'estandar';
+            if (filtroTipo === 'personalizado') return p._tipo === 'personalizado';
+            return true;
+        })
+        .sort((a, b) => {
+            const diff = new Date(b.fecha) - new Date(a.fecha); // desc por defecto
+            return ordenFecha === 'asc' ? -diff : diff;
+        });
 
     // ─── RENDER ───────────────────────────────────────────────────────────────
     if (loading) return (
@@ -615,13 +643,13 @@ export default function PedidosRealizados() {
                 <HeaderPedidos />
                 <section className="cuadro-blanco pedidos">
 
-                    {/* Título + filtros */}
+                    {/* Fila 1: título + filtros de categoría (Todos / Finalizados / Anulados) */}
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         flexWrap: 'wrap',
                         gap: '12px',
-                        marginBottom: '20px',
+                        marginBottom: '14px',
                     }}>
                         <h2 style={{ margin: 0 }}>
                             Pedidos Realizados ({pedidosFiltrados.length})
@@ -630,7 +658,42 @@ export default function PedidosRealizados() {
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                             <span style={{ fontWeight: '500', fontSize: '14px', color: '#666' }}>Filtrar:</span>
                             {[
-                                { value: 'todos',         label: 'Todos',         color: '#888'    },
+                                { value: 'todos',       label: 'Todos',       color: '#888'    },
+                                { value: 'finalizados', label: 'Finalizados', color: '#8e44ad' },
+                                { value: 'anulados',    label: 'Anulados',    color: '#e74c3c' },
+                            ].map(({ value, label, color }) => (
+                                <button
+                                    key={value}
+                                    onClick={() => setFiltroTipo(value)}
+                                    style={{
+                                        padding: '5px 14px',
+                                        borderRadius: '20px',
+                                        border: filtroTipo === value ? 'none' : `1.5px solid ${color}`,
+                                        cursor: 'pointer',
+                                        fontSize: '13px',
+                                        fontWeight: filtroTipo === value ? 'bold' : 'normal',
+                                        background: filtroTipo === value ? color : 'transparent',
+                                        color: filtroTipo === value ? '#fff' : color,
+                                        transition: 'all 0.15s ease',
+                                    }}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Fila 2: filtros de tipo (Estándar / Personalizado) + orden por fecha */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        marginBottom: '20px',
+                    }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            {[
                                 { value: 'estandar',      label: 'Estándar',      color: '#5dade2' },
                                 { value: 'personalizado', label: 'Personalizado', color: '#da819f' },
                             ].map(({ value, label, color }) => (
@@ -652,6 +715,17 @@ export default function PedidosRealizados() {
                                     {label}
                                 </button>
                             ))}
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ fontWeight: '500', fontSize: '14px', color: '#666' }}>Ordenar:</span>
+                            <select
+                                value={ordenFecha}
+                                onChange={(e) => setOrdenFecha(e.target.value)}
+                                className="pedido-estado-select"
+                            >
+                                <option value="desc">Más reciente primero</option>
+                                <option value="asc">Más antiguo primero</option>
+                            </select>
                         </div>
                     </div>
 

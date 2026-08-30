@@ -284,6 +284,24 @@ export class PedidosPersonalizadosController {
         }
     }
 
+    // DELETE /pedidos-personalizados/materiales/:id  (baja lógica — RF-004.4)
+    @Delete('materiales/:id')
+    @ApiOperation({ summary: 'Desactivar un material (borrado lógico)' })
+    @ApiResponse({ status: 200, description: 'Material desactivado exitosamente.' })
+    @ApiResponse({ status: 404, description: 'Material no encontrado.' })
+    @ApiResponse({ status: 409, description: 'Conflicto: el material ya se encuentra desactivado.' })
+    @ApiResponse({ status: 500, description: 'Error al desactivar material.' })
+    async desactivarMaterial(@Param('id') id: string) {
+        try {
+            return await this.service.desactivarMaterial(+id);
+        } catch (error: any) {
+            if (error instanceof NotFoundException || error instanceof ConflictException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Error al desactivar el material');
+        }
+    }
+
     // POST /pedidos-personalizados/materiales/:id/imagen
     @Post('materiales/:id/imagen')
     @UseInterceptors(FileInterceptor('imagen', {

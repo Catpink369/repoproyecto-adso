@@ -121,6 +121,7 @@ describe('RF-009 - Gestion de Historial y Reportes', () => {
     describe('RF-009.3 - NotificacionesService', () => {
         let service: NotificacionesService;
         let prisma: any;
+        let taskServiceMock: any;
 
         function mockStockBajoRaw(filas: any[]) {
         prisma.$queryRaw.mockResolvedValueOnce(filas);
@@ -136,15 +137,15 @@ describe('RF-009 - Gestion de Historial y Reportes', () => {
             notificacion: { create: jest.fn() },
         };
 
+        taskServiceMock = { enviarCambioEstadoPedido: jest.fn() };
+
         const module: TestingModule = await Test.createTestingModule({
             providers: [
             NotificacionesService,
             { provide: PrismaService, useValue: prisma },
             // FcmPushService y TaskService siguen siendo dependencias del servicio
-            // (las usa notificarCambioEstadoPedido, que no se prueba en este
-            // bloque), se mockean solo para que el módulo compile.
             { provide: FcmPushService, useValue: { notificarAdmins: jest.fn(), notificarUsuario: jest.fn() } },
-            { provide: TaskService, useValue: { enviarCambioEstadoPedido: jest.fn() } },
+            { provide: TaskService, useValue: taskServiceMock },
             ],
         }).compile();
 
@@ -212,6 +213,65 @@ describe('RF-009 - Gestion de Historial y Reportes', () => {
             const resultado = await service.findAll({});
 
             expect(resultado).toEqual([]);
+        });
+        });
+
+        // RF-007.2 - el correo se envía desde NotificacionesService.notificarCambioEstadoPedido(),
+        // no desde PedidosService (que solo la invoca — ver CP-005 en pedidos.spec.ts).
+        describe('RF-007.2 - Notificación por correo al cambiar el estado del pedido', () => {
+        it('CP-006: el cliente recibe el correo de notificación cuando cambia el estado de su pedido', async () => {
+            prisma.usuario.findUnique.mockResolvedValue({
+            correo: 'cliente@correo.com',
+            nom_1: 'Juan',
+            ape_1: 'Pérez',
+            });
+            prisma.ticket_compra.findFirst.mockResolvedValue({
+            num_ticket: 123456,
+            total_ticket: 50000,
+            });
+
+            await service.notificarCambioEstadoPedido({
+            id_pedido: 42,
+            id_usuario: 'u1',
+            estado: 'En preparación',
+            });
+
+            expect(prisma.usuario.findUnique).toHaveBeenCalledWith({
+            where: { id_usuario: 'u1' },
+            select: { correo: true, nom_1: true, ape_1: true },
+            });
+            expect(taskServiceMock.enviarCambioEstadoPedido).toHaveBeenCalledWith({
+            correo: 'cliente@correo.com',
+            nombreCliente: 'Juan Pérez',
+            idPedido: 42,
+            estado: 'En preparación',
+            numTicket: 123456,
+            totalTicket: 50000,
+            });
+        });
+
+        it('no debe intentar enviar el correo si el usuario no tiene correo registrado', async () => {
+            prisma.usuario.findUnique.mockResolvedValue({ correo: null, nom_1: 'Juan', ape_1: 'Pérez' });
+
+            await service.notificarCambioEstadoPedido({
+            id_pedido: 43,
+            id_usuario: 'u2',
+            estado: 'Pagado',
+            });
+
+            expect(taskServiceMock.enviarCambioEstadoPedido).not.toHaveBeenCalled();
+        });
+
+        it('un fallo al enviar el correo no debe romper el flujo de notificación (queda solo logueado)', async () => {
+            prisma.usuario.findUnique.mockResolvedValue({ correo: 'cliente@correo.com', nom_1: 'Juan', ape_1: 'Pérez' });
+            prisma.ticket_compra.findFirst.mockResolvedValue(null);
+            taskServiceMock.enviarCambioEstadoPedido.mockRejectedValue(new Error('SMTP caído'));
+
+            await expect(
+            service.notificarCambioEstadoPedido({ id_pedido: 44, id_usuario: 'u3', estado: 'Entregado' }),
+            ).resolves.not.toThrow();
+
+            expect(prisma.notificacion.create).toHaveBeenCalled(); // la notificación in-app sí se creó
         });
         });
     });

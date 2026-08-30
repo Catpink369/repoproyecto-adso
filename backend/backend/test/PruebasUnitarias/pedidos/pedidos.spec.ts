@@ -209,7 +209,13 @@ describe('RF-007 - Gestion de Pedidos', () => {
 			);
 		});
 
-		it.todo('CP-006: el cliente recibe un correo notificando el nuevo estado de su pedido');
+		// CP-006: "el cliente recibe el correo de notificación cuando cambia el
+		// estado de su pedido" — el envío real vive dentro de
+		// NotificacionesService.notificarCambioEstadoPedido() (que llama a
+		// TaskService.enviarCambioEstadoPedido()), no en PedidosService, que
+		// solo la invoca (ya cubierto arriba por CP-005). El test real está en
+		// historial-reportes.spec.ts → 'RF-007.2 - Notificación por correo al
+		// cambiar el estado del pedido'.
 
 		it('CP-007: el admin/trabajador consulta el listado de todos los pedidos con su estado', async () => {
 			prisma.pedido.findMany.mockResolvedValue([

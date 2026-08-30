@@ -295,15 +295,22 @@ export class PedidosPersonalizadosService {
 
     // ── Guard: material duplicado en el mismo pedido (paridad con
     // pedidos.service.ts). Evita procesar y descontar el stock dos veces
-    // para el mismo id_material si el array viene con entradas repetidas.
-    const idMaterialesVistos = new Set<number>();
+    // si el array viene con la MISMA línea repetida por error (mismo
+    // material + mismo concepto). Ya NO se considera duplicado tener el
+    // mismo id_material varias veces con distinto concepto (ej: la misma
+    // tela usada para "Sábana", "Sobresábana" y "Fundas de almohada" son
+    // líneas legítimas y deben poder coexistir).
+    const clavesVistas = new Set<string>();
     for (const item of dto.materiales) {
-      if (idMaterialesVistos.has(item.id_material)) {
+      const clave = `${item.id_material}|${item.concepto ?? ''}`;
+      if (clavesVistas.has(clave)) {
         throw new BadRequestException(
-          `El material ${item.id_material} está duplicado en el pedido. No se procesó nada.`,
+          item.concepto
+            ? `El concepto "${item.concepto}" para el material ${item.id_material} está duplicado en el pedido. No se procesó nada.`
+            : `El material ${item.id_material} está duplicado en el pedido. No se procesó nada.`,
         );
       }
-      idMaterialesVistos.add(item.id_material);
+      clavesVistas.add(clave);
     }
 
     // verificar stock de cada material
@@ -323,7 +330,20 @@ export class PedidosPersonalizadosService {
 
     // calcular precio total
     let precio_total = 0;
-    const detalles: { id_material: number; cantidad: number; precio_unitario: number; subtotal: number; nombre: string; unidad: string }[] = [];
+    // FIX: se agregan id_color, id_diseno y concepto — antes se calculaban
+    // pero nunca se guardaban ni se devolvían, así que se perdían entre el
+    // formulario y el ticket/detalle de pedido.
+    const detalles: {
+      id_material: number;
+      id_color: number | null;
+      id_diseno: number | null;
+      concepto: string | null;
+      cantidad: number;
+      precio_unitario: number;
+      subtotal: number;
+      nombre: string;
+      unidad: string;
+    }[] = [];
 
     for (const item of dto.materiales) {
       const material = await this.prisma.material.findUnique({
@@ -333,6 +353,9 @@ export class PedidosPersonalizadosService {
       precio_total += subtotal;
       detalles.push({
         id_material: item.id_material,
+        id_color: item.id_color ?? null,
+        id_diseno: item.id_diseno ?? null,
+        concepto: item.concepto ?? null,
         cantidad: item.cantidad,
         precio_unitario: Number(material!.precio_unitario),
         subtotal,
@@ -363,8 +386,13 @@ export class PedidosPersonalizadosService {
               tamanio: dto.tamanio,
               precio_total,
               detalles: {
-                create: detalles.map(({ id_material, cantidad, subtotal }) => ({
+                // FIX: antes solo se mandaban id_material/cantidad/subtotal,
+                // por eso color/diseño/concepto nunca llegaban a la BD.
+                create: detalles.map(({ id_material, id_color, id_diseno, concepto, cantidad, subtotal }) => ({
                   id_material,
+                  id_color,
+                  id_diseno,
+                  concepto,
                   cantidad,
                   subtotal,
                 })),
@@ -443,6 +471,31 @@ export class PedidosPersonalizadosService {
 
     console.log('service - crear pedido personalizado:', JSON.stringify(dto));
 
+    // FIX: se resuelven los nombres de color y diseño para que el ticket
+    // recién creado (TicketPersonalizado.jsx lee m.color_nombre/m.diseno_nombre)
+    // los pueda mostrar sin tener que volver a consultar el pedido.
+    const detallesConNombres = await Promise.all(
+      detalles.map(async (d) => {
+        const color = d.id_color
+          ? await this.prisma.material_color.findUnique({
+              where: { id_color: d.id_color },
+              select: { nombre: true },
+            })
+          : null;
+        const diseno = d.id_diseno
+          ? await this.prisma.material_diseno.findUnique({
+              where: { id_diseno: d.id_diseno },
+              select: { nombre: true },
+            })
+          : null;
+        return {
+          ...d,
+          color_nombre: color?.nombre ?? null,
+          diseno_nombre: diseno?.nombre ?? null,
+        };
+      }),
+    );
+
     return {
       success: true,
       message: 'Pedido personalizado creado exitosamente',
@@ -457,7 +510,7 @@ export class PedidosPersonalizadosService {
       },
       tipo_producto: dto.tipo_producto,
       tamanio: dto.tamanio,
-      materiales: detalles, // incluye nombre y unidad para mostrar en ticket
+      materiales: detallesConNombres, // incluye nombre, unidad, color y diseño para mostrar en ticket
     };
   }
 
@@ -494,6 +547,21 @@ export class PedidosPersonalizadosService {
                 unidad: true,
               },
             },
+            // FIX: antes no se incluían estas relaciones, por eso el
+            // detalle de pedidos (admin) nunca podía mostrar color/diseño
+            // aunque ya estuvieran guardados en la BD.
+            color: {
+              select: {
+                nombre: true,
+                codigo_hex: true,
+              },
+            },
+            diseno: {
+              select: {
+                nombre: true,
+                ruta_imagen: true,
+              },
+            },
           },
         },
       },
@@ -514,6 +582,9 @@ export class PedidosPersonalizadosService {
         detalles: {
           include: {
             material: { select: { nombre: true, tipo: true, unidad: true, ruta_imagen: true } },
+            // FIX: mismo caso que en findAll — faltaban estas relaciones.
+            color: { select: { nombre: true, codigo_hex: true } },
+            diseno: { select: { nombre: true, ruta_imagen: true } },
           },
         },
       },
