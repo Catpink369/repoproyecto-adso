@@ -12,6 +12,9 @@ const SALT_ROUNDS = 10;
 export class UsuariosService {
   constructor(private prisma: PrismaService, private taskService: TaskService,) {}
 
+  private generarCodigo(): string {
+    return 'TRB-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+  }
   // --------------------------------------------------------
   // CREAR USUARIO
   // --------------------------------------------------------
@@ -109,7 +112,7 @@ export class UsuariosService {
     console.log('service - actualizar usuario:', { id_usuario, dto });
     
     // 1. Verificar que el usuario existe
-    await this.findOne(id_usuario);
+    const usuarioActual = await this.findOne(id_usuario);
 
     // 2. Si se envía correo, verificar que no pertenezca a OTRO usuario
     if (dto.correo) {
@@ -140,6 +143,20 @@ export class UsuariosService {
     if (dto.codigo) {
       data.codigo = await bcrypt.hash(dto.codigo.toString(), SALT_ROUNDS);
       data.codigo_visible = dto.codigo.toString();
+    }
+
+    const rolAnterior = usuarioActual.id_rol_usuario;
+    const rolNuevo = dto.id_rol_usuario ?? rolAnterior;
+
+    if (rolNuevo === '2') {
+      // Pasa a ser Cliente: se elimina el código de acceso
+      data.codigo = null;
+      data.codigo_visible = null;
+    } else if (rolAnterior === '2' && (rolNuevo === '1' || rolNuevo === '3') && !dto.codigo) {
+      // Pasa de Cliente a Trabajador/Admin sin código manual: se genera uno nuevo
+      const nuevoCodigo = this.generarCodigo();
+      data.codigo = await bcrypt.hash(nuevoCodigo, SALT_ROUNDS);
+      data.codigo_visible = nuevoCodigo;
     }
 
     return this.prisma.usuario.update({
