@@ -74,15 +74,15 @@ export default function LoginAdminCode() {
           )}
 
           <p style={{ marginBottom: '20px', textAlign: 'center', color: '#5a3d54' }}>
-            Está ingresando como administrador, para continuar ingrese su código
+            Está ingresando, para continuar ingrese su código
           </p>
 
-          <label htmlFor="codigo">Código de administrador</label>
+          <label htmlFor="codigo">Código</label>
           <input
             type="password"
             id="codigo"
             name="codigo"
-            placeholder="Ingresa tu código de administrador"
+            placeholder="Ingresa tu código"
             required
             value={codigo}
             onChange={(e) => setCodigo(e.target.value)}

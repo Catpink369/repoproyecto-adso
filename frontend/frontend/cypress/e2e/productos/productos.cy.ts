@@ -138,7 +138,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.contains('Catálogo').click()
         cy.contains('Catálogo de productos').should('be.visible')
-        cy.contains('Llavero de flores').should('be.visible')
+        cy.contains('cubrelecho de minnie mouse').should('be.visible')
       })
 
       cy.clearCookies()
@@ -188,8 +188,8 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.contains('Catálogo').click()
         cy.contains('Catálogo de productos').should('be.visible')
 
-        cy.get('input[placeholder="Buscar productos..."]').type('Sábana individual con encaje{enter}')
-        cy.contains('Sábana individual con encaje').should('be.visible')
+        cy.get('input[placeholder="Buscar productos..."]').type('cubrelecho de Spider-man{enter}')
+        cy.contains('cubrelecho de Spider-man').should('be.visible')
       })
     })
 
@@ -205,7 +205,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.contains('Catálogo de productos').should('be.visible')
 
         cy.contains('button', 'Sabanas').click()
-        cy.contains('Sábana individual con encaje').should('be.visible')
+        cy.contains('Juego de sabanas').should('be.visible')
       })
     })
 
@@ -221,7 +221,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.contains('Catálogo de productos').should('be.visible')
 
         cy.contains('button', 'En oferta').click()
-        cy.contains('Llavero de flores').should('be.visible')
+        cy.contains('cubrelecho de minnie mouse').should('be.visible')
       })
     })
 
@@ -239,7 +239,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.contains('button', 'Llaveros').click()
         cy.contains('button', 'En oferta').click()
 
-        cy.contains('Llavero de flores').should('be.visible')
+        cy.contains('Llaveros de Gatitos').should('be.visible')
       })
     })
 

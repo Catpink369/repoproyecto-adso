@@ -417,6 +417,9 @@ export default function PedidosRealizados() {
                         Materiales Utilizados
                     </h5>
                     {tieneMateriales ? (
+                        // FIX: se agregan las columnas Concepto, Color y Diseño —
+                        // antes la tabla solo mostraba Material/Tipo/Cantidad/Subtotal
+                        // y esos datos (aunque ya vinieran del backend) nunca se pintaban.
                         <table className="detalle-tabla-productos">
                             <thead>
                                 <tr>
@@ -600,6 +603,7 @@ export default function PedidosRealizados() {
         );
     };
 
+<<<<<<< Updated upstream
     // ─── PEDIDOS FILTRADOS Y ORDENADOS ─────────────────────────────────────────
     // Los pedidos "Anulados" y los "Finalizados" (Entregado/Finalizado) viven
     // en sus propias pestañas y quedan excluidos de "Todos", "Estándar" y
@@ -624,6 +628,20 @@ export default function PedidosRealizados() {
             const diff = new Date(b.fecha) - new Date(a.fecha); // desc por defecto
             return ordenFecha === 'asc' ? -diff : diff;
         });
+=======
+    // ─── PEDIDOS FILTRADOS ────────────────────────────────────────────────────
+    // FIX: los pedidos Anulados ahora se agrupan en su propia pestaña.
+    // "Todos", "Estándar" y "Personalizado" los excluyen; solo se ven
+    // entrando a la pestaña "Anulados" (sin importar si eran estándar o
+    // personalizados).
+    const pedidosFiltrados = pedidos.filter(p => {
+        if (filtroTipo === 'anulados')      return p.estado === 'Anulado';
+        if (p.estado === 'Anulado')         return false;
+        if (filtroTipo === 'estandar')      return p._tipo === 'estandar';
+        if (filtroTipo === 'personalizado') return p._tipo === 'personalizado';
+        return true;
+    });
+>>>>>>> Stashed changes
 
     // ─── RENDER ───────────────────────────────────────────────────────────────
     if (loading) return (
@@ -696,6 +714,7 @@ export default function PedidosRealizados() {
                             {[
                                 { value: 'estandar',      label: 'Estándar',      color: '#5dade2' },
                                 { value: 'personalizado', label: 'Personalizado', color: '#da819f' },
+                                { value: 'anulados',      label: 'Anulados',      color: '#e74c3c' },
                             ].map(({ value, label, color }) => (
                                 <button
                                     key={value}

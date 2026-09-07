@@ -9,6 +9,7 @@ import { plainToInstance } from 'class-transformer';
 import { ProductosService } from '../../../../../backend/backend/src/productos/productos.service';
 import { ProductosController } from '../../../../../backend/backend/src/productos/productos.controller';
 import { PrismaService } from '../../../../../backend/backend/src/prisma/prisma.service';
+import { Roles } from '../../../../../backend/backend/src/auth/enums/roles.enum';
 import { CreateProductoDto } from '../../../../../backend/backend/src/productos/dto/create-producto.dto';
 import { UpdateProductoDto } from '../../../../../backend/backend/src/productos/dto/update-producto.dto';
 import { RolesGuard } from '../../../../../backend/backend/src/auth/guards/roles.guard';
@@ -291,6 +292,64 @@ describe('RF-002 - Gestión de Productos', () => {
 
   // RF-002.4
   describe('RF-002.4 - Editar producto', () => {
+    it('CP-015: debe actualizar exitosamente los datos básicos de un producto (nombre, descripción, precio) desde un rol autorizado (Administrador/Trabajador)', async () => {
+      const idProducto = faker.number.int({ min: 1, max: 999 });
+
+      const dtoActualizacion = {
+        nom_producto: faker.commerce.productName(),
+        descripcion: faker.commerce.productDescription(),
+        precio_unitario: 35000,
+      };
+
+      // 1ra llamada a findFirst: la usa findOne() para confirmar que el producto existe
+      // 2da llamada a findFirst: valida que el nuevo nombre no pertenezca a OTRO producto
+      prismaMock.producto.findFirst
+        .mockResolvedValueOnce({
+          id_producto: idProducto,
+          nom_producto: 'Nombre anterior',
+          descripcion: 'Descripción anterior',
+          precio_unitario: 20000,
+          estado: true,
+          categoria: { nombre_c: 'Ropa' },
+          clasificacion: { nombre_clas: 'General' },
+        })
+        .mockResolvedValueOnce(null); // no hay otro producto con ese nombre
+
+      prismaMock.producto.update.mockResolvedValue({
+        id_producto: idProducto,
+        ...dtoActualizacion,
+        estado: true,
+      });
+
+      const resultado = await service.update(idProducto, dtoActualizacion as any);
+
+      expect(resultado.statusCode).toBe(200);
+      expect(resultado.message).toBe(`Producto ${idProducto} actualizado exitosamente`);
+      expect(resultado.data.nom_producto).toBe(dtoActualizacion.nom_producto);
+      expect(resultado.data.descripcion).toBe(dtoActualizacion.descripcion);
+      expect(resultado.data.precio_unitario).toBe(dtoActualizacion.precio_unitario);
+
+      expect(prismaMock.producto.update).toHaveBeenCalledWith({
+        where: { id_producto: idProducto },
+        data: expect.objectContaining({
+          nom_producto: dtoActualizacion.nom_producto,
+          descripcion: dtoActualizacion.descripcion,
+          precio_unitario: dtoActualizacion.precio_unitario,
+          ultima_actualiz: expect.any(Date),
+        }),
+      });
+    });
+
+    it('CP-015b: debe permitir la edición a cuentas con rol Administrador o Trabajador', () => {
+      const usuarioAdmin = { id_usuario: faker.string.numeric(10), id_rol_usuario: Roles.ADMIN };           // '1'
+      const usuarioTrabajador = { id_usuario: faker.string.numeric(10), id_rol_usuario: Roles.TRABAJADOR }; // '3'
+
+      const contextoAdmin = contextoFalso(usuarioAdmin, controller.update);
+      const contextoTrabajador = contextoFalso(usuarioTrabajador, controller.update);
+
+      expect(rolesGuard.canActivate(contextoAdmin)).toBe(true);
+      expect(rolesGuard.canActivate(contextoTrabajador)).toBe(true);
+    });
     it('CP-016: debe rechazar la edición con precio o stock mínimo no numéricos o negativos', async () => {
       const dtoInvalido = plainToInstance(UpdateProductoDto, {
         precio_unitario: -500,
