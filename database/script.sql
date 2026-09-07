@@ -387,3 +387,6 @@ ALTER TABLE `detalle_pedido_personalizado`
   ADD COLUMN `concepto` VARCHAR(40) NULL AFTER `subtotal`,
   ADD CONSTRAINT `fk_detpp_color` FOREIGN KEY (`id_color`) REFERENCES `material_color` (`id_color`) ON DELETE SET NULL,
   ADD CONSTRAINT `fk_detpp_diseno` FOREIGN KEY (`id_diseno`) REFERENCES `material_diseno` (`id_diseno`) ON DELETE SET NULL;
+
+ALTER TABLE detalles_pedido
+ADD COLUMN precio_unitario DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER cantidad;

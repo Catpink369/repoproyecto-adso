@@ -47,6 +47,7 @@ model detalles_pedido {
   id_detalles      Int    @id @default(autoincrement())
   descrip_detalles String @db.VarChar(100)
   cantidad         Int
+  precio_unitario  Decimal @db.Decimal(10, 2)
   id_pedido        Int
   id_producto      Int
 

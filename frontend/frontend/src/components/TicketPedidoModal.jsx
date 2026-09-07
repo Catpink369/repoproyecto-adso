@@ -1,7 +1,3 @@
-// Modal de ticket de compra, reutilizado desde el panel de notificaciones
-// del cliente (Header_c.jsx). Reusa las mismas clases CSS que ticketcompra.jsx
-// (definidas en css/styles.css) para que se vea igual que el ticket que el
-// cliente ya recibe justo después de comprar.
 import React, { useEffect, useState } from 'react';
 import { apiGet } from '../context/api.js';
 import './css/styles.css';
@@ -47,7 +43,7 @@ const TicketPedidoModal = ({ idPedido, onClose }) => {
 
     if (!idPedido) return null;
 
-    const ticket = pedido?.ticket_compra?.[0];
+    const ticket = pedido?.ticket_compra;
     const productos = pedido?.detalles_pedido ?? [];
 
     // ── Imprimir / Guardar PDF: misma técnica que ticketcompra.jsx ──
@@ -194,16 +190,7 @@ const TicketPedidoModal = ({ idPedido, onClose }) => {
         <div
             style={{
                 position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                // NOTA QA: en /cliente existe un `.ventana` (popup, aún sin
-                // identificar de qué componente viene — no vino entre los
-                // archivos compartidos) que a veces aparece por encima de
-                // este modal si se demora unos segundos en dispararse
-                // (cypress lo pescó tapando `.ticket-info-value` y el botón
-                // de imprimir en pagos_tickets.cy.ts CP-011/CP-012). Se sube
-                // el z-index bien por encima de cualquier valor típico como
-                // mitigación mientras se localiza y corrige ese popup.
-                zIndex: 999999,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
                 padding: '20px', overflowY: 'auto',
             }}
             onClick={onClose}

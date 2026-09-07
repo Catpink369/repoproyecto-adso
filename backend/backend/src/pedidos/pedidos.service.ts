@@ -39,7 +39,11 @@ export class PedidosService {
   // -------------------------------------------------------
   async create(dto: CreatePedidoDto) {
     console.log('controller - Crear pedido:', JSON.stringify(dto));
-    const { items, id_usuario, metodo_pago, subtotal, total } = dto;
+    // Ya NO se desestructuran subtotal/total del dto: el backend los calcula
+    // siempre a partir del precio_unitario real del producto en BD, para que
+    // nunca queden desincronizados con el precio actual ni dependan de lo
+    // que mande el cliente (bug: ticket con Subtotal/Total en $0).
+    const { items, id_usuario, metodo_pago } = dto;
 
     if (!items || items.length === 0 || !id_usuario || !metodo_pago) {
       throw new BadRequestException('Faltan datos obligatorios (items, id_usuario, metodo_pago)');
@@ -79,8 +83,15 @@ export class PedidosService {
 
           const resultados: { producto: string; cantidad: number; stock_restante: number }[] = [];
 
+          // Acumula el total real (precio de BD × cantidad), no el que
+          // mande el frontend en dto.subtotal/dto.total.
+          let subtotalCalculado = 0;
+
           for (const item of items) {
-            const { id_producto, cantidad, precio } = item;
+            // Ya no se usa item.precio del body: el precio siempre sale del
+            // producto real en BD, para no confiar en un valor manipulable
+            // desde el cliente.
+            const { id_producto, cantidad } = item;
 
             const producto = await tx.producto.findFirst({
               where: { id_producto, estado: true },
@@ -112,10 +123,19 @@ export class PedidosService {
               },
             });
 
+            // Precio real tomado de BD en el momento de la compra. Se
+            // congela en detalles_pedido.precio_unitario para que, si el
+            // precio del producto cambia después, el ticket histórico no
+            // se vea afectado (antes el ticket recalculaba el precio "en
+            // vivo" desde producto.precio_unitario, desincronizando el
+            // total ya guardado en ticket_compra).
+            const precioActual = Number(producto.precio_unitario);
+
             await tx.detalles_pedido.create({
               data: {
-                descrip_detalles: `${producto.nom_producto} - $${precio}`,
+                descrip_detalles: `${producto.nom_producto} - $${precioActual}`,
                 cantidad,
+                precio_unitario: precioActual,
                 id_pedido: pedido.id_pedido,
                 id_producto,
               },
@@ -132,6 +152,8 @@ export class PedidosService {
               },
             });
 
+            subtotalCalculado += precioActual * cantidad;
+
             resultados.push({
               producto: producto.nom_producto,
               cantidad,
@@ -145,8 +167,10 @@ export class PedidosService {
             data: {
               num_ticket,
               fecha_emision: new Date(),
-              sub_total: subtotal,
-              total_ticket: total,
+              // Calculados en backend a partir de precios reales, nunca
+              // tomados del body del request.
+              sub_total: subtotalCalculado,
+              total_ticket: subtotalCalculado, // sin impuestos: total = subtotal
               id_pedido: pedido.id_pedido,
               id_estado: 'E_pt', // Prisma sanea el guion de la BD ('E-pt') a guion bajo en el enum generado
               id_met_pago: 'Mtd_PD', // el pedido siempre nace "Por definir" (RN-002 RF-008)
@@ -248,12 +272,6 @@ export class PedidosService {
   async findAll(query: any) {
     console.log('service - todos los pedidos:', JSON.stringify(query));
     return this.prisma.pedido.findMany({
-      // FIX: sin este filtro, los pedidos personalizados (id_tipo 'P_P')
-      // también se traían aquí — aparecían duplicados en el panel de admin:
-      // una vez correctamente vía /pedidos-personalizados, y otra vez acá
-      // como si fueran "estándar" pero sin detalles_pedido (esa tabla es
-      // solo de productos de catálogo), mostrando "Sin items".
-      where: { id_tipo: 'P_E' },
       orderBy: { fecha: 'desc' },
       include: {
         usuario: {
