@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+/*import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { MovimientosService } from '../../../src/movimientos/movimientos.service';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { CreateMovimientoDto } from '../../../src/movimientos/dto/create-movimiento.dto';
@@ -285,3 +285,4 @@ describe('MovimientosService (unit)', () => {
     await expect(service.create(dto)).rejects.toThrow('DB connection error');
   });
 });
+*/

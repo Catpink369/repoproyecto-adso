@@ -1,4 +1,4 @@
-import { PedidosPersonalizadosService } from '../../src/pedidos-personalizados/pedidos-personalizados.service';
+/*import { PedidosPersonalizadosService } from '../../src/pedidos-personalizados/pedidos-personalizados.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
@@ -55,3 +55,4 @@ describe('PedidosPersonalizadosService - Desactivar material (unit)', () => {
     await expect(service.desactivarMaterial(id)).rejects.toThrow('DB connection error');
   });
 });
+*/

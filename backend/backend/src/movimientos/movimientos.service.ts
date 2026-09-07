@@ -212,18 +212,20 @@ export class MovimientosService {
 
     console.log('service - crear movimiento:', JSON.stringify(dto));
 
+    if (dto.Cantidad_m == null || Number(dto.Cantidad_m) <= 0) {
 
+      throw new BadRequestException(
+
+        'Cantidad_m debe ser mayor a 0. No se pueden registrar movimientos con cantidad cero o negativa.',
+
+      );
+
+    }
 
     const idProducto = Number(dto.id_producto);
-
     const idMovimiento = aTipoMovimientoPrisma(normalizarTipoMovimiento(dto.id_m));
-
-
-
     const signo = idMovimiento === 'M_E' ? 1 : -1;
-
     const delta = signo * dto.Cantidad_m;
-
 
 
     return this.prisma.$transaction(async (tx) => {
@@ -233,8 +235,6 @@ export class MovimientosService {
         where: { id_producto: idProducto },
 
       });
-
-
 
       if (!producto) {
 
@@ -246,7 +246,15 @@ export class MovimientosService {
 
       }
 
+      if (producto.estado === false) {
 
+        throw new BadRequestException(
+
+          `No se puede registrar el movimiento: el producto "${producto.nom_producto}" está inactivo.`,
+
+        );
+
+      }
 
       if (idMovimiento === 'M_S' && producto.stock_actual + delta < 0) {
 
@@ -260,61 +268,34 @@ export class MovimientosService {
 
       }
 
-
-
       const movimiento = await tx.movimiento.create({
 
         data: {
-
           Cantidad_m: dto.Cantidad_m,
-
           fecha_m: new Date(),
-
           observaciones: dto.observaciones ?? null,
-
           id_m: idMovimiento as any,
-
           id_producto: idProducto,
-
           id_usuario: String(dto.id_usuario),
-
           id_material: null,
-
         },
-
       });
-
-
 
       const productoActualizado = await tx.producto.update({
 
         where: { id_producto: idProducto },
-
         data: {
-
           stock_actual: { increment: delta },
-
           ultima_actualiz: new Date(),
-
         },
-
       });
 
-
-
       return {
-
         movimiento,
-
         stock_actual: productoActualizado.stock_actual,
-
       };
-
     });
-
   }
-
-
 
   // -------------------------------------------------------
 

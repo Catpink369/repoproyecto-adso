@@ -18,15 +18,42 @@ export class ProductosService {
 
   // --------------------------------------------------------
   // OBTENER TODOS LOS PRODUCTOS ACTIVOS
+  // Soporta: search, id_categoria, id_clasificacion, page, limit
   // --------------------------------------------------------
   async findAll(query: any) {
-    const productos = await this.prisma.producto.findMany({
-      where: { estado: true },
+    const { search, id_categoria, id_clasificacion, page, limit } = query ?? {};
+
+    const where: any = { estado: true };
+
+    if (search != null && String(search).trim() !== '') {
+      where.nom_producto = { contains: String(search).trim() };
+    }
+
+    if (id_categoria !== undefined && id_categoria !== null && id_categoria !== '') {
+      where.id_categoria = Number(id_categoria);
+    }
+
+    if (id_clasificacion !== undefined && id_clasificacion !== null && id_clasificacion !== '') {
+      where.id_clasificacion = Number(id_clasificacion);
+    }
+
+    const findArgs: any = {
+      where,
       include: {
         categoria: { select: { nombre_c: true } },
         clasificacion: { select: { nombre_clas: true } },
       },
-    });
+    };
+
+    // Paginación opcional: solo aplica skip/take si vienen page y limit
+    if (page !== undefined && limit !== undefined && page !== null && limit !== null && page !== '' && limit !== '') {
+      const pageNum = Math.max(1, Number(page) || 1);
+      const limitNum = Math.max(1, Number(limit) || 10);
+      findArgs.skip = (pageNum - 1) * limitNum;
+      findArgs.take = limitNum;
+    }
+
+    const productos = await this.prisma.producto.findMany(findArgs);
 
     return productos.map((p) => this._aplanarProducto(p));
   }

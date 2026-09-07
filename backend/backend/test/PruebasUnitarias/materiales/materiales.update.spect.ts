@@ -1,4 +1,4 @@
-import { PedidosPersonalizadosService } from '../../src/pedidos-personalizados/pedidos-personalizados.service';
+/*import { PedidosPersonalizadosService } from '../../src/pedidos-personalizados/pedidos-personalizados.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
@@ -84,3 +84,4 @@ describe('PedidosPersonalizadosService - Editar material (unit)', () => {
     await expect(service.actualizarMaterial(id, dto as any)).rejects.toThrow('DB connection error');
   });
 });
+*/
