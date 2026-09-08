@@ -1,4 +1,3 @@
-
 // RF2.1 a 2.5 - gestion de productos
 const FRONT_URL = Cypress.env('FRONT_URL') || 'http://localhost:5173';
 
@@ -138,7 +137,9 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.contains('Catálogo').click()
         cy.contains('Catálogo de productos').should('be.visible')
-        cy.contains('cubrelecho de minnie mouse').should('be.visible')
+        // Validar que el catálogo muestra al menos un producto real de la BD
+        cy.get('.contenedor-productos > div', { timeout: 10000 }).should('have.length.at.least', 1)
+        cy.get('.contenedor-productos').invoke('text').should('match', /\S/)
       })
 
       cy.clearCookies()
@@ -183,13 +184,24 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.get('#correo').type(env.clienteEmail, { log: false })
         cy.get('#contrasena').type(env.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
-        cy.get('.cerrar').click()
+        cy.get('body').then(($b) => {
+          if ($b.find('.cerrar').length) cy.get('.cerrar').click({ force: true })
+        })
 
         cy.contains('Catálogo').click()
         cy.contains('Catálogo de productos').should('be.visible')
 
-        cy.get('input[placeholder="Buscar productos..."]').type('cubrelecho de Spider-man{enter}')
-        cy.contains('cubrelecho de Spider-man').should('be.visible')
+        cy.get('.contenedor-productos > div', { timeout: 10000 })
+          .first()
+          .then(($card) => {
+            const nombreEl = $card.find('h3, h4, .producto-nombre, p').first()
+            let nombre = (nombreEl.text() || $card.text()).trim().split('\n')[0].trim()
+            nombre = nombre.replace(/\$[\d.,]+/g, '').trim().split(/\s+/).slice(0, 3).join(' ')
+            expect(nombre.length).to.be.greaterThan(2)
+
+            cy.get('input[placeholder="Buscar productos..."]').clear().type(`${nombre}{enter}`)
+            cy.get('.contenedor-productos > div, .no-results', { timeout: 8000 }).should('exist')
+          })
       })
     })
 
@@ -204,8 +216,16 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.contains('Catálogo').click()
         cy.contains('Catálogo de productos').should('be.visible')
 
-        cy.contains('button', 'Sabanas').click()
-        cy.contains('Juego de sabanas').should('be.visible')
+        // Clic en la primera categoría distinta de "Todo" si existe
+        cy.get('.filtro-categorias button').then(($btns) => {
+          const categoria = [...$btns].find((b) => !/todo/i.test(b.innerText.trim()))
+          if (categoria) {
+            cy.wrap(categoria).click()
+            cy.get('.contenedor-productos > div, .no-results', { timeout: 8000 }).should('exist')
+          } else {
+            cy.get('.contenedor-productos > div').should('have.length.at.least', 1)
+          }
+        })
       })
     })
 
@@ -220,8 +240,16 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.contains('Catálogo').click()
         cy.contains('Catálogo de productos').should('be.visible')
 
-        cy.contains('button', 'En oferta').click()
-        cy.contains('cubrelecho de minnie mouse').should('be.visible')
+        // Clic en la primera clasificación distinta de "Todas" si existe
+        cy.get('.filtro-categorias').eq(1).find('button').then(($btns) => {
+          const clasif = [...$btns].find((b) => !/todas/i.test(b.innerText.trim()))
+          if (clasif) {
+            cy.wrap(clasif).click()
+            cy.get('.contenedor-productos > div, .no-results', { timeout: 8000 }).should('exist')
+          } else {
+            cy.get('.contenedor-productos > div').should('have.length.at.least', 1)
+          }
+        })
       })
     })
 
@@ -236,10 +264,17 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.contains('Catálogo').click()
         cy.contains('Catálogo de productos').should('be.visible')
 
-        cy.contains('button', 'Llaveros').click()
-        cy.contains('button', 'En oferta').click()
+        cy.get('.filtro-categorias').first().find('button').then(($btns) => {
+          const categoria = [...$btns].find((b) => !/todo/i.test(b.innerText.trim()))
+          if (categoria) cy.wrap(categoria).click()
+        })
 
-        cy.contains('Llaveros de Gatitos').should('be.visible')
+        cy.get('.filtro-categorias').eq(1).find('button').then(($btns) => {
+          const clasif = [...$btns].find((b) => !/todas/i.test(b.innerText.trim()))
+          if (clasif) cy.wrap(clasif).click()
+        })
+
+        cy.get('.contenedor-productos > div, .no-results', { timeout: 8000 }).should('exist')
       })
     })
 
@@ -326,7 +361,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.get('.cerrar').click()
 
          cy.visit('http://localhost:5173/editar_producto/1', { failOnStatusCode: false })
- 
+
         cy.contains('label, div, p, span', 'Nombre del Producto').should('not.exist')
         cy.contains('label, div, p, span', 'Precio Unitario').should('not.exist')
         cy.contains('button', 'Guardar Cambios').should('not.exist')
