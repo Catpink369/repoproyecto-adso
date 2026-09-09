@@ -126,7 +126,7 @@ export default function PerfilAdmin() {
                                     {usuarioActual.img_perfil ? (
                                         <img 
                                             key={reloadKey} 
-                                            src={`http://localhost:3000${usuarioActual.img_perfil}?t=${reloadKey}`}
+                                            src={`${usuarioActual.img_perfil}?t=${reloadKey}`}
                                             alt="Perfil" 
                                             className="profile-image-actual"
                                         />               

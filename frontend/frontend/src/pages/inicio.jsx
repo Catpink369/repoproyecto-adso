@@ -8,6 +8,7 @@ import Headeri from "../components/Header.jsx";
 import Footer from '../components/Footer.jsx'; 
 
 import { apiGet } from '../context/api.js';
+import { getImageUrl } from '../utils/getImageUrl.js';
 
 function Inicio() {
     const navigate = useNavigate();
@@ -39,12 +40,6 @@ function Inicio() {
     // Manejar búsqueda
     const handleSearch = (event) => {
         setSearchTerm(event.target.value);
-    };
-
-    // Función para obtener la URL de la imagen
-    const getImageUrl = (rutaImagen) => {
-        if (!rutaImagen) return null;
-        return `http://localhost:3000${rutaImagen}`;
     };
 
     // Función para determinar si el stock es bajo

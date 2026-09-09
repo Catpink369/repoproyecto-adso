@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../../components/Sidebar_p-a.jsx';
 import '../../components/css/styles.css';
 import { apiGet, apiPost, apiPatch, apiDelete } from '../../context/api.js';
+import { getImageUrl } from '../../utils/getImageUrl.js';
 
 const API_URL = 'http://localhost:3000';
 const TIPOS = ['Todos', 'Tela', 'Bordado', 'Diseño', 'Relleno', 'Accesorio'];
@@ -444,7 +445,7 @@ const Materiales = () => {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
                                             {/* imagen actual */}
                                             {editando.ruta_imagen && !imagenEdit && (
-                                                <img src={`${API_URL}${editando.ruta_imagen}`} alt="actual"
+                                                <img src={getImageUrl(editando.ruta_imagen)} alt="actual"
                                                     style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #ddd' }} />
                                             )}
                                             {/* preview nueva */}
@@ -568,7 +569,7 @@ const Materiales = () => {
                                                                 width: '76px',
                                                             }}>
                                                                 {d.ruta_imagen ? (
-                                                                    <img src={`${API_URL}${d.ruta_imagen}`} alt={d.nombre}
+                                                                    <img src={getImageUrl(d.ruta_imagen)} alt={d.nombre}
                                                                         style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e8d5e0' }} />
                                                                 ) : (
                                                                     <div style={{
@@ -678,7 +679,7 @@ const Materiales = () => {
                                         <tr key={m.id_material}>
                                             <td>
                                                 {m.ruta_imagen
-                                                    ? <img src={`${API_URL}${m.ruta_imagen}`} alt={m.nombre} className="material-img" />
+                                                    ? <img src={getImageUrl(m.ruta_imagen)} alt={m.nombre} className="material-img" />
                                                     : <div className="material-sin-img">Sin imagen</div>
                                                 }
                                             </td>

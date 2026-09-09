@@ -136,21 +136,20 @@ export class PedidosPersonalizadosService {
     });
   }
 
-  async actualizarImagenDiseno(id_diseno: number, file: Express.Multer.File) {
-    if (!file) throw new BadRequestException('No se recibió ningún archivo');
+  async actualizarImagenDiseno(id_diseno: number, url_imagen: string) {
+    if (!url_imagen) throw new BadRequestException('No se recibió ninguna URL de imagen');
 
     const diseno = await this.prisma.material_diseno.findUnique({ where: { id_diseno } });
     if (!diseno) throw new NotFoundException(`Diseño ${id_diseno} no encontrado`);
 
-    const ruta_imagen = `/uploads/materiales/${file.filename}`;
-
     await this.prisma.material_diseno.update({
       where: { id_diseno },
-      data: { ruta_imagen },
+      data: { ruta_imagen: url_imagen },
     });
 
-    return { statusCode: 200, message: 'Imagen actualizada', ruta_imagen };
+    return { statusCode: 200, message: 'Imagen actualizada', ruta_imagen: url_imagen };
   }
+
 
   async eliminarDisenoMaterial(id_diseno: number) {
     const diseno = await this.prisma.material_diseno.findUnique({ where: { id_diseno } });
@@ -201,22 +200,20 @@ export class PedidosPersonalizadosService {
   // --------------------------------------------------------
   // ACTUALIZAR IMAGEN DE MATERIAL
   // --------------------------------------------------------
-  async actualizarImagenMaterial(id: number, file: Express.Multer.File) {
-    if (!file) throw new BadRequestException('No se recibió ningún archivo');
+  async actualizarImagenMaterial(id: number, url_imagen: string) {
+    if (!url_imagen) throw new BadRequestException('No se recibió ninguna URL de imagen');
 
     const material = await this.prisma.material.findUnique({
       where: { id_material: id },
     });
     if (!material) throw new NotFoundException(`Material ${id} no encontrado`);
 
-    const ruta_imagen = `/uploads/materiales/${file.filename}`;
-
     await this.prisma.material.update({
       where: { id_material: id },
-      data: { ruta_imagen },
+      data: { ruta_imagen: url_imagen },
     });
 
-    return { statusCode: 200, message: 'Imagen actualizada', ruta_imagen };
+    return { statusCode: 200, message: 'Imagen actualizada', ruta_imagen: url_imagen };
   }
 
   // --------------------------------------------------------

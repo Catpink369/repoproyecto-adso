@@ -15,9 +15,11 @@ import { RolesGuard } from './auth/guards/roles.guard';
 import { PedidosPersonalizadosModule } from './pedidos-personalizados/pedidos-personalizados.module';
 import { TaskModule } from './task/task.module';
 import { AuthMiddleware } from './auth/middleware/auth.middleware';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
+    CloudinaryModule,
     PrismaModule,
     AuthModule,
     UsuariosModule,

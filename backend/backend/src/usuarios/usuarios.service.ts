@@ -191,22 +191,20 @@ export class UsuariosService {
 // --------------------------------------------------------
 // ACTUALIZAR IMAGEN DE PERFIL
 // --------------------------------------------------------
-  async actualizarImagen(id_usuario: string, file: Express.Multer.File) {
-    if (!file) throw new BadRequestException('No se recibió ningún archivo');
+async actualizarImagen(id_usuario: string, url_imagen: string) {
+    if (!url_imagen) throw new BadRequestException('No se recibió ninguna URL de imagen');
 
     await this.findOne(id_usuario); // verifica que existe
 
-    const ruta_imagen = `/uploads/perfiles/${file.filename}`;
-
     await this.prisma.usuario.update({
       where: { id_usuario },
-      data: { img_perfil: ruta_imagen },
+      data: { img_perfil: url_imagen },
     });
 
     return {
       statusCode: 200,
       message: 'Imagen actualizada exitosamente',
-      img_perfil: ruta_imagen,
+      img_perfil: url_imagen,
     };
   }
 

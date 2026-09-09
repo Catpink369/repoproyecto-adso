@@ -193,7 +193,7 @@ export class NotificacionesService {
     const filas = await this.prisma.$queryRaw<{ total: bigint | number }[]>`
       SELECT COUNT(*) as total
       FROM producto
-      WHERE estado = 1 AND stock_actual <= stock_minimo AND stock_actual > 0
+      WHERE estado = true AND stock_actual <= stock_minimo AND stock_actual > 0
     `;
     return Number(filas?.[0]?.total ?? 0);
   }
@@ -204,7 +204,7 @@ export class NotificacionesService {
           p.ultima_actualiz, c.nombre_c as categoria, p.ruta_imagen
       FROM producto p
       LEFT JOIN categoria c ON p.id_categoria = c.id_categoria
-      WHERE p.estado = 1 AND p.stock_actual <= p.stock_minimo AND p.stock_actual > 0
+      WHERE p.estado = true AND p.stock_actual <= p.stock_minimo AND p.stock_actual > 0
       ORDER BY p.stock_actual ASC
     `;
     return productos.map((p) => ({
@@ -230,7 +230,7 @@ export class NotificacionesService {
             p.ultima_actualiz, c.nombre_c as categoria, p.ruta_imagen
       FROM producto p
       LEFT JOIN categoria c ON p.id_categoria = c.id_categoria
-      WHERE p.estado = 1 AND p.stock_actual = 0
+      WHERE p.estado = true AND p.stock_actual = 0
       ORDER BY p.ultima_actualiz DESC
     `;
 
