@@ -1,7 +1,7 @@
 import { Controller, Get, Query, UseInterceptors, UploadedFile, HttpCode,  NotFoundException, ConflictException, BadRequestException, UnauthorizedException, ForbiddenException, InternalServerErrorException, HttpStatus } from '@nestjs/common'; 
 import { CategoriasService } from './categorias.service';
 import { ApiBearerAuth, ApiSecurity, ApiOperation, ApiResponse} from '@nestjs/swagger';
-
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiBearerAuth('JWT') 
 @ApiSecurity('x-api-key')
@@ -9,6 +9,7 @@ import { ApiBearerAuth, ApiSecurity, ApiOperation, ApiResponse} from '@nestjs/sw
 export class CategoriasController {
   constructor(private readonly categoriasService: CategoriasService) {}
 
+  @Public()
   @Get() 
   @ApiOperation({ summary: 'Obtener todas las categorias' })
   @ApiResponse({ status: 200, description: 'Lista de categorias obtenida con exito.' })
@@ -32,6 +33,7 @@ export class CategoriasController {
   }
 
   // GET /categorias/clasificaciones
+  @Public()
   @Get('clasificaciones')
   @ApiOperation({ summary: 'Obtener todas las categorias' })
   @ApiResponse({ status: 200, description: 'Lista de categorias obtenida con exito.' })
