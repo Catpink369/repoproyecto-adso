@@ -603,32 +603,6 @@ export default function PedidosRealizados() {
         );
     };
 
-<<<<<<< Updated upstream
-    // ─── PEDIDOS FILTRADOS Y ORDENADOS ─────────────────────────────────────────
-    // Los pedidos "Anulados" y los "Finalizados" (Entregado/Finalizado) viven
-    // en sus propias pestañas y quedan excluidos de "Todos", "Estándar" y
-    // "Personalizado". El orden dentro de cualquier pestaña es siempre por
-    // fecha (ordenFecha decide la dirección), sin importar estado ni método
-    // de pago.
-    const ESTADOS_FINALIZADOS = ['Entregado', 'Finalizado'];
-
-    const pedidosFiltrados = pedidos
-        .filter(p => {
-            if (filtroTipo === 'anulados')    return p.estado === 'Anulado';
-            if (filtroTipo === 'finalizados') return ESTADOS_FINALIZADOS.includes(p.estado);
-
-            if (p.estado === 'Anulado')                    return false;
-            if (ESTADOS_FINALIZADOS.includes(p.estado))    return false;
-
-            if (filtroTipo === 'estandar')      return p._tipo === 'estandar';
-            if (filtroTipo === 'personalizado') return p._tipo === 'personalizado';
-            return true;
-        })
-        .sort((a, b) => {
-            const diff = new Date(b.fecha) - new Date(a.fecha); // desc por defecto
-            return ordenFecha === 'asc' ? -diff : diff;
-        });
-=======
     // ─── PEDIDOS FILTRADOS ────────────────────────────────────────────────────
     // FIX: los pedidos Anulados ahora se agrupan en su propia pestaña.
     // "Todos", "Estándar" y "Personalizado" los excluyen; solo se ven
@@ -641,7 +615,6 @@ export default function PedidosRealizados() {
         if (filtroTipo === 'personalizado') return p._tipo === 'personalizado';
         return true;
     });
->>>>>>> Stashed changes
 
     // ─── RENDER ───────────────────────────────────────────────────────────────
     if (loading) return (

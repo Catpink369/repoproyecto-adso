@@ -16,7 +16,14 @@ export class AuthService {
             where: { correo },
         });
 
-        if (!user || !user.contrasena) throw new UnauthorizedException('Credenciales inválidas');
+        // Antes: if (!user || !user.contrasena) throw new UnauthorizedException('Credenciales inválidas');
+        if (!user) {
+            throw new UnauthorizedException('Correo no registrado. Verifica que esté bien escrito o regístrate.');
+        }
+
+        if (!user.contrasena) {
+            throw new UnauthorizedException('Esta cuenta no tiene una contraseña configurada. Contacta al administrador.');
+        }
 
         // 1. Verificar si la cuenta está desactivada
         if (user.estado === 0) {
@@ -98,15 +105,20 @@ export class AuthService {
             where: { id_usuario },
         });
 
-        if (!user || !user.codigo) throw new UnauthorizedException('Usuario no encontrado');
+        if (!user) {
+            throw new UnauthorizedException('Usuario no encontrado.');
+        }
 
-        // Validar si la cuenta está desactivada
+        if (!user.codigo) {
+            throw new BadRequestException('No hay un código de verificación pendiente para este usuario. Vuelve a iniciar sesión.');
+        }
+
         if (user.estado === 0) {
             throw new ForbiddenException('Tu cuenta se encuentra desactivada. Contacta al administrador.');
         }
 
         const codeValid = await bcrypt.compare(codigo, user.codigo);
-        if (!codeValid) throw new UnauthorizedException('Código incorrecto');
+        if (!codeValid) throw new UnauthorizedException('Código incorrecto. Verifica el código enviado.');
 
         return {
             success: true,
