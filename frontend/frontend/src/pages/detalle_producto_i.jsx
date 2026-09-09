@@ -6,6 +6,7 @@ import Footer from '../components/Footer.jsx';
 import '../components/css/styles.css';  
 
 import { apiGet } from '../context/api.js';
+import { getImageUrl } from '../utils/getImageUrl.js';
 
 const ProductoDetalles = () => {
     const navigate = useNavigate();
@@ -37,12 +38,6 @@ const ProductoDetalles = () => {
         };
         fetchProducto();
     }, [id]);
-
-    // Función para obtener la URL de la imagen
-    const getImageUrl = (rutaImagen) => {
-        if (!rutaImagen) return 'https://placehold.co/400x300?text=Gurama+Online/400x400?text=Sin+Imagen';
-        return `http://localhost:3000${rutaImagen}`;
-    };
 
     // Función para determinar si el stock es bajo
     const isStockBajo = () => {

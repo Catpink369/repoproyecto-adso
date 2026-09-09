@@ -49,6 +49,8 @@ export class AppModule implements NestModule {
         { path: 'auth/verify-code', method: RequestMethod.POST },
         { path: 'usuarios', method: RequestMethod.POST },
         { path: 'productos', method: RequestMethod.GET },
+        { path: 'categorias', method: RequestMethod.GET },
+        { path: 'categorias/clasificaciones', method: RequestMethod.GET },
         { path: 'uploads/(.*)', method: RequestMethod.GET },
       )
       .forRoutes('*'); // aplica a todas las rutas
