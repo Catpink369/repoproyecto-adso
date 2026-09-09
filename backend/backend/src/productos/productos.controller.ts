@@ -9,14 +9,15 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Roles as RolesEnum } from '../auth/enums/roles.enum';
 import { memoryStorage } from 'multer';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+
 @ApiBearerAuth('JWT') 
 @ApiSecurity('x-api-key')
 @Controller('productos')
 export class ProductosController {
   constructor(
-  private readonly productosService: ProductosService,
-  private readonly cloudinaryService: CloudinaryService,
-) {}
+    private readonly productosService: ProductosService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   // POST /productos
   @Post()
@@ -26,7 +27,6 @@ export class ProductosController {
   @ApiResponse({ status: 201, description: 'Producto creado exitosamente.' })
   @ApiResponse({ status: 400, description: 'Datos del producto inválidos.' })
   @ApiResponse({ status: 409, description: 'Ya existe un producto con este codigo o nombre.' })
-
   async create(@Body() dto: CreateProductoDto) {
     try {
       return await this.productosService.create(dto);
@@ -41,7 +41,6 @@ export class ProductosController {
   @Public()
   @ApiOperation({ summary: 'Obtener una lista de productos' })
   @ApiResponse({ status: 200, description: 'Catalogo de productos obtenida exitosamente.' })
-
   async findAll(@Query() query: any) {
     try {
       return await this.productosService.findAll(query);
@@ -57,7 +56,6 @@ export class ProductosController {
   @ApiResponse({ status: 400, description: 'ID del producto inválido.' })
   @ApiResponse({ status: 404, description: 'Producto no encontrado.' })
   @ApiResponse({ status: 500, description: 'Error al verificar el producto.' })
-
   async checkProducto(@Param('id') id: string) {
     try {
       const existe = await this.productosService.checkProducto(+id);
@@ -76,13 +74,12 @@ export class ProductosController {
 
   // GET /productos/:id
   @Get(':id')
-  @Public()
+  @Public() // <-- AÑADIDO: permite consultar el detalle del producto de forma pública
   @ApiOperation({ summary: 'Obtener un producto por ID' })
   @ApiResponse({ status: 200, description: 'Producto obtenido exitosamente.' })
   @ApiResponse({ status: 400, description: 'ID del producto inválido.' })
   @ApiResponse({ status: 404, description: 'Producto no encontrado.' })
   @ApiResponse({ status: 500, description: 'Error al obtener el producto.' })
-
   async findOne(@Param('id') id: string) {
     try {
       const producto = await this.productosService.findOne(+id);
@@ -109,7 +106,6 @@ export class ProductosController {
   @ApiResponse({ status: 404, description: 'Producto no encontrado.' })
   @ApiResponse({ status: 409, description: 'Ya existe un producto con este codigo o nombre.' })
   @ApiResponse({ status: 500, description: 'Error al actualizar el producto.' })
-
   async update(@Param('id') id: string, @Body() dto: UpdateProductoDto) {
     try {
       const productoActualizado = await this.productosService.update(+id, dto);
