@@ -11,6 +11,7 @@ import Footer from '../../components/Footer.jsx';
 
 // API y metodos 
 import { apiGet } from '../../context/api.js';
+import { getImageUrl } from '../../utils/getImageUrl.js';
 
 const Cliente = () => {
     const navigate = useNavigate();
@@ -69,10 +70,6 @@ const Cliente = () => {
         }
     };
 
-    const getImageUrl = (rutaImagen) => {
-        if (!rutaImagen) return 'https://placehold.co/400x300?text=Gurama+Online/200x200?text=Sin+Imagen';
-        return `http://localhost:3000${rutaImagen}`;
-    };
 
     // redirige al catálogo con filtro de ofertas
     const handleVerOfertas = () => {

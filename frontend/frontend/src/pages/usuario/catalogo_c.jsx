@@ -10,6 +10,7 @@ import Footer from '../../components/Footer.jsx';
 import { useCart } from '../../context/logica_carrito.jsx';
 
 import { apiGet } from '../../context/api.js'; 
+import { getImageUrl } from '../../utils/getImageUrl.js';
 
 const Catalogo_c = () => {
     const [searchParams] = useSearchParams();
@@ -200,12 +201,6 @@ const Catalogo_c = () => {
         setFilteredProducts(productos_filtrados);
         
     }, [cat_seleccionada, clas_seleccionada, searchTerm, products]);
-
-    // Función para obtener la URL de la imagen
-    const getImageUrl = (rutaImagen) => {
-        if (!rutaImagen) return null;
-        return `http://localhost:3000${rutaImagen}`;
-    };
 
     // Función para obtener el badge del producto
     const getBadgeInfo = (producto) => {

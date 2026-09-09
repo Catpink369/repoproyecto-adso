@@ -241,17 +241,15 @@ export class ProductosService {
   // --------------------------------------------------------
   // ACTUALIZAR IMAGEN DE PRODUCTO
   // --------------------------------------------------------
-  async actualizarImagen(id: number, file: Express.Multer.File) {
-    if (!file) throw new BadRequestException('No se recibió ningún archivo');
+  async actualizarImagen(id: number, url_imagen: string) {
+    if (!url_imagen) throw new BadRequestException('No se recibió ninguna URL de imagen');
 
     await this.findOne(id); // verifica que existe, lanza 404 si no
-
-    const ruta_imagen = `/uploads/productos/${file.filename}`;
 
     await this.prisma.producto.update({
       where: { id_producto: id },
       data: {
-        ruta_imagen,
+        ruta_imagen: url_imagen,
         ultima_actualiz: new Date(),
       },
     });
@@ -259,7 +257,7 @@ export class ProductosService {
     return {
       statusCode: 200,
       message: 'Imagen actualizada exitosamente',
-      ruta_imagen,
+      ruta_imagen: url_imagen,
     };
   }
 }

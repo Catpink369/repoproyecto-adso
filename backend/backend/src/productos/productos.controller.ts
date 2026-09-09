@@ -7,15 +7,16 @@ import { Public } from '../auth/decorators/public.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Roles as RolesEnum } from '../auth/enums/roles.enum';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { mkdirSync } from 'fs';
-
+import { memoryStorage } from 'multer';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 @ApiBearerAuth('JWT') 
 @ApiSecurity('x-api-key')
 @Controller('productos')
 export class ProductosController {
-  constructor(private readonly productosService: ProductosService) {}
+  constructor(
+  private readonly productosService: ProductosService,
+  private readonly cloudinaryService: CloudinaryService,
+) {}
 
   // POST /productos
   @Post()
@@ -173,18 +174,7 @@ export class ProductosController {
   // POST /productos/:id/imagen
   @Post(':id/imagen')
   @UseInterceptors(FileInterceptor('imagen_producto', {
-    storage: diskStorage({
-      destination: (req, file, cb) => {
-        const dir = './uploads/productos';
-        mkdirSync(dir, { recursive: true });
-        cb(null, dir);
-      },
-      filename: (req, file, cb) => {
-        // Generamos un nombre único para evitar sobreescritura
-        const nombreUnico = `${req.params.id}-${Date.now()}${extname(file.originalname)}`;
-        cb(null, nombreUnico);
-      },
-    }),
+    storage: memoryStorage(),
     fileFilter: (req, file, cb) => {
       if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
         return cb(new BadRequestException('Formato de archivo no permitido. Use jpg, jpeg, png o webp'), false);
@@ -207,7 +197,8 @@ export class ProductosController {
     }
 
     try {
-      const productoActualizado = await this.productosService.actualizarImagen(id, file);
+      const url_imagen = await this.cloudinaryService.subirImagen(file.buffer, 'productos');
+      const productoActualizado = await this.productosService.actualizarImagen(id, url_imagen);
 
       if (!productoActualizado) {
         throw new NotFoundException(`No se encontró el producto con ID ${id} para asociar la imagen`);
@@ -219,7 +210,7 @@ export class ProductosController {
         throw error;
       }
 
-      throw new InternalServerErrorException('Error al intentar actualizar la imagen en la base de datos');
+      throw new InternalServerErrorException('Error al intentar subir la imagen a Cloudinary');
     }
   }
 }

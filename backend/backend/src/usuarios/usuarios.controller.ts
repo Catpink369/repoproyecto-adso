@@ -7,15 +7,21 @@ import { Roles } from '../auth/enums/roles.enum';
 import { Roles as RolesDecorator } from '../auth/decorators/roles.decorator';
 import { ApiBearerAuth, ApiSecurity, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
+//import { FileInterceptor } from '@nestjs/platform-express';
+//import { diskStorage } from 'multer';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { extname } from 'path';
 
 @ApiBearerAuth('JWT')
 @ApiSecurity('x-api-key')
 @Controller('usuarios')
 export class UsuariosController {
-  constructor(private readonly usuariosService: UsuariosService) {}
+  constructor(
+  private readonly usuariosService: UsuariosService,
+  private readonly cloudinaryService: CloudinaryService,
+) {}
 
   // ── 1. POST / → crear usuario
   @Public()
@@ -271,15 +277,9 @@ export class UsuariosController {
     @ApiResponse({ status: 200, description: 'Imagen subida correctamente.' })
     @ApiResponse({ status: 400, description: 'Archivo no enviado o tipo no permitido.' })
     @ApiResponse({ status: 404, description: 'Usuario no encontrado.' })
-    @UseInterceptors(
+        @UseInterceptors(
       FileInterceptor('profileImage', {
-        storage: diskStorage({
-          destination: './uploads/perfiles',
-          filename: (req, file, cb) => {
-            const nombreUnico = `${req.params.id}-${Date.now()}${extname(file.originalname)}`;
-            cb(null, nombreUnico);
-          },
-        }),
+        storage: memoryStorage(),
         fileFilter: (req, file, cb) => {
           if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
             cb(new BadRequestException('Solo se permiten imágenes jpg, jpeg, png o webp'), false);
@@ -294,20 +294,21 @@ export class UsuariosController {
       @Param('id') id: string,
       @UploadedFile() file: Express.Multer.File,
     ) {
-      console.log('controller - subir imagen:', { id, file: file?.filename });
+      console.log('controller - subir imagen:', { id, originalname: file?.originalname });
       if (!file) {
         throw new BadRequestException('No se envió ningún archivo. Solo se aceptan jpg, jpeg, png y webp');
       }
       try {
         const usuario = await this.usuariosService.findOne(id);
         if (!usuario) throw new NotFoundException(`Usuario con id ${id} no encontrado`);
-        return await this.usuariosService.actualizarImagen(id, file);
+        const url_imagen = await this.cloudinaryService.subirImagen(file.buffer, 'perfiles');
+        return await this.usuariosService.actualizarImagen(id, url_imagen);
       } catch (error: any) {
         if (
           error instanceof NotFoundException ||
           error instanceof BadRequestException
         ) throw error;
-        throw new InternalServerErrorException('Error al guardar la imagen en disco');
+        throw new InternalServerErrorException('Error al subir la imagen a Cloudinary');
       }
     }
 }

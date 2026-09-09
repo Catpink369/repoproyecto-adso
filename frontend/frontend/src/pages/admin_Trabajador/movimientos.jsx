@@ -6,6 +6,7 @@ import "../../components/css/styles.css";
 
 import { AuthContext } from '../../context/AuthContext.jsx';
 import { apiGet, apiPost } from "../../context/api.js";
+import { getImageUrl } from '../../utils/getImageUrl.js';
 
 const MOV_MATERIAL_VACIO = { id_material: '', id_m: 'M-E', cantidad_m: '', observaciones: '' };
 
@@ -433,7 +434,7 @@ export default function Movimientos(){
                                                         <td style={{ textAlign: 'center' }}>
                                                             {mov.ruta_imagen ? (
                                                                 <img
-                                                                    src={`http://localhost:3000${mov.ruta_imagen}`}
+                                                                    src={getImageUrl(mov.ruta_imagen)}
                                                                     alt={mov.nom_producto}
                                                                     style={{
                                                                         width: '60px',

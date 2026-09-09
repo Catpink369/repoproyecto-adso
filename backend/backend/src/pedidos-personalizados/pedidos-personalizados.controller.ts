@@ -11,10 +11,10 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { ApiBearerAuth, ApiSecurity, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { mkdirSync } from 'fs';
+import { memoryStorage } from 'multer';
 import { EnableCors } from '../auth/decorators/cors.decorator';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
+
 
 @ApiBearerAuth('JWT') 
 @ApiSecurity('x-api-key')
@@ -23,7 +23,10 @@ import { EnableCors } from '../auth/decorators/cors.decorator';
 
 
 export class PedidosPersonalizadosController {
-    constructor(private readonly service: PedidosPersonalizadosService) {}
+        constructor(
+        private readonly service: PedidosPersonalizadosService,
+        private readonly cloudinaryService: CloudinaryService,
+    ) {}
     
     // GET /pedidos-personalizados/materiales
     @Public()
@@ -169,17 +172,7 @@ export class PedidosPersonalizadosController {
     // POST /pedidos-personalizados/materiales/disenos/:idDiseno/imagen
     @Post('materiales/disenos/:idDiseno/imagen')
     @UseInterceptors(FileInterceptor('imagen', {
-        storage: diskStorage({
-            destination: (req, file, cb) => {
-                const carpeta = './uploads/materiales';
-                mkdirSync(carpeta, { recursive: true });
-                cb(null, carpeta);
-            },
-            filename: (req, file, cb) => {
-                const nombre = `diseno-${req.params.idDiseno}-${Date.now()}${extname(file.originalname)}`;
-                cb(null, nombre);
-            },
-        }),
+        storage: memoryStorage(),
         fileFilter: (req, file, cb) => {
             if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
                 return cb(new Error('Solo imagines'), false);
@@ -197,12 +190,13 @@ export class PedidosPersonalizadosController {
             throw new BadRequestException('Es necesario subir un archivo de imagen');
         }
         try {
-            return await this.service.actualizarImagenDiseno(+idDiseno, file);
+            const url_imagen = await this.cloudinaryService.subirImagen(file.buffer, 'materiales');
+            return await this.service.actualizarImagenDiseno(+idDiseno, url_imagen);
         } catch (error: any) {
             if (error instanceof NotFoundException || error instanceof BadRequestException) {
                 throw error;
             }
-            throw new InternalServerErrorException('Error al subir la imagen del diseño');
+            throw new InternalServerErrorException('Error al subir la imagen del diseño a Cloudinary');
         }
     }
 
@@ -305,17 +299,7 @@ export class PedidosPersonalizadosController {
     // POST /pedidos-personalizados/materiales/:id/imagen
     @Post('materiales/:id/imagen')
     @UseInterceptors(FileInterceptor('imagen', {
-        storage: diskStorage({
-            destination: (req, file, cb) => {
-                const carpeta = './uploads/materiales';
-                mkdirSync(carpeta, { recursive: true });
-                cb(null, carpeta);
-            },
-            filename: (req, file, cb) => {
-                const nombre = `material-${req.params.id}-${Date.now()}${extname(file.originalname)}`;
-                cb(null, nombre);
-            },
-        }),
+        storage: memoryStorage(),
         fileFilter: (req, file, cb) => {
             if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
                 return cb(new Error('Solo imagines'), false);
@@ -339,7 +323,8 @@ export class PedidosPersonalizadosController {
         throw new BadRequestException('Es necesario subir un archivo de imagen');
     }
         try {
-            const materialConImagen = await this.service.actualizarImagenMaterial(+id, file);
+            const url_imagen = await this.cloudinaryService.subirImagen(file.buffer, 'materiales');
+            const materialConImagen = await this.service.actualizarImagenMaterial(+id, url_imagen);
 
             if (!materialConImagen) {
                 throw new NotFoundException('Material no encontrado');
@@ -352,9 +337,10 @@ export class PedidosPersonalizadosController {
             ) {
                 throw error;
             }
-            throw new InternalServerErrorException('Error al subir imagen del material');
+            throw new InternalServerErrorException('Error al subir imagen del material a Cloudinary');
         }
     }
+
 
     // POST /pedidos-personalizados
     @Post()

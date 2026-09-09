@@ -6,11 +6,8 @@ import Header from '../../components/Header_c.jsx';
 import Footer from '../../components/Footer.jsx';
 import { AuthContext } from '../../context/AuthContext.jsx';
 import { apiGet, apiPost } from '../../context/api.js';
+import { getImageUrl } from '../../utils/getImageUrl.js';
 
-const getImageUrl = (rutaImagen) => {
-    if (!rutaImagen) return null;
-    return `http://localhost:3000${rutaImagen}`;
-};
 
 const METROS_POR_TAMANO = {
     sencilla:  4,

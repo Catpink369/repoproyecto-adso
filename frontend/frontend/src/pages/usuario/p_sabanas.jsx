@@ -6,11 +6,7 @@ import Header from '../../components/Header_c.jsx';
 import Footer from '../../components/Footer.jsx';
 import { AuthContext } from '../../context/AuthContext.jsx';
 import { apiGet, apiPost } from '../../context/api.js';
-
-const getImageUrl = (rutaImagen) => {
-    if (!rutaImagen) return null;
-    return `http://localhost:3000${rutaImagen}`;
-};
+import { getImageUrl } from '../../utils/getImageUrl.js';
 
 const METROS_POR_TAMANO = {
     cuna:        3,

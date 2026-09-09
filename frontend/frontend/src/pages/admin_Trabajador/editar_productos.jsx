@@ -6,6 +6,7 @@ import "../../components/css/styles.css";
 import { AuthContext } from "../../context/AuthContext.jsx";
 
 import { apiPatch, apiGet } from "../../context/api.js";
+import { getImageUrl as formatearRutaImagen } from '../../utils/getImageUrl.js';
 
 export default function EditarProducto() {
     const { userId } = useContext(AuthContext);
@@ -35,14 +36,6 @@ export default function EditarProducto() {
     const [mensaje, setMensaje] = useState({ text: '', type: '' });
     const [cargando, setCargando] = useState(false);
     const [cargandoDatos, setCargandoDatos] = useState(true);
-
-    const formatearRutaImagen = (ruta) => {
-        if (!ruta) return null;
-        if (ruta.startsWith('http://') || ruta.startsWith('https://')) return ruta;
-        const rutaNormalizada = ruta.replace(/\\/g, '/');
-        const rutaLimpia = rutaNormalizada.startsWith('/') ? rutaNormalizada : `/${rutaNormalizada}`;
-        return `http://localhost:3000${rutaLimpia}`;
-    };
 
     useEffect(() => {
         const cargarProducto = async () => {

@@ -5,18 +5,14 @@ import Header from '../../components/Header_c.jsx';
 import Footer from '../../components/Footer.jsx';
 import '../../components/css/styles.css';
 import { secureStorage } from '../../utils/storage';
+import { getImageUrl } from '../../utils/getImageUrl.js';
+
 
 const Carrito = () => {
     const navigate = useNavigate();
     
     // Extraemos "clearCart" (o "vaciarCarrito") del contexto de tu carrito
     const { cartItems, updateQuantity, removeItem, clearCart, getCartTotal, getTotalItems } = useCart();
-
-    // Función para obtener la URL de la imagen
-    const getImageUrl = (rutaImagen) => {
-        if (!rutaImagen) return 'https://placehold.co/400x300?text=Gurama+Online/100x100?text=Sin+Imagen';
-        return `http://localhost:3000${rutaImagen}`;
-    };
 
     const formatPrice = (price) => {
         return price.toLocaleString('es-CO', {
