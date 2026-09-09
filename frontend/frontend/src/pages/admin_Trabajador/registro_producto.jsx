@@ -146,7 +146,7 @@ export default function FormularioProductoNuevo() {
                 const formDataImagen = new FormData();
                 formDataImagen.append('imagen_producto', imagen);
 
-                const imagenRes = await fetch(`http://localhost:3000/productos/${idNuevo}/imagen`, {
+                const imagenRes = await fetch(`${import.meta.env.VITE_API_URL}/productos/${idNuevo}/imagen`, {
                     method: 'POST',
                     headers: {
                         'x-api-key': import.meta.env.VITE_API_KEY,

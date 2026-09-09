@@ -153,7 +153,7 @@ export default function EditarProducto() {
                 const formDataImagen = new FormData();
                 formDataImagen.append('imagen_producto', imagenNueva);
 
-                const imagenRes = await fetch(`http://localhost:3000/productos/${productoId}/imagen`, {
+                const imagenRes = await fetch(`${import.meta.env.VITE_API_URL}/productos/${productoId}/imagen`, {
                     method: 'POST',
                     headers: {
                         'x-api-key': import.meta.env.VITE_API_KEY,

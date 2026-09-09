@@ -23,7 +23,8 @@ async function bootstrap() {
 
   // Solicitudes CORS
   app.enableCors({
-    origin: 'http://localhost:5173', // puerto de Vite/React
+    'http://localhost:5173',   // desarrollo con vite dev
+    'http://localhost:8080',   // frontend dockerizado en local
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     credentials: true,
   });

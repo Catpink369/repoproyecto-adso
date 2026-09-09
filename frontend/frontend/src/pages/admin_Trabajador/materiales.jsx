@@ -4,7 +4,7 @@ import '../../components/css/styles.css';
 import { apiGet, apiPost, apiPatch, apiDelete } from '../../context/api.js';
 import { getImageUrl } from '../../utils/getImageUrl.js';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 const TIPOS = ['Todos', 'Tela', 'Bordado', 'Diseño', 'Relleno', 'Accesorio'];
 const TIPO_COLORS = {
     Tela:      'badge-tipo-Tela',

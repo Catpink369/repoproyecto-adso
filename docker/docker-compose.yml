@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: ../backend/backend
+      dockerfile: Dockerfile
+    container_name: gurama-backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ../backend/backend/.env
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_API_KEY: ${VITE_API_KEY}
+        VITE_STORAGE_KEY: ${VITE_STORAGE_KEY}
+    container_name: gurama-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

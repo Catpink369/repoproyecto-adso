@@ -80,7 +80,7 @@ export default function PerfilAdmin() {
 
         try {
             const response = await fetch(
-                `http://localhost:3000/usuarios/${user.id_usuario}/imagen`,
+                `${import.meta.env.VITE_API_URL}/usuarios/${user.id_usuario}/imagen`,
                 {
                     method: 'POST',
                     headers: {

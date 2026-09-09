@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 const PLACEHOLDER = 'https://placehold.co/400x300?text=Gurama+Online/400x400?text=Sin+Imagen';
 
 // Devuelve la URL completa para mostrar una imagen de producto/material/diseño.

@@ -1,0 +1,2 @@
+# Docker Compose env (variables VITE_* para el build del frontend)
+docker/.env
