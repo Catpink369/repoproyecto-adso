@@ -24,9 +24,9 @@ export class AuthController {
         }
 
         res.cookie('access_token', this.authService.generateToken(result.user), {
-            httpOnly: true,    
-            secure: false,        // false en desarrollo (localhost no tiene HTTPS)
-            sameSite: 'lax', 
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // true en Render (HTTPS), false en localhost
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' permite Vercel <-> Render
             maxAge: 8 * 60 * 60 * 1000,
         });
 
@@ -43,9 +43,9 @@ export class AuthController {
         const result = await this.authService.verifyCode(dto.id_usuario, dto.codigo);
 
         res.cookie('access_token', this.authService.generateToken(result.user), {
-            httpOnly: true,    
-            secure: false,        // false en desarrollo (localhost no tiene HTTPS)
-            sameSite: 'lax', 
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // true en Render (HTTPS), false en localhost
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' permite Vercel <-> Render
             maxAge: 8 * 60 * 60 * 1000,
         });
 
