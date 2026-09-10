@@ -273,6 +273,7 @@ export class PedidosPersonalizadosService {
   // CREAR PEDIDO PERSONALIZADO
   // --------------------------------------------------------
   async crearPedido(dto: CreatePedidoPersonalizadoDto) {
+	console.log('controller - crear pedido personalizado (entrada):', JSON.stringify(dto));
     // ── Guard: el DTO ya valida esto vía ValidationPipe (@ArrayNotEmpty en
     // materiales, @IsNotEmpty en tipo_producto/tamanio), pero se revalida
     // aquí como defensa en profundidad — misma paridad que
@@ -455,6 +456,7 @@ export class PedidosPersonalizadosService {
 
         break;
       } catch (error: any) {
+	console.error('ERROR crearPedido (pedido personalizado):', error);
         if (this.esColisionUnica(error, 'num_ticket') && intento < this.MAX_INTENTOS_TICKET) {
           continue;
         }
