@@ -7,6 +7,7 @@ const getHeaders = () => {
     return {
         'Content-Type': 'application/json',
         'x-api-key': import.meta.env.VITE_API_KEY,
+        ...(token && { 'Authorization': `Bearer ${token}` }),
     };
 };
 

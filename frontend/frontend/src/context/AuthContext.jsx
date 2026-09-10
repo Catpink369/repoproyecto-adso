@@ -68,6 +68,7 @@ export const AuthProvider = ({ children }) => {
 
             updateusuarioActual(user);
             clearusuarioPendiente();
+            localStorage.setItem('token', data.token);
             return { success: true, user };
 
         } catch (error) {
@@ -98,6 +99,7 @@ export const AuthProvider = ({ children }) => {
             if (data.success) {
                 updateusuarioActual(data.user);
                 clearusuarioPendiente();
+                localStorage.setItem('token', data.token);
                 return { success: true, user: data.user };
             }
 
@@ -123,6 +125,7 @@ export const AuthProvider = ({ children }) => {
         clearusuarioPendiente();
         secureStorage.removeItem('user', localStorage);
         secureStorage.removeItem('user', sessionStorage);
+        localStorage.removeItem('token'); 
     };
 
     const userId = usuarioActual ? usuarioActual.id_usuario : null;
