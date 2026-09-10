@@ -3,7 +3,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 // Obtiene los headers con token y authorization
 const getHeaders = () => {
-    
+    const token = localStorage.getItem('token');
     return {
         'Content-Type': 'application/json',
         'x-api-key': import.meta.env.VITE_API_KEY,
