@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import Sidebar from "../../components/Sidebar_p-a";
 import HeaderPedidos from "../../components/HeaderPedidos";
 import "../../components/css/styles.css";
-import { apiGet, apiPatch, apiPost } from '../../context/api.js';
+import { apiGet, apiPatch } from '../../context/api.js';
 import { AuthContext } from '../../context/AuthContext.jsx';
 
 export default function PedidosRealizados() {
@@ -22,23 +22,16 @@ export default function PedidosRealizados() {
     const [procesandoMetodo, setProcesandoMetodo] = useState(false);
 
     const [filtroTipo, setFiltroTipo] = useState('todos');
-
-    // 'desc' = más reciente arriba (default), 'asc' = más antiguo arriba.
-    // El orden es puramente por fecha, sin importar estado ni método de pago.
     const [ordenFecha, setOrdenFecha] = useState('desc');
 
     const opcionesMetodoPago = ['Por_definir', 'Efectivo', 'Tarjeta', 'Transferencia', 'Nequi', 'DaviPlata'];
 
-    // Espejo de TRANSICIONES_VALIDAS en pedidos.service.ts — evita ofrecer en
-    // el <select> un salto que el backend igual va a rechazar.
     const TRANSICIONES_VALIDAS = {
         'Pendiente':      ['En preparación'],
         'En preparación': ['Pagado'],
         'Pagado':         ['Entregado', 'Finalizado'],
     };
 
-    // Opciones que tiene sentido mostrar para ESTE pedido: su estado actual
-    // (para poder dejarlo igual) + los siguientes pasos válidos desde ahí.
     const opcionesEstadoPara = (estadoActual) => {
         const siguientes = TRANSICIONES_VALIDAS[estadoActual] || [];
         return [estadoActual, ...siguientes];
@@ -47,9 +40,6 @@ export default function PedidosRealizados() {
     useEffect(() => { cargarPedidos(); }, []);
 
     // ─── CARGAR PEDIDOS ───────────────────────────────────────────────────────
-    // silent=true: se usa para resincronizar en segundo plano después de
-    // guardar un cambio, sin mostrar la pantalla de "Cargando pedidos..."
-    // (evita el parpadeo/perder la fila expandida en cada guardado).
     const cargarPedidos = async (silent = false) => {
         if (!silent) setLoading(true);
         try {
@@ -77,9 +67,6 @@ export default function PedidosRealizados() {
                 _tipo:           'personalizado',
             }));
 
-            // Orden base: siempre por fecha, más reciente primero. El orden
-            // visible real (asc/desc) se aplica luego en pedidosFiltrados
-            // según ordenFecha, sin depender de estado ni método de pago.
             const todos = [...estandar, ...personalizados].sort(
                 (a, b) => new Date(b.fecha) - new Date(a.fecha)
             );
@@ -126,8 +113,6 @@ export default function PedidosRealizados() {
     };
 
     // ─── HELPERS ──────────────────────────────────────────────────────────────
-    const esPedidoPersonalizado = (detalle) => detalle?._tipo === 'personalizado';
-
     const obtenerTotal = (obj) =>
         obj?.ticket_compra?.precio_total
         ?? obj?.ticket_compra?.total_ticket
@@ -149,15 +134,13 @@ export default function PedidosRealizados() {
         return 'N/A';
     };
 
-    // ─── ESTADO ───────────────────────────────────────────────────────────────
+    // ─── GUARDAR ESTADO (Ajustado igual al método de pago) ────────────────────
     const handleEditarEstado = (pedido) => {
         setEditandoId(pedido.id_pedido);
         setNuevoEstadoTemp(pedido.estado);
     };
     const handleCancelarEstado = () => { setEditandoId(null); setNuevoEstadoTemp(''); };
 
-    // Espejo de la regla RN-002 (RF-008.2) del backend: no se puede marcar
-    // Entregado/Finalizado mientras el método de pago siga "Por definir".
     const ESTADOS_QUE_REQUIEREN_PAGO = ['Entregado', 'Finalizado'];
     const metodoPagoDefinido = (pedido) => {
         const metodo = pedido.ticket_compra?.metodo_pago?.nom_metodo;
@@ -165,9 +148,6 @@ export default function PedidosRealizados() {
     };
 
     const handleGuardarEstado = async (pedido) => {
-        // RN-002 (RF-008.2): no permitir Entregado/Finalizado sin método de pago.
-        // Se valida también acá (además del backend) para dar feedback inmediato
-        // sin gastar un round-trip al servidor.
         if (ESTADOS_QUE_REQUIEREN_PAGO.includes(nuevoEstadoTemp) && !metodoPagoDefinido(pedido)) {
             alert(
                 `⚠ No puedes marcar este pedido como "${nuevoEstadoTemp}" sin antes definir el método de pago.\n` +
@@ -176,39 +156,27 @@ export default function PedidosRealizados() {
             return;
         }
 
-        // Si no cambió nada, simplemente cierra la edición sin llamar al backend
-        // (evita mandar una "transición" a sí mismo, que el backend rechaza).
         if (nuevoEstadoTemp === pedido.estado) {
             setEditandoId(null);
             setNuevoEstadoTemp('');
             return;
         }
 
-        // Bloquea reintentos/doble-clic mientras la petición está en curso —
-        // sin esto, un segundo clic podía disparar un PATCH duplicado que
-        // llegaba al backend cuando el estado ya había cambiado, y el
-        // rechazo de ese segundo PATCH dejaba el formulario de edición
-        // abierto mostrando datos desincronizados con el backend real.
         setProcesandoEstado(true);
 
         const idParaPatch = pedido._tipo === 'personalizado'
             ? pedido.id_pedido_ref
             : pedido.id_pedido;
+
         try {
             await apiPatch(`/pedidos/${idParaPatch}`, { estado: nuevoEstadoTemp });
 
-            // Actualización optimista del listado. Se compara por id_pedido +
-            // _tipo porque los pedidos personalizados usan un id_ped_personal
-            // que puede coincidir numéricamente con el id de un pedido estándar
-            // (son autoincrementales de tablas distintas) — comparar solo por
-            // id_pedido podía terminar actualizando la fila equivocada.
             setPedidos(prev => prev.map(p =>
                 (p.id_pedido === pedido.id_pedido && p._tipo === pedido._tipo)
                     ? { ...p, estado: nuevoEstadoTemp }
                     : p
             ));
 
-            // Actualizar detalle cacheado si existe
             setDetallesPedido(prev => {
                 if (!prev[pedido.id_pedido]) return prev;
                 return {
@@ -223,9 +191,6 @@ export default function PedidosRealizados() {
             setEditandoId(null);
             setNuevoEstadoTemp('');
 
-            // Resincroniza en segundo plano contra el backend (sin loading
-            // screen) para reflejar cualquier dato derivado (p. ej. estado del
-            // ticket) y como red de seguridad ante cualquier desajuste local.
             cargarPedidos(true);
         } catch (error) {
             console.error('Error al actualizar estado:', error);
@@ -325,19 +290,6 @@ export default function PedidosRealizados() {
         });
     };
 
-    // ─── ESTILOS Y BADGES DE ESTADO ───────────────────────────────────────────
-    const getEstadoStyle = (estado) => {
-        const estilos = {
-            'Pendiente':      { backgroundColor: '#f39c12', color: '#fff' },
-            'En preparación': { backgroundColor: '#3498db', color: '#fff' },
-            'Pagado':         { backgroundColor: '#1399b2', color: '#fff' },
-            'Entregado':      { backgroundColor: '#2ecc71', color: '#fff' },
-            'Finalizado':     { backgroundColor: '#8e44ad', color: '#fff' },
-            'Anulado':        { backgroundColor: '#e74c3c', color: '#fff' },
-        };
-        return estilos[estado] || { backgroundColor: '#95a5a6', color: '#fff' };
-    };
-
     const getEstadoClass = (estado) => {
         const clases = {
             'Pendiente':      'estado-pendiente',
@@ -350,10 +302,6 @@ export default function PedidosRealizados() {
         return `pedido-estado-badge ${clases[estado] || ''}`;
     };
 
-    // ─── INDICADOR VISUAL DE URGENCIA ─────────────────────────────────────────
-    // Ya no decide el orden (eso ahora es solo por fecha), pero se conserva
-    // como acento visual: pago sin definir + estado Pendiente > pago sin
-    // definir > estado Pendiente > sin urgencia.
     const getRowAccent = (pedido) => {
         const metodo = pedido.ticket_compra?.metodo_pago?.nom_metodo || 'Por_definir';
         const esPendienteMetodo = metodo === 'Por_definir';
@@ -400,10 +348,7 @@ export default function PedidosRealizados() {
                 </div>
 
                 <div style={{ marginTop: '15px' }}>
-                    <h5 style={{
-                        color: '#da819f', marginBottom: '10px',
-                        fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px',
-                    }}>
+                    <h5 style={{ color: '#da819f', marginBottom: '10px', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Especificaciones del Producto
                     </h5>
                     <table className="detalle-tabla-productos">
@@ -428,16 +373,10 @@ export default function PedidosRealizados() {
                 </div>
 
                 <div style={{ marginTop: '15px' }}>
-                    <h5 style={{
-                        color: '#da819f', marginBottom: '10px',
-                        fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px',
-                    }}>
+                    <h5 style={{ color: '#da819f', marginBottom: '10px', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Materiales Utilizados
                     </h5>
                     {tieneMateriales ? (
-                        // FIX: se agregan las columnas Concepto, Color y Diseño —
-                        // antes la tabla solo mostraba Material/Tipo/Cantidad/Subtotal
-                        // y esos datos (aunque ya vinieran del backend) nunca se pintaban.
                         <table className="detalle-tabla-productos">
                             <thead>
                                 <tr>
@@ -452,9 +391,7 @@ export default function PedidosRealizados() {
                             <tbody>
                                 {materiales.map((det, idx) => (
                                     <tr key={idx}>
-                                        <td className="detalle-producto-nombre">
-                                            {det.concepto || '—'}
-                                        </td>
+                                        <td className="detalle-producto-nombre">{det.concepto || '—'}</td>
                                         <td>
                                             {det.material?.nombre || 'N/A'}
                                             <div style={{ fontSize: '11px', color: '#999' }}>
@@ -468,9 +405,7 @@ export default function PedidosRealizados() {
                                                 {det.cantidad} {det.material?.unidad || ''}
                                             </span>
                                         </td>
-                                        <td className="detalle-producto-subtotal">
-                                            {formatPrice(det.subtotal)}
-                                        </td>
+                                        <td className="detalle-producto-subtotal">{formatPrice(det.subtotal)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -482,24 +417,8 @@ export default function PedidosRealizados() {
                             </tfoot>
                         </table>
                     ) : (
-                        <div style={{
-                            padding: '12px 16px',
-                            background: '#fdf3f7',
-                            border: '1px dashed #da819f',
-                            borderRadius: '8px',
-                            color: '#999',
-                            fontSize: '13px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                        }}>
-                            <span>⚠️</span>
-                            <span>
-                                No hay detalle de materiales registrado para este pedido.
-                                <strong style={{ color: '#da819f', marginLeft: '4px' }}>
-                                    Total: {formatPrice(obtenerTotal(d))}
-                                </strong>
-                            </span>
+                        <div style={{ padding: '12px 16px', background: '#fdf3f7', border: '1px dashed #da819f', borderRadius: '8px', color: '#999', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>⚠️ No hay detalle de materiales registrado para este pedido. <strong style={{ color: '#da819f', marginLeft: '4px' }}>Total: {formatPrice(obtenerTotal(d))}</strong></span>
                         </div>
                     )}
                 </div>
@@ -508,15 +427,11 @@ export default function PedidosRealizados() {
                     <div className="detalle-pago-info">
                         <div className="detalle-pago-metodo">
                             <strong>Método de Pago:</strong>{' '}
-                            <span className="detalle-pago-metodo-valor">
-                                {d.ticket_compra?.metodo_pago?.nom_metodo || 'Por_definir'}
-                            </span>
+                            <span className="detalle-pago-metodo-valor">{d.ticket_compra?.metodo_pago?.nom_metodo || 'Por_definir'}</span>
                         </div>
                         <div className="detalle-pago-estado">
                             <strong>Estado de Pago:</strong>{' '}
-                            <span className="detalle-estado-pago-badge">
-                                {d.ticket_compra?.estado_pago?.nom_metodo || 'N/A'}
-                            </span>
+                            <span className="detalle-estado-pago-badge">{d.ticket_compra?.estado_pago?.nom_metodo || 'N/A'}</span>
                         </div>
                     </div>
                 </div>
@@ -531,11 +446,7 @@ export default function PedidosRealizados() {
             <div className="detalle-pedido-container">
                 <h4 className="detalle-pedido-titulo">
                     Detalle del Pedido #{pedidoId}
-                    <span style={{
-                        marginLeft: '10px', fontSize: '13px',
-                        background: '#5dade2', color: '#fff',
-                        padding: '2px 10px', borderRadius: '20px',
-                    }}>
+                    <span style={{ marginLeft: '10px', fontSize: '13px', background: '#5dade2', color: '#fff', padding: '2px 10px', borderRadius: '20px' }}>
                         Pedido Estándar
                     </span>
                 </h4>
@@ -575,8 +486,8 @@ export default function PedidosRealizados() {
                             </tr>
                         ) : (
                             productos.map((item, idx) => {
-                                const nombre   = item.producto?.nom_producto ?? item.nom_producto ?? 'N/A';
-                                const precio   = item.producto?.precio_unitario ?? item.precio_unitario ?? 0;
+                                const nombre = item.producto?.nom_producto ?? item.nom_producto ?? 'N/A';
+                                const precio = item.producto?.precio_unitario ?? item.precio_unitario ?? 0;
                                 const cantidad = item.cantidad ?? 1;
                                 return (
                                     <tr key={idx}>
@@ -585,9 +496,7 @@ export default function PedidosRealizados() {
                                         <td style={{ textAlign: 'center' }}>
                                             <span className="detalle-producto-cantidad-badge">{cantidad}</span>
                                         </td>
-                                        <td className="detalle-producto-subtotal">
-                                            {formatPrice(Number(precio) * cantidad)}
-                                        </td>
+                                        <td className="detalle-producto-subtotal">{formatPrice(Number(precio) * cantidad)}</td>
                                     </tr>
                                 );
                             })
@@ -605,15 +514,11 @@ export default function PedidosRealizados() {
                     <div className="detalle-pago-info">
                         <div className="detalle-pago-metodo">
                             <strong>Método de Pago:</strong>{' '}
-                            <span className="detalle-pago-metodo-valor">
-                                {d.ticket_compra?.metodo_pago?.nom_metodo || 'Por_definir'}
-                            </span>
+                            <span className="detalle-pago-metodo-valor">{d.ticket_compra?.metodo_pago?.nom_metodo || 'Por_definir'}</span>
                         </div>
                         <div className="detalle-pago-estado">
                             <strong>Estado de Pago:</strong>{' '}
-                            <span className="detalle-estado-pago-badge">
-                                {d.ticket_compra?.estado_pago?.nom_metodo || 'N/A'}
-                            </span>
+                            <span className="detalle-estado-pago-badge">{d.ticket_compra?.estado_pago?.nom_metodo || 'N/A'}</span>
                         </div>
                     </div>
                 </div>
@@ -621,18 +526,21 @@ export default function PedidosRealizados() {
         );
     };
 
-    // ─── PEDIDOS FILTRADOS ────────────────────────────────────────────────────
-    // FIX: los pedidos Anulados ahora se agrupan en su propia pestaña.
-    // "Todos", "Estándar" y "Personalizado" los excluyen; solo se ven
-    // entrando a la pestaña "Anulados" (sin importar si eran estándar o
-    // personalizados).
-    const pedidosFiltrados = pedidos.filter(p => {
-        if (filtroTipo === 'anulados')      return p.estado === 'Anulado';
-        if (p.estado === 'Anulado')         return false;
-        if (filtroTipo === 'estandar')      return p._tipo === 'estandar';
-        if (filtroTipo === 'personalizado') return p._tipo === 'personalizado';
-        return true;
-    });
+    // ─── PEDIDOS FILTRADOS Y ORDENADOS ────────────────────────────────────────
+    const pedidosFiltrados = pedidos
+        .filter(p => {
+            if (filtroTipo === 'anulados') return p.estado === 'Anulado';
+            if (p.estado === 'Anulado') return false;
+            if (filtroTipo === 'estandar') return p._tipo === 'estandar';
+            if (filtroTipo === 'personalizado') return p._tipo === 'personalizado';
+            if (filtroTipo === 'finalizados') return p.estado === 'Finalizado';
+            return true;
+        })
+        .sort((a, b) => {
+            const fechaA = new Date(a.fecha);
+            const fechaB = new Date(b.fecha);
+            return ordenFecha === 'asc' ? fechaA - fechaB : fechaB - fechaA;
+        });
 
     // ─── RENDER ───────────────────────────────────────────────────────────────
     if (loading) return (
@@ -652,60 +560,18 @@ export default function PedidosRealizados() {
                 <HeaderPedidos />
                 <section className="cuadro-blanco pedidos">
 
-                    {/* Fila 1: título + filtros de categoría (Todos / Finalizados / Anulados) */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '12px',
-                        marginBottom: '14px',
-                    }}>
-                        <h2 style={{ margin: 0 }}>
-                            Pedidos Realizados ({pedidosFiltrados.length})
-                        </h2>
+                    {/* Controles superiores */}
+                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                        <h2 style={{ margin: 0 }}>Pedidos Realizados ({pedidosFiltrados.length})</h2>
                         <span style={{ color: '#ccc', fontSize: '20px' }}>|</span>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                             <span style={{ fontWeight: '500', fontSize: '14px', color: '#666' }}>Filtrar:</span>
                             {[
-                                { value: 'todos',       label: 'Todos',       color: '#888'    },
-                                { value: 'finalizados', label: 'Finalizados', color: '#8e44ad' },
-                                { value: 'anulados',    label: 'Anulados',    color: '#e74c3c' },
-                            ].map(({ value, label, color }) => (
-                                <button
-                                    key={value}
-                                    onClick={() => setFiltroTipo(value)}
-                                    style={{
-                                        padding: '5px 14px',
-                                        borderRadius: '20px',
-                                        border: filtroTipo === value ? 'none' : `1.5px solid ${color}`,
-                                        cursor: 'pointer',
-                                        fontSize: '13px',
-                                        fontWeight: filtroTipo === value ? 'bold' : 'normal',
-                                        background: filtroTipo === value ? color : 'transparent',
-                                        color: filtroTipo === value ? '#fff' : color,
-                                        transition: 'all 0.15s ease',
-                                    }}
-                                >
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Fila 2: filtros de tipo (Estándar / Personalizado) + orden por fecha */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        justifyContent: 'space-between',
-                        gap: '12px',
-                        marginBottom: '20px',
-                    }}>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            {[
-                                { value: 'estandar',      label: 'Estándar',      color: '#5dade2' },
+                                { value: 'todos', label: 'Todos', color: '#888' },
+                                { value: 'estandar', label: 'Estándar', color: '#5dade2' },
                                 { value: 'personalizado', label: 'Personalizado', color: '#da819f' },
-                                { value: 'anulados',      label: 'Anulados',      color: '#e74c3c' },
+                                { value: 'finalizados', label: 'Finalizados', color: '#8e44ad' },
+                                { value: 'anulados', label: 'Anulados', color: '#e74c3c' },
                             ].map(({ value, label, color }) => (
                                 <button
                                     key={value}
@@ -714,24 +580,23 @@ export default function PedidosRealizados() {
                                         padding: '5px 14px',
                                         borderRadius: '20px',
                                         border: filtroTipo === value ? 'none' : `1.5px solid ${color}`,
-                                        cursor: 'pointer',
-                                        fontSize: '13px',
-                                        fontWeight: filtroTipo === value ? 'bold' : 'normal',
-                                        background: filtroTipo === value ? color : 'transparent',
+                                        backgroundColor: filtroTipo === value ? color : 'transparent',
                                         color: filtroTipo === value ? '#fff' : color,
-                                        transition: 'all 0.15s ease',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
                                     }}
                                 >
                                     {label}
                                 </button>
                             ))}
                         </div>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <span style={{ fontWeight: '500', fontSize: '14px', color: '#666' }}>Ordenar:</span>
+
+                        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <label style={{ fontSize: '14px', fontWeight: '500', color: '#666' }}>Ordenar:</label>
                             <select
                                 value={ordenFecha}
                                 onChange={(e) => setOrdenFecha(e.target.value)}
-                                className="pedido-estado-select"
+                                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #ccc' }}
                             >
                                 <option value="desc">Más reciente primero</option>
                                 <option value="asc">Más antiguo primero</option>
@@ -739,287 +604,166 @@ export default function PedidosRealizados() {
                         </div>
                     </div>
 
-                    {/* Leyenda de colores de urgencia */}
-                    <div style={{
-                        display: 'flex', gap: '16px', marginBottom: '12px',
-                        fontSize: '12px', color: '#888', flexWrap: 'wrap',
-                    }}>
-                        {[
-                            { color: '#e74c3c', label: 'Pago sin definir + estado Pendiente' },
-                            { color: '#e67e22', label: 'Método de pago sin definir'          },
-                            { color: '#f1c40f', label: 'Estado Pendiente'                    },
-                        ].map(({ color, label }) => (
-                            <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <span style={{
-                                    display: 'inline-block', width: '10px', height: '10px',
-                                    borderRadius: '50%', background: color,
-                                }} />
-                                {label}
-                            </span>
-                        ))}
-                    </div>
-
-                    <div className="tabla-usuarios">
-                        <table>
-                            <thead>
+                    {/* Tabla Principal */}
+                    <table className="tabla-pedidos">
+                        <thead>
+                            <tr>
+                                <th>PEDIDO #</th>
+                                <th>CLIENTE</th>
+                                <th>FECHA</th>
+                                <th>ESTADO</th>
+                                <th>MÉTODO PAGO</th>
+                                <th>TOTAL</th>
+                                <th>ITEMS</th>
+                                <th>ACCIONES</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {pedidosFiltrados.length === 0 ? (
                                 <tr>
-                                    <th>Pedido #</th>
-                                    <th>Cliente</th>
-                                    <th>Fecha</th>
-                                    <th>Estado</th>
-                                    <th>Método Pago</th>
-                                    <th>Total</th>
-                                    <th>Items</th>
-                                    <th>Acciones</th>
+                                    <td colSpan="8" style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                                        No hay pedidos registrados en esta categoría.
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {pedidosFiltrados.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="8" className="pedidos-tabla-vacia">
-                                            No hay pedidos registrados todavía
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    pedidosFiltrados.map((pedido) => {
-                                        const accentColor = getRowAccent(pedido);
-                                        return (
-                                            <React.Fragment key={`${pedido._tipo}-${pedido.id_pedido}`}>
-                                                <tr style={{
-                                                    borderLeft: accentColor !== 'transparent'
-                                                        ? `4px solid ${accentColor}`
-                                                        : '4px solid transparent',
-                                                }}>
-                                                    {/* PEDIDO # */}
-                                                    <td>
-                                                        <strong className="pedido-id">#{pedido.id_pedido}</strong>
-                                                        {pedido._tipo === 'personalizado' && (
-                                                            <span style={{
-                                                                display: 'block', fontSize: '11px',
-                                                                color: '#da819f', fontWeight: 'bold',
-                                                            }}>
-                                                                Personalizado
-                                                            </span>
-                                                        )}
-                                                        {pedido.ticket_compra?.num_ticket && (
-                                                            <span className="pedido-ticket">
-                                                                Ticket: {pedido.ticket_compra.num_ticket}
-                                                            </span>
-                                                        )}
-                                                    </td>
+                            ) : (
+                                pedidosFiltrados.map((pedido) => {
+                                    const id = pedido.id_pedido;
+                                    const estaExpandido = expandedPedido === id;
+                                    const estaEditandoEstado = editandoId === id;
+                                    const estaEditandoMetodo = editandoMetodoId === id;
+                                    const metodoNombre = pedido.ticket_compra?.metodo_pago?.nom_metodo || 'Por_definir';
 
-                                                    {/* CLIENTE */}
-                                                    <td>
-                                                        <div className="pedido-cliente-nombre">
-                                                            {pedido.usuario
-                                                                ? `${pedido.usuario.nom_1} ${pedido.usuario.ape_1}`
-                                                                : 'N/A'}
-                                                        </div>
-                                                        <span className="pedido-cliente-telefono">
-                                                            {pedido.usuario?.telefono?.toString() || 'N/A'}
-                                                        </span>
-                                                    </td>
-
-                                                    {/* FECHA */}
-                                                    <td className="pedido-fecha">{formatFecha(pedido.fecha)}</td>
-
-                                                    {/* ESTADO */}
-                                                    <td>
-                                                        {editandoId === pedido.id_pedido ? (
+                                    return (
+                                        <React.Fragment key={`${pedido._tipo}-${id}`}>
+                                            <tr style={{ borderLeft: `5px solid ${getRowAccent(pedido)}` }}>
+                                                <td>
+                                                    <strong>#{id}</strong>
+                                                    <div style={{ fontSize: '11px', color: pedido._tipo === 'personalizado' ? '#da819f' : '#5dade2' }}>
+                                                        {pedido._tipo === 'personalizado' ? 'Personalizado' : 'Estándar'}
+                                                    </div>
+                                                </td>
+                                                <td>{obtenerNombreCliente(pedido.usuario)}</td>
+                                                <td>{formatFecha(pedido.fecha)}</td>
+                                                
+                                                {/* Celda Estado */}
+                                                <td>
+                                                    {estaEditandoEstado ? (
+                                                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                                             <select
                                                                 value={nuevoEstadoTemp}
                                                                 onChange={(e) => setNuevoEstadoTemp(e.target.value)}
-                                                                className="pedido-estado-select"
+                                                                disabled={procesandoEstado}
                                                             >
-                                                                {opcionesEstadoPara(pedido.estado).map(op => {
-                                                                    const requierePago =
-                                                                        ESTADOS_QUE_REQUIEREN_PAGO.includes(op) &&
-                                                                        !metodoPagoDefinido(pedido);
-                                                                    return (
-                                                                        <option key={op} value={op} disabled={requierePago}>
-                                                                            {op}{requierePago ? ' (requiere método de pago)' : ''}
-                                                                        </option>
-                                                                    );
-                                                                })}
+                                                                {opcionesEstadoPara(pedido.estado).map(op => (
+                                                                    <option key={op} value={op}>{op}</option>
+                                                                ))}
                                                             </select>
-                                                        ) : (
-                                                            <span 
-                                                                className={getEstadoClass(pedido.estado)}
-                                                                style={{
-                                                                    display: 'inline-block',
-                                                                    padding: '4px 12px',
-                                                                    borderRadius: '12px',
-                                                                    fontWeight: 'bold',
-                                                                    fontSize: '12px',
-                                                                    textAlign: 'center',
-                                                                    ...getEstadoStyle(pedido.estado)
-                                                                }}
+                                                            <button 
+                                                                onClick={() => handleGuardarEstado(pedido)}
+                                                                disabled={procesandoEstado}
                                                             >
-                                                                {pedido.estado}
-                                                            </span>
-                                                        )}
-                                                    </td>
+                                                                {procesandoEstado ? '...' : '✓'}
+                                                            </button>
+                                                            <button 
+                                                                onClick={handleCancelarEstado}
+                                                                disabled={procesandoEstado}
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <span className={getEstadoClass(pedido.estado)}>
+                                                            {pedido.estado}
+                                                        </span>
+                                                    )}
+                                                </td>
 
-                                                    {/* MÉTODO PAGO */}
-                                                    <td className="pedido-metodo-pago">
-                                                        {editandoMetodoId === pedido.id_pedido ? (
+                                                {/* Celda Método Pago */}
+                                                <td>
+                                                    {estaEditandoMetodo ? (
+                                                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                                             <select
                                                                 value={nuevoMetodoTemp}
                                                                 onChange={(e) => setNuevoMetodoTemp(e.target.value)}
-                                                                className="pedido-estado-select"
                                                                 disabled={procesandoMetodo}
                                                             >
-                                                                {opcionesMetodoPago.map(op =>
-                                                                    <option key={op} value={op}>{op}</option>
-                                                                )}
+                                                                {opcionesMetodoPago.map(met => (
+                                                                    <option key={met} value={met}>{met}</option>
+                                                                ))}
                                                             </select>
-                                                        ) : (
-                                                            <span className={
-                                                                (!pedido.ticket_compra?.metodo_pago?.nom_metodo ||
-                                                                    pedido.ticket_compra?.metodo_pago?.nom_metodo === 'Por_definir')
-                                                                    ? 'pedido-estado-badge estado-pendiente'
-                                                                    : 'pedido-estado-badge estado-en-proceso'
-                                                            }>
-                                                                {pedido.ticket_compra?.metodo_pago?.nom_metodo || 'Por_definir'}
-                                                            </span>
-                                                        )}
-                                                    </td>
-
-                                                    {/* TOTAL */}
-                                                    <td>
-                                                        <strong className="pedido-total">
-                                                            {formatPrice(obtenerTotal(pedido))}
-                                                        </strong>
-                                                    </td>
-
-                                                    {/* ITEMS */}
-                                                    <td>
-                                                        <span className="pedido-productos-badge">
-                                                            {pedido._tipo === 'personalizado'
-                                                                ? '—'
-                                                                : (() => {
-                                                                    const count = pedido.detalles_pedido?.length ?? 0;
-                                                                    return count === 0
-                                                                        ? <span style={{ color: '#e74c3c', fontWeight: 'bold' }}>⚠ Sin items</span>
-                                                                        : `${count} item${count !== 1 ? 's' : ''}`;
-                                                                })()}
-                                                        </span>
-                                                    </td>
-
-                                                    {/* ACCIONES */}
-                                                    <td>
-                                                        <div className="pedido-acciones">
-                                                            {esEstadoFinal(pedido) ? (
-                                                                <span style={{ color: '#9a7a8a', fontSize: '13px', fontStyle: 'italic' }}>
-                                                                    {pedido.estado === 'Anulado' ? 'Pedido anulado' : 'Pedido finalizado'} — sin más acciones
-                                                                </span>
-                                                            ) : (
-                                                                <>
-                                                            {editandoId === pedido.id_pedido ? (
-                                                                <>
-                                                                    <button
-                                                                        onClick={() => handleGuardarEstado(pedido)}
-                                                                        className="btn-guardar"
-                                                                        disabled={procesandoEstado}
-                                                                        style={{ opacity: procesandoEstado ? 0.6 : 1 }}
-                                                                    >
-                                                                        {procesandoEstado ? '...' : '✓ Guardar'}
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={handleCancelarEstado}
-                                                                        className="btn-cancelar-edicion"
-                                                                        disabled={procesandoEstado}
-                                                                    >
-                                                                        ✕ Cancelar
-                                                                    </button>
-                                                                </>
-                                                            ) : (
-                                                                <button
-                                                                    onClick={() => handleEditarEstado(pedido)}
-                                                                    className="btn-editar-estado"
-                                                                    disabled={editandoMetodoId === pedido.id_pedido}
-                                                                >
-                                                                    Editar Estado
-                                                                </button>
-                                                            )}
-
-                                                            {editandoMetodoId === pedido.id_pedido ? (
-                                                                <>
-                                                                    <button
-                                                                        onClick={() => handleGuardarMetodo(pedido)}
-                                                                        className="btn-guardar"
-                                                                        disabled={procesandoMetodo}
-                                                                        style={{ opacity: procesandoMetodo ? 0.6 : 1 }}
-                                                                    >
-                                                                        {procesandoMetodo ? '...' : '✓ Confirmar'}
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={handleCancelarMetodo}
-                                                                        className="btn-cancelar-edicion"
-                                                                        disabled={procesandoMetodo}
-                                                                    >
-                                                                        ✕ Cancelar
-                                                                    </button>
-                                                                </>
-                                                            ) : (
-                                                                <button
-                                                                    onClick={() => handleEditarMetodo(pedido)}
-                                                                    className="btn-editar-estado"
-                                                                    disabled={editandoId === pedido.id_pedido}
-                                                                    style={{ backgroundColor: '#3498db' }}
-                                                                >
-                                                                    Editar Pago
-                                                                </button>
-                                                            )}
-
-                                                            {puedeAnularse(pedido) && (
-                                                                <button
-                                                                    onClick={() => handleAnularPedido(pedido)}
-                                                                    className="btn-editar-estado"
-                                                                    disabled={editandoId === pedido.id_pedido || editandoMetodoId === pedido.id_pedido}
-                                                                    style={{ backgroundColor: '#e74c3c' }}
-                                                                >
-                                                                    Anular pedido
-                                                                </button>
-                                                            )}
-                                                                </>
-                                                            )}
-
-                                                            <button
-                                                                onClick={() => cargarDetallePedido(pedido)}
-                                                                className={`btn-ver-detalles ${expandedPedido === pedido.id_pedido ? 'activo' : ''}`}
+                                                            <button 
+                                                                onClick={() => handleGuardarMetodo(pedido)}
+                                                                disabled={procesandoMetodo}
                                                             >
-                                                                {expandedPedido === pedido.id_pedido ? 'Ocultar' : 'Ver Detalles'}
+                                                                {procesandoMetodo ? '...' : '✓'}
+                                                            </button>
+                                                            <button 
+                                                                onClick={handleCancelarMetodo}
+                                                                disabled={procesandoMetodo}
+                                                            >
+                                                                ✕
                                                             </button>
                                                         </div>
+                                                    ) : (
+                                                        <span style={{
+                                                            padding: '4px 10px',
+                                                            borderRadius: '12px',
+                                                            backgroundColor: metodoNombre === 'Por_definir' ? '#f39c12' : '#2ecc71',
+                                                            color: '#fff',
+                                                            fontSize: '12px',
+                                                            fontWeight: 'bold'
+                                                        }}>
+                                                            {metodoNombre}
+                                                        </span>
+                                                    )}
+                                                </td>
+
+                                                <td>{formatPrice(obtenerTotal(pedido))}</td>
+                                                <td>—</td>
+
+                                                {/* Acciones */}
+                                                <td>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                        {!estaEditandoEstado && !esEstadoFinal(pedido) && (
+                                                            <button onClick={() => handleEditarEstado(pedido)} className="btn-accion">
+                                                                Editar Estado
+                                                            </button>
+                                                        )}
+                                                        {!estaEditandoMetodo && (
+                                                            <button onClick={() => handleEditarMetodo(pedido)} className="btn-accion">
+                                                                Editar Pago
+                                                            </button>
+                                                        )}
+                                                        {puedeAnularse(pedido) && (
+                                                            <button onClick={() => handleAnularPedido(pedido)} className="btn-accion btn-anular">
+                                                                Anular
+                                                            </button>
+                                                        )}
+                                                        <button onClick={() => cargarDetallePedido(pedido)} className="btn-accion">
+                                                            {estaExpandido ? 'Ocultar Detalles' : 'Ver Detalles'}
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+
+                                            {/* Fila desplegable del detalle */}
+                                            {estaExpandido && detallesPedido[id] && (
+                                                <tr>
+                                                    <td colSpan="8">
+                                                        {detallesPedido[id]._tipo === 'personalizado' ? (
+                                                            <DetallePersonalizado d={detallesPedido[id]} pedidoId={id} />
+                                                        ) : (
+                                                            <DetalleEstandar d={detallesPedido[id]} pedidoId={id} />
+                                                        )}
                                                     </td>
                                                 </tr>
-
-                                                {/* FILA EXPANDIDA */}
-                                                {expandedPedido === pedido.id_pedido && detallesPedido[pedido.id_pedido] && (
-                                                    <tr className="detalle-pedido-row">
-                                                        <td colSpan="8">
-                                                            {esPedidoPersonalizado(detallesPedido[pedido.id_pedido]) ? (
-                                                                <DetallePersonalizado
-                                                                    d={detallesPedido[pedido.id_pedido]}
-                                                                    pedidoId={pedido.id_pedido}
-                                                                />
-                                                            ) : (
-                                                                <DetalleEstandar
-                                                                    d={detallesPedido[pedido.id_pedido]}
-                                                                    pedidoId={pedido.id_pedido}
-                                                                />
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </React.Fragment>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
                 </section>
             </main>
         </div>
