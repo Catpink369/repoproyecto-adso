@@ -15,6 +15,7 @@ export default function PedidosRealizados() {
 
     const [editandoId, setEditandoId] = useState(null);
     const [nuevoEstadoTemp, setNuevoEstadoTemp] = useState('');
+    const [procesandoEstado, setProcesandoEstado] = useState(false);
 
     const [editandoMetodoId, setEditandoMetodoId] = useState(null);
     const [nuevoMetodoTemp, setNuevoMetodoTemp] = useState('');
@@ -155,13 +156,18 @@ export default function PedidosRealizados() {
     };
     const handleCancelarEstado = () => { setEditandoId(null); setNuevoEstadoTemp(''); };
 
-    const handleGuardarEstado = async (pedido) => {
-        if (nuevoEstadoTemp === pedido.estado) {
-            setEditandoId(null);
-            setNuevoEstadoTemp('');
-            return;
-        }
+    // Espejo de la regla RN-002 (RF-008.2) del backend: no se puede marcar
+    // Entregado/Finalizado mientras el método de pago siga "Por definir".
+    const ESTADOS_QUE_REQUIEREN_PAGO = ['Entregado', 'Finalizado'];
+    const metodoPagoDefinido = (pedido) => {
+        const metodo = pedido.ticket_compra?.metodo_pago?.nom_metodo;
+        return !!metodo && metodo !== 'Por_definir';
+    };
 
+    const handleGuardarEstado = async (pedido) => {
+        // RN-002 (RF-008.2): no permitir Entregado/Finalizado sin método de pago.
+        // Se valida también acá (además del backend) para dar feedback inmediato
+        // sin gastar un round-trip al servidor.
         if (ESTADOS_QUE_REQUIEREN_PAGO.includes(nuevoEstadoTemp) && !metodoPagoDefinido(pedido)) {
             alert(
                 `⚠ No puedes marcar este pedido como "${nuevoEstadoTemp}" sin antes definir el método de pago.\n` +
@@ -170,10 +176,25 @@ export default function PedidosRealizados() {
             return;
         }
 
+        // Si no cambió nada, simplemente cierra la edición sin llamar al backend
+        // (evita mandar una "transición" a sí mismo, que el backend rechaza).
+        if (nuevoEstadoTemp === pedido.estado) {
+            setEditandoId(null);
+            setNuevoEstadoTemp('');
+            return;
+        }
+
+        // Bloquea reintentos/doble-clic mientras la petición está en curso —
+        // sin esto, un segundo clic podía disparar un PATCH duplicado que
+        // llegaba al backend cuando el estado ya había cambiado, y el
+        // rechazo de ese segundo PATCH dejaba el formulario de edición
+        // abierto mostrando datos desincronizados con el backend real.
+        setProcesandoEstado(true);
+
         const idParaPatch = pedido._tipo === 'personalizado'
             ? pedido.id_pedido_ref
             : pedido.id_pedido;
-        try {        
+        try {
             await apiPatch(`/pedidos/${idParaPatch}`, { estado: nuevoEstadoTemp });
 
             // Actualización optimista del listado. Se compara por id_pedido +
@@ -209,6 +230,8 @@ export default function PedidosRealizados() {
         } catch (error) {
             console.error('Error al actualizar estado:', error);
             alert(error?.response?.data?.message || error?.message || 'Error al actualizar el estado');
+        } finally {
+            setProcesandoEstado(false);
         }
     };
 
@@ -216,14 +239,6 @@ export default function PedidosRealizados() {
     const ESTADOS_FINALES = ['Entregado', 'Finalizado', 'Anulado'];
     const esEstadoFinal = (pedido) => ESTADOS_FINALES.includes(pedido.estado);
     const puedeAnularse = (pedido) => !esEstadoFinal(pedido);
-
-    // Espejo de la regla RN-002 (RF-008.2) del backend: no se puede marcar
-    // Entregado/Finalizado mientras el método de pago siga "Por definir".
-    const ESTADOS_QUE_REQUIEREN_PAGO = ['Entregado', 'Finalizado'];
-    const metodoPagoDefinido = (pedido) => {
-        const metodo = pedido.ticket_compra?.metodo_pago?.nom_metodo;
-        return !!metodo && metodo !== 'Por_definir';
-    };
 
     const handleAnularPedido = async (pedido) => {
         const confirmar = window.confirm(
@@ -902,10 +917,19 @@ export default function PedidosRealizados() {
                                                                 <>
                                                             {editandoId === pedido.id_pedido ? (
                                                                 <>
-                                                                    <button onClick={() => handleGuardarEstado(pedido)} className="btn-guardar">
-                                                                        ✓ Guardar
+                                                                    <button
+                                                                        onClick={() => handleGuardarEstado(pedido)}
+                                                                        className="btn-guardar"
+                                                                        disabled={procesandoEstado}
+                                                                        style={{ opacity: procesandoEstado ? 0.6 : 1 }}
+                                                                    >
+                                                                        {procesandoEstado ? '...' : '✓ Guardar'}
                                                                     </button>
-                                                                    <button onClick={handleCancelarEstado} className="btn-cancelar-edicion">
+                                                                    <button
+                                                                        onClick={handleCancelarEstado}
+                                                                        className="btn-cancelar-edicion"
+                                                                        disabled={procesandoEstado}
+                                                                    >
                                                                         ✕ Cancelar
                                                                     </button>
                                                                 </>
