@@ -101,9 +101,11 @@ export default function PedidosRealizados() {
             );
 
             setPedidos(todos);
+            return todos;
         } catch (error) {
             console.error('Error al cargar pedidos:', error);
             if (!silent) alert('Error al cargar los pedidos');
+            return null; // null = no se pudo verificar el estado real
         } finally {
             if (!silent) setLoading(false);
         }
@@ -203,22 +205,36 @@ export default function PedidosRealizados() {
             ? pedido.id_pedido_ref
             : pedido.id_pedido;
 
+        let actualizado = false;   // ¿el cambio quedó aplicado de verdad en el backend?
+        let mensajeError = null;
+
         try {
-            // conTimeout es la pieza clave: si la petición se cuelga (como venía
-            // pasando), esto la corta a los 15s en vez de dejar el botón "..."
-            // para siempre. Misma idea de "avisar y actualizar" que método de pago.
-            await conTimeout(apiPatch(`/pedidos/${idParaPatch}`, { estado: nuevoEstadoTemp }));
+            // Timeout corto: si el backend tarda más de esto, dejamos de esperar
+            // la respuesta directa, pero eso NO significa que la petición haya
+            // fallado del lado del servidor (puede seguir procesándose). Por eso
+            // más abajo siempre se verifica el estado real antes de avisar error.
+            await conTimeout(apiPatch(`/pedidos/${idParaPatch}`, { estado: nuevoEstadoTemp }), 6000);
+            actualizado = true;
+        } catch (error) {
+            console.error('Error al actualizar estado:', error);
+            mensajeError = error?.response?.data?.message || error?.message || 'Error al actualizar el estado';
+        }
 
-            alert('✅ Estado actualizado correctamente.');
+        // Se resincroniza SIEMPRE (haya habido éxito, error o timeout) y se
+        // espera el resultado antes de avisar nada. Así, si el timeout saltó
+        // pero el backend sí terminó de aplicar el cambio, el mensaje que ve
+        // el usuario refleja el estado real en vez de un "error" falso.
+        const pedidosFrescos = await cargarPedidos(true);
+        if (!actualizado && pedidosFrescos) {
+            const enBackend = pedidosFrescos.find(
+                p => p.id_pedido === pedido.id_pedido && p._tipo === pedido._tipo
+            );
+            if (enBackend?.estado === nuevoEstadoTemp) actualizado = true;
+        }
 
-            // Actualización inmediata del estado local
-            setPedidos(prev => prev.map(p =>
-                (p.id_pedido === pedido.id_pedido && p._tipo === pedido._tipo)
-                    ? { ...p, estado: nuevoEstadoTemp }
-                    : p
-            ));
-
-            // Actualizar detalle cacheado si existe
+        if (actualizado) {
+            // Actualizar detalle cacheado si existe (la lista principal ya
+            // quedó al día gracias a cargarPedidos).
             setDetallesPedido(prev => {
                 if (!prev[pedido.id_pedido]) return prev;
                 return {
@@ -229,19 +245,15 @@ export default function PedidosRealizados() {
                     }
                 };
             });
-        } catch (error) {
-            console.error('Error al actualizar estado:', error);
-            alert(error?.response?.data?.message || error?.message || 'Error al actualizar el estado');
-        } finally {
-            // Garantiza que la interfaz se libere y cierre el selector SIEMPRE
-            // (éxito, error de negocio, o timeout por backend colgado).
-            setEditandoId(null);
-            setNuevoEstadoTemp('');
-            setProcesandoEstado(false);
-
-            // Sincroniza en segundo plano sin detener la ejecución
-            cargarPedidos(true);
+            alert('✅ Pedido actualizado correctamente.');
+        } else {
+            alert(mensajeError || 'No se pudo confirmar la actualización. Intenta de nuevo.');
         }
+
+        // Garantiza que la interfaz se libere y cierre el selector SIEMPRE.
+        setEditandoId(null);
+        setNuevoEstadoTemp('');
+        setProcesandoEstado(false);
     };
 
     // ─── ANULAR PEDIDO ────────────────────────────────────────────────────────
