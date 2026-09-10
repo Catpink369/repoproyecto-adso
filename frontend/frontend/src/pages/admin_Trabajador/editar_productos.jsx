@@ -157,6 +157,7 @@ export default function EditarProducto() {
                     method: 'POST',
                     headers: {
                         'x-api-key': import.meta.env.VITE_API_KEY,
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     },
                     credentials: 'include',
                     body: formDataImagen,

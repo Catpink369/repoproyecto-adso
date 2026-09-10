@@ -156,9 +156,12 @@ export default function PedidosRealizados() {
     const handleCancelarEstado = () => { setEditandoId(null); setNuevoEstadoTemp(''); };
 
     const handleGuardarEstado = async (pedido) => {
-        // RN-002 (RF-008.2): no permitir Entregado/Finalizado sin método de pago.
-        // Se valida también acá (además del backend) para dar feedback inmediato
-        // sin gastar un round-trip al servidor.
+        if (nuevoEstadoTemp === pedido.estado) {
+            setEditandoId(null);
+            setNuevoEstadoTemp('');
+            return;
+        }
+
         if (ESTADOS_QUE_REQUIEREN_PAGO.includes(nuevoEstadoTemp) && !metodoPagoDefinido(pedido)) {
             alert(
                 `⚠ No puedes marcar este pedido como "${nuevoEstadoTemp}" sin antes definir el método de pago.\n` +
@@ -170,7 +173,7 @@ export default function PedidosRealizados() {
         const idParaPatch = pedido._tipo === 'personalizado'
             ? pedido.id_pedido_ref
             : pedido.id_pedido;
-        try {
+        try {        
             await apiPatch(`/pedidos/${idParaPatch}`, { estado: nuevoEstadoTemp });
 
             // Actualización optimista del listado. Se compara por id_pedido +
