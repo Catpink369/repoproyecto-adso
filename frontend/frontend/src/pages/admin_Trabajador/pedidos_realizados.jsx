@@ -44,6 +44,22 @@ export default function PedidosRealizados() {
         return [estadoActual, ...siguientes];
     };
 
+    // ─── TIMEOUT WATCHDOG ─────────────────────────────────────────────────────
+    // Si el backend no responde (petición colgada, red caída, etc.), esta
+    // promesa se rechaza a los `ms` y el flujo cae en el catch normal en vez
+    // de quedarse esperando para siempre. No cambia el comportamiento cuando
+    // todo funciona bien: solo pone un límite de espera.
+    const conTimeout = (promesa, ms = 15000) => {
+        let timeoutId;
+        const timeout = new Promise((_, reject) => {
+            timeoutId = setTimeout(
+                () => reject(new Error('La solicitud tardó demasiado en responder. Verifica tu conexión e intenta de nuevo.')),
+                ms
+            );
+        });
+        return Promise.race([promesa, timeout]).finally(() => clearTimeout(timeoutId));
+    };
+
     useEffect(() => { cargarPedidos(); }, []);
 
     // ─── CARGAR PEDIDOS ───────────────────────────────────────────────────────
@@ -188,7 +204,12 @@ export default function PedidosRealizados() {
             : pedido.id_pedido;
 
         try {
-            await apiPatch(`/pedidos/${idParaPatch}`, { estado: nuevoEstadoTemp });
+            // conTimeout es la pieza clave: si la petición se cuelga (como venía
+            // pasando), esto la corta a los 15s en vez de dejar el botón "..."
+            // para siempre. Misma idea de "avisar y actualizar" que método de pago.
+            await conTimeout(apiPatch(`/pedidos/${idParaPatch}`, { estado: nuevoEstadoTemp }));
+
+            alert('✅ Estado actualizado correctamente.');
 
             // Actualización inmediata del estado local
             setPedidos(prev => prev.map(p =>
@@ -213,6 +234,7 @@ export default function PedidosRealizados() {
             alert(error?.response?.data?.message || error?.message || 'Error al actualizar el estado');
         } finally {
             // Garantiza que la interfaz se libere y cierre el selector SIEMPRE
+            // (éxito, error de negocio, o timeout por backend colgado).
             setEditandoId(null);
             setNuevoEstadoTemp('');
             setProcesandoEstado(false);
@@ -807,6 +829,7 @@ export default function PedidosRealizados() {
                                                                 value={nuevoEstadoTemp}
                                                                 onChange={(e) => setNuevoEstadoTemp(e.target.value)}
                                                                 className="pedido-estado-select"
+                                                                disabled={procesandoEstado}
                                                             >
                                                                 {opcionesEstadoPara(pedido.estado).map(op => {
                                                                     const requierePago =
