@@ -185,9 +185,9 @@ export default function PedidosRealizados() {
 
         setProcesandoEstado(true);
 
-        // Espera 3s y luego pide confirmación explícita antes de aplicar el
+        // Espera 1s y luego pide confirmación explícita antes de aplicar el
         // cambio de verdad. Si el usuario cancela, no se toca el backend.
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         const confirmar = window.confirm(
             `¿Quieres actualizar el estado del pedido #${pedido.id_pedido} a "${nuevoEstadoTemp}"?`
