@@ -273,7 +273,7 @@ export class PedidosPersonalizadosService {
   // CREAR PEDIDO PERSONALIZADO
   // --------------------------------------------------------
   async crearPedido(dto: CreatePedidoPersonalizadoDto) {
-	console.log('controller - crear pedido personalizado (entrada):', JSON.stringify(dto));
+    console.log('controller - crear pedido personalizado (entrada):', JSON.stringify(dto));
     // ── Guard: el DTO ya valida esto vía ValidationPipe (@ArrayNotEmpty en
     // materiales, @IsNotEmpty en tipo_producto/tamanio), pero se revalida
     // aquí como defensa en profundidad — misma paridad que
@@ -440,13 +440,22 @@ export class PedidosPersonalizadosService {
             // pedidoPersonal.id_ped_personal ya existe en este punto de la
             // transacción porque se creó justo antes (más arriba en este
             // mismo método).
+            // FIX (2026-09-10): "id_m" es un enum nativo de Postgres
+            // (tipo_movimiento_id_m). Prisma manda el valor de $executeRaw
+            // como texto plano, y Postgres no hace cast implícito de text a
+            // un enum custom -> error 42804 "column is of type
+            // tipo_movimiento_id_m but expression is of type text". El
+            // ::tipo_movimiento_id_m fuerza el cast explícito.
+            // (Nota: el motor real es PostgreSQL, no MySQL como decía el
+            // comentario anterior — MySQL no tiene este tipo de enum nativo
+            // ni genera este SQLSTATE).
             await tx.$executeRaw`
               INSERT INTO movimiento_material
                 (cantidad_m, fecha_m, observaciones, id_m, id_material, id_usuario, id_ped_personal)
               VALUES
                 (${item.cantidad}, NOW(),
                  ${`Consumido automáticamente por el pedido personalizado #${pedido.id_pedido}.`},
-                 ${normalizarTipoMovimiento('M-S')}, ${item.id_material}, ${String(dto.id_usuario)},
+                 ${normalizarTipoMovimiento('M-S')}::tipo_movimiento_id_m, ${item.id_material}, ${String(dto.id_usuario)},
                  ${pedidoPersonal.id_ped_personal})
             `;
           }
@@ -456,7 +465,7 @@ export class PedidosPersonalizadosService {
 
         break;
       } catch (error: any) {
-	console.error('ERROR crearPedido (pedido personalizado):', error);
+        console.error('ERROR crearPedido (pedido personalizado):', error);
         if (this.esColisionUnica(error, 'num_ticket') && intento < this.MAX_INTENTOS_TICKET) {
           continue;
         }
