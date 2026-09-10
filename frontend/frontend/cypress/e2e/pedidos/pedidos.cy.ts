@@ -3,22 +3,14 @@ Cypress.on('uncaught:exception', () => false);
 
 const API_URL = Cypress.env('API_URL') || 'http://localhost:3000';
 
-/** Agrega el primer producto con stock disponible al carrito. */
-function agregarProductoConStock() {
-    cy.visit('/catalogo_c');
-    cy.get('.contenedor-productos > div', { timeout: 10000 }).should('have.length.at.least', 1);
-    cy.contains('.contenedor-productos > div button', /Agregar al carrito/i)
-        .first()
-        .click({ force: true });
-}
-
 describe('RF-007.1 - Registrar pedido', () => {
     beforeEach(() => {
         cy.loginCliente();
     });
 
     it('CP-001: el cliente confirma un pedido con stock suficiente desde el carrito', () => {
-        agregarProductoConStock();
+        cy.visit('/catalogo_c');
+        cy.get('.contenedor-productos > div').first().find('button').click();
         cy.get('header').find('a[href="/carrito"]').click();
         cy.contains('button', /Generar Ticket|Confirmar pedido/i).click();
         cy.url().should('include', '/ticket-compra');
@@ -30,7 +22,8 @@ describe('RF-007.1 - Registrar pedido', () => {
             body: { message: 'El producto no tiene stock suficiente' }
         }).as('crearPedidoSinStock');
 
-        agregarProductoConStock();
+        cy.visit('/catalogo_c');
+        cy.get('.contenedor-productos > div').first().find('button').click();
         cy.get('header').find('a[href="/carrito"]').click();
         cy.contains('button', /Generar Ticket|Confirmar pedido/i).click();
 
@@ -64,6 +57,12 @@ describe('RF-007.2 - Consultar/ver estado de pedido', () => {
     it('CP-005: el cliente ve una notificación nueva cuando cambia el estado de su pedido', () => {
         cy.loginCliente();
 
+        // Header_c.jsx hace dos llamadas distintas:
+        //  - /notificaciones/usuario/:id/count  -> al montar (badge del contador)
+        //  - /notificaciones/usuario/:id        -> solo al hacer clic en la campanita
+        // El intercept viejo esperaba la 2da justo después de cy.visit(), pero
+        // esa petición todavía no se dispara hasta que se hace clic en
+        // .notif-wrapper — por eso el wait hacía timeout ("No request ever occurred").
         cy.intercept('GET', '**/notificaciones/usuario/*/count', {
             statusCode: 200,
             body: { count: 1 },
@@ -84,13 +83,13 @@ describe('RF-007.2 - Consultar/ver estado de pedido', () => {
         cy.visit('/cliente');
         cy.wait('@getContador');
 
-        cy.get('body').then(($body) => {
-            if ($body.find('.ventana .cerrar').length) {
-                cy.get('.ventana .cerrar').click({ force: true });
-            }
-        });
+        // cliente.jsx muestra una ventana emergente de ofertas al montar
+        // (mostrarVentana -> true en un useEffect), con display:flex que
+        // tapa toda la pantalla y bloquea el clic en .notif-wrapper. Hay
+        // que cerrarla primero con el botón .cerrar.
+        cy.get('.ventana .cerrar').click();
 
-        cy.get('.notif-wrapper').click({ force: true });
+        cy.get('.notif-wrapper').click();
         cy.wait('@getNotificaciones');
         cy.contains(/cambió de estado|en preparación/i).should('be.visible');
     });
@@ -141,5 +140,6 @@ describe('RF-007.3 - Cancelar/anular pedido', () => {
             });
     });
 });
+
 
 export {};

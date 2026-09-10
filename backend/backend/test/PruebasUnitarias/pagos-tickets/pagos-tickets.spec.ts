@@ -47,7 +47,6 @@ import { PrismaService } from '../../../src/prisma/prisma.service';
 import { FcmPushService } from '../../../src/notificaciones/fcm-push.service';
 import { NotificacionesService } from '../../../src/notificaciones/notificaciones.service';
 import { fakePedidoDetalleCompleto } from '../../utils/mock-factories';
-import { TaskService } from '../../../src/task/task.service';
 
 describe('RF-008 - Gestion de Pagos y Tickets', () => {
 
@@ -88,10 +87,10 @@ describe('RF-008 - Gestion de Pagos y Tickets', () => {
 
 				const module: TestingModule = await Test.createTestingModule({
 					providers: [
-						NotificacionesService,
+						PedidosService,
 						{ provide: PrismaService, useValue: prisma },
 						{ provide: FcmPushService, useValue: fcmPush },
-						{ provide: TaskService, useValue: { enviarCambioEstadoPedido: jest.fn() } },
+						{ provide: NotificacionesService, useValue: notificaciones },
 					],
 				}).compile();
 

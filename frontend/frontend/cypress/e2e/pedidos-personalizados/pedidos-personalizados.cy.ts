@@ -8,38 +8,6 @@ Cypress.on('uncaught:exception', () => false);
 // Convierte un texto de precio formateado ("$45.000") a número
 const aNumero = (texto: string) => parseInt(texto.replace(/[^\d]/g, ''), 10);
 
-/** Completa color y diseño del lado activo si la tela los requiere. */
-function completarOpcionesLado(ladoLabel: string) {
-    cy.get('body', { timeout: 8000 }).should(($body) => {
-        expect($body.text().includes('Cargando colores')).to.eq(false);
-    });
-
-    cy.get('body').then(($body) => {
-        const colorHeading = `Color — ${ladoLabel}`;
-        if ($body.find(`h3:contains("${colorHeading}")`).length) {
-            const sinColores = $body.text().includes('Esta tela no tiene colores registrados');
-            if (!sinColores) {
-                cy.contains('h3', colorHeading)
-                    .parent()
-                    .find('div[style*="cursor: pointer"]')
-                    .first()
-                    .click({ force: true });
-            }
-        }
-    });
-
-    cy.get('body').then(($body) => {
-        const disenoHeading = `Diseño — ${ladoLabel}`;
-        if ($body.find(`h3:contains("${disenoHeading}")`).length) {
-            cy.contains('h3', disenoHeading)
-                .parent()
-                .find('.tela-item')
-                .first()
-                .click({ force: true });
-        }
-    });
-}
-
 describe('RF-005.1 - Personalizar producto', () => {
     beforeEach(() => {
         cy.loginCliente();
@@ -59,14 +27,9 @@ describe('RF-005.1 - Personalizar producto', () => {
             .first()
             .click();
 
-        completarOpcionesLado('Lado 1');
-
         // Lado 2: cambiar de pestaña y elegir tela
-        cy.contains('button.btn-lado', 'Lado 2', { timeout: 8000 })
-            .should('not.be.disabled')
-            .click();
+        cy.contains('button.btn-lado', 'Lado 2').click();
         cy.get('.lista-telas .tela-item', { timeout: 12000 }).first().click();
-        completarOpcionesLado('Lado 2');
 
         // El resumen debe reflejar ambos lados
         cy.get('.personalizar-imagen-info')
@@ -91,7 +54,7 @@ describe('RF-005.1 - Personalizar producto', () => {
         cy.contains('label', 'Incluir sobresábana')
             .find('input[type="checkbox"]')
             .check({ force: true });
-
+        
         cy.contains('.radio-card', 'Dos fundas').click();
 
         cy.get('.personalizar-imagen-info')
@@ -104,7 +67,7 @@ describe('RF-005.1 - Personalizar producto', () => {
     it('CP-003: la selección de color/diseño se reinicia al cambiar de tela (los colores dependen de la tela elegida)', () => {
         cy.visit(`${FRONT_URL}/p_sabanas`);
         cy.location('pathname', { timeout: 10000 }).should('include', '/p_sabanas');
-
+        
         cy.wait('@getMateriales');
 
         cy.get('.lista-telas .tela-item', { timeout: 12000 }).should('exist');
