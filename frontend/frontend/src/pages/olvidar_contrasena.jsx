@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Headercont from "../components/Header_olv-contra.jsx";
 import "../components/css/styles.css";
 
-const API_URL = 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 const API_KEY = import.meta.env.VITE_API_KEY;
 
 const OlvideMiContrasena = () => {
