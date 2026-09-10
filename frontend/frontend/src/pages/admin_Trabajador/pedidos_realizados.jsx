@@ -44,22 +44,6 @@ export default function PedidosRealizados() {
         return [estadoActual, ...siguientes];
     };
 
-    // ─── TIMEOUT WATCHDOG ─────────────────────────────────────────────────────
-    // Si el backend no responde (petición colgada, red caída, etc.), esta
-    // promesa se rechaza a los `ms` y el flujo cae en el catch normal en vez
-    // de quedarse esperando para siempre. No cambia el comportamiento cuando
-    // todo funciona bien: solo pone un límite de espera.
-    const conTimeout = (promesa, ms = 15000) => {
-        let timeoutId;
-        const timeout = new Promise((_, reject) => {
-            timeoutId = setTimeout(
-                () => reject(new Error('La solicitud tardó demasiado en responder. Verifica tu conexión e intenta de nuevo.')),
-                ms
-            );
-        });
-        return Promise.race([promesa, timeout]).finally(() => clearTimeout(timeoutId));
-    };
-
     useEffect(() => { cargarPedidos(); }, []);
 
     // ─── CARGAR PEDIDOS ───────────────────────────────────────────────────────
@@ -209,23 +193,20 @@ export default function PedidosRealizados() {
         let mensajeError = null;
 
         try {
-            // Timeout corto: si el backend tarda más de esto, dejamos de esperar
-            // la respuesta directa, pero eso NO significa que la petición haya
-            // fallado del lado del servidor (puede seguir procesándose). Por eso
-            // más abajo siempre se verifica el estado real antes de avisar error.
-            await conTimeout(apiPatch(`/pedidos/${idParaPatch}`, { estado: nuevoEstadoTemp }), 6000);
-            actualizado = true;
+            // Sin timeout artificial: se espera la respuesta real, tarde lo
+            // que tarde. Si el backend responde con error, esto lo captura.
+            await apiPatch(`/pedidos/${idParaPatch}`, { estado: nuevoEstadoTemp });
         } catch (error) {
             console.error('Error al actualizar estado:', error);
             mensajeError = error?.response?.data?.message || error?.message || 'Error al actualizar el estado';
         }
 
-        // Se resincroniza SIEMPRE (haya habido éxito, error o timeout) y se
-        // espera el resultado antes de avisar nada. Así, si el timeout saltó
-        // pero el backend sí terminó de aplicar el cambio, el mensaje que ve
-        // el usuario refleja el estado real en vez de un "error" falso.
+        // La verdad la dice el backend, no la respuesta del PATCH: se
+        // resincroniza y se compara el estado real del pedido contra lo que
+        // se intentó guardar. Solo se avisa error si, tras esto, el pedido
+        // sigue sin haber cambiado.
         const pedidosFrescos = await cargarPedidos(true);
-        if (!actualizado && pedidosFrescos) {
+        if (pedidosFrescos) {
             const enBackend = pedidosFrescos.find(
                 p => p.id_pedido === pedido.id_pedido && p._tipo === pedido._tipo
             );
