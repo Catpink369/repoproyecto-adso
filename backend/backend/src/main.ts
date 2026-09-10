@@ -20,6 +20,7 @@ async function bootstrap() {
   origin: [
     'http://localhost:5173',   // desarrollo con vite dev
     'http://localhost:8080',   // frontend dockerizado en local
+    'https://repoproyecto-adso.vercel.app', // tu frontend en producción
   ],
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   credentials: true,
