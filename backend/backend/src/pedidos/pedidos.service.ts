@@ -439,25 +439,26 @@ export class PedidosService {
     }
 
     // ── Notificar al cliente si cambió el estado.
-    // Envuelto en try/catch: `pedidoActualizado` YA está guardado en BD en este
-    // punto. Si esto no se protege, un fallo de notificación (p. ej. usuario sin
-    // token FCM registrado) hace que el endpoint responda 500 aunque el estado
-    // SÍ se haya guardado — el admin ve error, pero al recargar el cambio ya
-    // está ahí. Ese era el bug: el panel se quedaba pegado en modo edición
-    // porque el frontend nunca recibía una respuesta exitosa.
+    // IMPORTANTE: esto NO se espera (`await`). Es best-effort (ya estaba en
+    // try/catch para no romper el endpoint si falla), pero antes SÍ se
+    // esperaba su resultado antes de responder — eso era lo que hacía que
+    // "Editar Estado" tardara varios segundos más que "Editar Pago" (que no
+    // notifica a nadie y por eso siempre respondía casi al instante). Ahora
+    // el PATCH responde apenas termina de guardar en BD, y la notificación
+    // sigue su curso en segundo plano sin bloquear al admin.
     if (dto.estado) {
-      try {
-        await this.notificacionesService.notificarCambioEstadoPedido({
+      this.notificacionesService
+        .notificarCambioEstadoPedido({
           id_pedido: pedidoActualizado.id_pedido,
           id_usuario: pedido.id_usuario,
           estado: dto.estado,
+        })
+        .catch((error) => {
+          console.error(
+            `No se pudo notificar al cliente el cambio de estado del pedido #${pedidoActualizado.id_pedido}:`,
+            error,
+          );
         });
-      } catch (error) {
-        console.error(
-          `No se pudo notificar al cliente el cambio de estado del pedido #${pedidoActualizado.id_pedido}:`,
-          error,
-        );
-      }
     }
 
     return pedidoActualizado;
