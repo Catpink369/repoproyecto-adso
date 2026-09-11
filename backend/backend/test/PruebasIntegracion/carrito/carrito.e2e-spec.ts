@@ -16,8 +16,6 @@ describe('RF-006 — Gestión de Carrito (integración)', () => {
 
     const idsProductosCreados: number[] = [];
 
-    // Crea un producto real en gurama_test y lo deja listo para usar como
-    // ProductoParaCarrito (la forma que CarritoFake.agregarProducto() espera).
     async function crearProductoParaCarrito(overrides: Partial<{ stock_actual: number; precio_unitario: number }> = {}): Promise<ProductoParaCarrito> {
         const producto = await prisma.producto.create({
         data: {

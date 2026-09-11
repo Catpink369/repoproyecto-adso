@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
 import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { UsuariosService } from '../../../src/usuarios/usuarios.service';
+import { CloudinaryService } from '../../../src/cloudinary/cloudinary.service';
 import { UsuariosController } from '../../../src/usuarios/usuarios.controller';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { TaskService } from '../../../src/task/task.service';
@@ -12,6 +13,7 @@ describe('RF-001 - Gestión de Usuarios', () => {
   let service: UsuariosService;
   let controller: UsuariosController;
   let prismaMock: any;
+  let cloudinaryMock: any;
   let taskServiceMock: any;
 
   beforeEach(async () => {
@@ -32,11 +34,16 @@ describe('RF-001 - Gestión de Usuarios', () => {
       enviarCodigoReset: jest.fn().mockResolvedValue(true),
     };
 
+    cloudinaryMock = {
+      subirImagen: jest.fn().mockResolvedValue('https://res.cloudinary.com/fake/imagen.jpg'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsuariosService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: TaskService, useValue: taskServiceMock },
+        { provide: CloudinaryService, useValue: cloudinaryMock },
       ],
       controllers: [UsuariosController],
     }).compile();

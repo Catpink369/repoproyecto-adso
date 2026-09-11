@@ -211,7 +211,8 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
 
       // El endpoint no define @HttpCode, así que Nest responde 201 por defecto en un POST
       expect(res.status).toBe(201);
-      expect(res.body.ruta_imagen).toContain(String(creado.id_producto));
+      // La imagen se sube a Cloudinary; la respuesta trae la URL completa, no una ruta local
+      expect(res.body.ruta_imagen).toMatch(/^https:\/\/res\.cloudinary\.com\/.+\/productos\//);
 
       const enBd = await prisma.producto.findUnique({ where: { id_producto: creado.id_producto } });
       expect(enBd?.ruta_imagen).toBe(res.body.ruta_imagen);
@@ -497,6 +498,7 @@ describe('RF-002 — Gestión de Productos (integración)', () => {
           cantidad: 1,
           id_pedido: pedido.id_pedido,
           id_producto: creado.id_producto,
+          precio_unitario: 25000, 
         },
       });
 

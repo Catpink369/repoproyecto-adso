@@ -1,6 +1,4 @@
 // RF-008 completo: 8.1 Generar ticket automático, 8.2 Actualizar estado de
-// pedido, 8.3 Actualizar método de pago, 8.4 Consultar tickets/notificaciones
-// del cliente (panel de campana + modal de ticket).
 Cypress.on('uncaught:exception', () => false);
 
 const API_URL = Cypress.env('API_URL') || 'http://localhost:3000';
@@ -12,8 +10,7 @@ describe('RF-008.1 - Generar ticket de pedido (automático)', () => {
 
     it('CP-001: genera el ticket con número único al confirmar un pedido de producto estándar', () => {
         cy.visit('/catalogo_c');
-        // El botón "Agregar al carrito" es hermano de .producto (está fuera del
-        // <Link>), no un hijo — por eso .contenedor-productos > div y no .producto.
+
         cy.get('.contenedor-productos > div').first().find('button').click();
         cy.get('header').find('a[href="/carrito"]').click();
         cy.contains('button', /Generar Ticket de Pedido/i).click();
@@ -28,11 +25,6 @@ describe('RF-008.1 - Generar ticket de pedido (automático)', () => {
         cy.contains('.radio-card', 'Doble').click(); // TAMANOS: Sencilla, Semidoble, Doble, Queen, King
         cy.get('.lista-telas .tela-item').first().click(); // Lado 1 (tab activo por defecto)
 
-        // El botón "Lado 2" queda deshabilitado hasta "completar" la tela del
-        // Lado 1 — y completar incluye color/diseño cuando la tela elegida
-        // los tiene registrados (title: "Completa la tela (y color/diseño si
-        // aplica) del Lado 1 primero"). Se eligen si aparecen, sin asumir que
-        // son obligatorios en todas las telas.
         cy.get('body').then(($body) => {
             if ($body.find('.opcion-seccion:contains("Color — Lado 1") div[style*="cursor: pointer"]').length) {
                 cy.contains('.opcion-seccion', 'Color — Lado 1')
@@ -70,10 +62,7 @@ describe('RF-008.1 - Generar ticket de pedido (automático)', () => {
         // infiere de que el método de pago siga en su valor por defecto.
         cy.get('.ticket-pago-valor').should('contain.text', 'Por definir');
     });
-    // Nota: en el ticket personalizado (ticket_p-p.jsx) el estado "Pendiente"
-    // solo aparece dentro del HTML de impresión (handlePrint), no en la
-    // pantalla en sí — a diferencia del ticket estándar. Vale la pena
-    // avisarle al equipo si quieren ese mismo badge visible ahí también.
+
 
     it('CP-004: no deben existir tickets duplicados con el mismo número', () => {
         cy.loginAdmin();
@@ -102,29 +91,6 @@ describe('RF-008.2 - Actualizar estado de pedido', () => {
         cy.contains('tr', 'En preparación', { timeout: 10000 }).should('exist');
     });
 
-    // CORREGIDO: no existe ningún flujo de "click en Editar Estado -> error del
-    // backend" para pedidos finales. pedidos_realizados.jsx oculta por completo
-    // los botones de acción cuando esEstadoFinal(pedido) es true (línea 828) y
-    // en su lugar muestra "Pedido anulado"/"Pedido finalizado — sin más
-    // acciones". El bloqueo pasa en el frontend, no como un alert de error
-    // tras confirmar — por eso el draft anterior nunca encontraba "Editar
-    // Estado" dentro de esas filas.
-    //
-    // CORREGIDO (2): el mock anterior interceptaba `${API_URL}/pedidos*`, y
-    // ese glob con un solo `*` SÍ cruza el guion de `/pedidos-personalizados`
-    // (no hay `/` de por medio), así que la misma respuesta se colaba en las
-    // dos llamadas que hace cargarPedidos() — /pedidos Y /pedidos-personalizados
-    // — y el mapeo de "personalizados" (que espera p.id_ped_personal,
-    // p.pedido?.estado, etc.) generaba una fila basura con estado undefined.
-    // Se usan regex ancladas para separar ambos endpoints sin ambigüedad, y
-    // un pedido con la forma completa que espera el componente.
-    // CORREGIDO (3): pedidos_realizados.jsx excluye a propósito los estados
-    // finales ('Entregado'/'Finalizado'/'Anulado') de la pestaña "Todos"
-    // (ver pedidosFiltrados) — viven únicamente en sus propias pestañas
-    // "Finalizados" / "Anulados". El CP-006 original nunca hacía clic en esa
-    // pestaña, así que buscaba la fila en una vista donde por diseño no
-    // aparece. Se agrega el clic en la pestaña correspondiente antes de
-    // buscar la fila.
     const PESTANA_POR_ESTADO = {
         Entregado: 'Finalizados',
         Finalizado: 'Finalizados',
@@ -158,11 +124,6 @@ describe('RF-008.2 - Actualizar estado de pedido', () => {
         });
     });
 
-    // CP-007 (notificación al cliente al cambiar el estado) ya queda cubierta
-    // por RF-008.4 CP-011 más abajo, que valida exactamente ese mismo tipo de
-    // notificación ('pedido_estado', título "Actualización de tu pedido") del
-    // lado del cliente. El PATCH y la creación del registro en BD ya están
-    // probados en tickets-pagos.e2e-spec.ts CP-007 (backend).
     it.skip('CP-007: ya cubierta — ver RF-008.4 CP-011 (frontend) y tickets-pagos.e2e-spec.ts CP-007 (backend)', () => {});
 });
 
@@ -173,10 +134,7 @@ describe('RF-008.3 - Actualizar método de pago', () => {
     });
 
     it('CP-008: actualiza el método de pago (el badge pasa de "pendiente" a "pagado")', () => {
-        // Nota de mapeo: la columna "Método Pago" no tiene un texto literal
-        // "Pagado" — el estado de pago se refleja en la clase del badge
-        // (estado-pendiente mientras es "Por_definir", estado-en-proceso una
-        // vez se define un método real). Así lo valida este test.
+
         cy.contains('tr', 'Por_definir').first().within(() => {
             cy.get('.pedido-metodo-pago .pedido-estado-badge').should('have.class', 'estado-pendiente');
             cy.contains('button', 'Editar Pago').click();
@@ -195,25 +153,13 @@ describe('RF-008.3 - Actualizar método de pago', () => {
 });
 
 describe('RF-008.4 - Consultar tickets y pedidos realizados (panel de notificaciones del cliente)', () => {
-    // NOTA: en la corrida real, .notif-wrapper aparece tapado por
-    // `<div class="ventana" style="display: flex;">` en /cliente — algún
-    // modal/popup (¿promoción, aviso, algo del carrito?) que se monta encima
-    // del Header al cargar la página. No sé qué lo dispara ni cómo cerrarlo
-    // (no vino en los archivos que me compartiste), así que por ahora se usa
-    // `{ force: true }` para hacer clic igual — el evento sí llega al
-    // elemento, pero si `.ventana` bloquea la interacción real de un cliente
-    // (no solo la de Cypress), vale la pena revisarlo como posible bug de UX,
-    // no solo de test.
+
     beforeEach(() => {
         cy.loginCliente();
     });
 
     it('CP-010: el cliente solo consulta notificaciones/pedidos de su propia cuenta', () => {
-        // El aislamiento real por usuario ya está probado contra la BD en
-        // tickets-pagos.e2e-spec.ts CP-010 (dos clientes reales, cada uno solo
-        // ve las suyas). Desde el frontend lo que se puede confirmar es que
-        // Header_c.jsx siempre pide la ruta ligada al usuario autenticado
-        // (usuarioActual.id_usuario) y nunca una ruta genérica sin filtrar.
+        
         cy.intercept('GET', `${API_URL}/notificaciones/usuario/*`).as('getNotifsPropias');
         cy.visit('/cliente');
         cy.get('.notif-wrapper').click({ force: true });
@@ -247,9 +193,7 @@ describe('RF-008.4 - Consultar tickets y pedidos realizados (panel de notificaci
         cy.visit('/cliente');
         cy.get('.notif-wrapper').click({ force: true });
         cy.wait('@getNotifs');
-        // Mismo bloqueo de `.ventana` documentado arriba: se mantiene visible
-        // por encima del panel de notificaciones, así que el clic real
-        // también necesita { force: true } aquí.
+
         cy.contains('.notif-item', 'Actualización de tu pedido').click({ force: true });
         cy.wait('@getDetallePedido');
 
@@ -257,11 +201,7 @@ describe('RF-008.4 - Consultar tickets y pedidos realizados (panel de notificaci
         cy.contains('.ticket-producto-nombre', 'Producto X').should('be.visible');
         cy.contains('.ticket-estado-badge', 'En preparación').should('be.visible');
     });
-    // GAP a confirmar con el equipo: RUTA_POR_TIPO en Header_c.jsx está vacío
-    // ({}) y solo el tipo 'pedido_estado' abre algo (el modal, vía un caso
-    // especial aparte del mapa). Si el cliente llega a recibir notificaciones
-    // de otro tipo (p. ej. "Pedido realizado con éxito"), hacerles clic hoy
-    // no hace nada.
+
     it.skip('CP-011b: confirmar si el cliente recibe notificaciones de tipo distinto a pedido_estado y qué deberían hacer al pulsarlas', () => {});
 
     it('CP-012: el cliente puede imprimir/guardar como PDF el ticket abierto desde la notificación', () => {
@@ -331,8 +271,6 @@ describe('RF-008.4 - Consultar tickets y pedidos realizados (panel de notificaci
         cy.contains('.notif-item', 'Actualización de tu pedido').click({ force: true });
         cy.wait(['@marcarLeida', '@getDetallePedido']);
 
-        // La baja del contador es optimista (setCantidadNoLeidas en el propio
-        // handler), no depende de una re-consulta al backend.
         cy.get('.notif-badge').should('not.exist');
     });
 });

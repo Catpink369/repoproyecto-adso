@@ -131,6 +131,18 @@ export class MovimientosService {
         );
       }
 
+      if (!dto.Cantidad_m || dto.Cantidad_m <= 0) {
+        throw new BadRequestException(
+          'La cantidad del movimiento debe ser un número mayor a cero.',
+        );
+      }
+
+      if (!producto.estado) {
+        throw new BadRequestException(
+          `No se puede registrar el movimiento: el producto "${producto.nom_producto}" está inactivo.`,
+        );
+      }
+
       if (idMovimiento === 'M_S' && producto.stock_actual + delta < 0) {
         throw new BadRequestException(
           `No hay suficiente stock de "${producto.nom_producto}" para registrar esta salida. ` +

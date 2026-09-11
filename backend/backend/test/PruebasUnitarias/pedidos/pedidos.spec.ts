@@ -41,8 +41,8 @@ describe('RF-007 - Gestion de Pedidos', () => {
 
 		// cambia el pedido y envía notificación / notifica pedido recién creado
 		notificaciones = {
-			notificarCambioEstadoPedido: jest.fn(),
-			notificarPedidoCreado: jest.fn(), // antes no estaba mockeado: create() lo llama siempre
+			notificarCambioEstadoPedido: jest.fn().mockResolvedValue(undefined),
+			notificarPedidoCreado: jest.fn().mockResolvedValue(undefined), // antes no estaba mockeado: create() lo llama siempre
 		};
 
 		const module: TestingModule = await Test.createTestingModule({

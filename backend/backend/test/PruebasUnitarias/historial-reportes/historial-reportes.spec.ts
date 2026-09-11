@@ -245,7 +245,7 @@ describe('RF-009 - Gestion de Historial y Reportes', () => {
             nombreCliente: 'Juan Pérez',
             idPedido: 42,
             estado: 'En preparación',
-            numTicket: 123456,
+            numTicket: '123456',
             totalTicket: 50000,
             });
         });
