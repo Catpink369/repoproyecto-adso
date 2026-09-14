@@ -9,6 +9,9 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
       const idUnico = Date.now().toString().slice(-6)
       const nombreProducto = `Producto Prueba ${idUnico}`
 
+      cy.intercept('POST', '**/productos').as('crearProducto')
+      cy.intercept('POST', '**/productos/*/imagen').as('subirImagen')
+
       cy.visit('http://localhost:5173/login')
       cy.env(['adminEmail', 'adminPassword', 'adminCode']).then((env) => {
         cy.get('#correo').type(env.adminEmail, { log: false })
@@ -32,6 +35,11 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.get('textarea[placeholder="Detalles completos del producto..."]').type('Descripción de prueba')
 
         cy.contains('button', 'Registrar Nuevo Producto').click({ force: true })
+
+        cy.wait('@crearProducto')
+        cy.wait('@subirImagen') // aquí sí aplica: CP-001 siempre sube una imagen
+
+        cy.url({ timeout: 6000 }).should('include', '/productos')
         cy.contains(nombreProducto).should('be.visible')
       })
     })
@@ -138,7 +146,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
 
         cy.contains('Catálogo').click()
         cy.contains('Catálogo de productos').should('be.visible')
-        cy.contains('Llavero de flores').should('be.visible')
+        cy.contains('cubrelecho de Spider-man').should('be.visible')
       })
 
       cy.clearCookies()
@@ -188,8 +196,8 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.contains('Catálogo').click()
         cy.contains('Catálogo de productos').should('be.visible')
 
-        cy.get('input[placeholder="Buscar productos..."]').type('Sábana individual con encaje{enter}')
-        cy.contains('Sábana individual con encaje').should('be.visible')
+        cy.get('input[placeholder="Buscar productos..."]').type('Juego de sabanas{enter}')
+        cy.contains('Juego de sabanas').should('be.visible')
       })
     })
 
@@ -205,7 +213,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.contains('Catálogo de productos').should('be.visible')
 
         cy.contains('button', 'Sabanas').click()
-        cy.contains('Sábana individual con encaje').should('be.visible')
+        cy.contains('Juego de sabanas').should('be.visible')
       })
     })
 
@@ -221,7 +229,7 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.contains('Catálogo de productos').should('be.visible')
 
         cy.contains('button', 'En oferta').click()
-        cy.contains('Llavero de flores').should('be.visible')
+        cy.contains('Llaveros de Gatitos').should('be.visible')
       })
     })
 
@@ -231,15 +239,16 @@ describe('Módulo de Gestión de Productos y Catálogo', () => {
         cy.get('#correo').type(env.clienteEmail, { log: false })
         cy.get('#contrasena').type(env.clientePassword, { log: false })
         cy.get('button[type="submit"]').click()
+        
         cy.get('.cerrar').click()
 
-        cy.contains('Catálogo').click()
+        cy.contains('Catálogo').click() 
         cy.contains('Catálogo de productos').should('be.visible')
 
         cy.contains('button', 'Llaveros').click()
         cy.contains('button', 'En oferta').click()
 
-        cy.contains('Llavero de flores').should('be.visible')
+        cy.contains('Llaveros de Gatitos').should('be.visible')
       })
     })
 
