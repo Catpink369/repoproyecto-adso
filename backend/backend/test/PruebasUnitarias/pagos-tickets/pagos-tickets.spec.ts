@@ -1,43 +1,5 @@
 //RF-008.1 - RF-008.2 - RF-008.3 - RF-008.4
-// Archivo reúne todo lo que antes estaba repartido entre
-// pedidos.spec.ts (CP-003/004 de 8.1, todo 8.2/8.3/8.4) y
-// pedidos-personalizados.spec.ts (CP-002 de 8.1).
-//
-// ORGANIZACIÓN: un describe por RF (008.1 / 008.2 / 008.3 / 008.4), y dentro
-// de cada uno un describe adicional por servicio, porque cada uno necesita su
-// propio TestingModule/mock (PedidosService, PedidosPersonalizadosService,
-// NotificacionesService).
-// Cobertura actual: CP-001 a CP-013 (13 CPs) + CP-012 como it.todo (frontend).
-//
-// RF-008.4 fue reescrito por completo: el checklist original asumía un
-// historial de pedidos con filtro estándar/personalizado que NO existe en
-// el producto real. El flujo real (Header_c.jsx / TicketPedidoModal.jsx /
-// notificaciones.service.ts) es: el cliente ve SOLO sus pedidos como
-// notificaciones propias y abre el ticket completo en un modal
-// descargable/imprimible.
-//
-// PENDIENTE (no incluido todavía a propósito): existe un TaskService con
-// envío real de correo (task.service.ts, enviarCambioEstadoPedido) que no
-// vimos conectado desde pedidos.service.ts. Se deja para una entrega futura.
-//
-// TODO(revisar lógica): hoy no existe un TicketsService/PagosService propio,
-// así que estas pruebas siguen invocando PedidosService y
-// PedidosPersonalizadosService directamente (varios setups distintos en este
-// mismo archivo). Cuando se extraiga la lógica de tickets a su propio
-// servicio, esto debería simplificarse.
-//
-// TODO(revisar lógica): CP-007 (antes en notificaciones.spec.ts, probaba
-// contenido real del push "Actualización de tu pedido") se reescribió como
-// verificación de mock, igual que CP-005/006 en pedidos.spec.ts. Falta
-// validar el payload esperado.
-//
-// TODO(revisar lógica): CP-008 solo cubre el método 'Nequi'. El CP en el
-// checklist pide validar Efectivo, Tarjeta, Transferencia, Nequi y
-// DaviPlata — falta parametrizar (it.each) para cubrir los 5.
-//
-// TODO(revisar lógica): CP-002 no verifica todavía que el ticket generado
-// tenga id_estado/id_met_pago "Pendiente" por defecto como sí lo hace
-// CP-003 para el pedido estándar — revisar si aplica igual a personalizados.
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
 import { BadRequestException } from '@nestjs/common';
