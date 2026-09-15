@@ -95,11 +95,6 @@ describe('RF-009 — Historial y Reportes (integración)', () => {
       },
     });
 
-    // id_m usa el identificador del enum de Prisma (M_E, mapeado a "M-E" en
-    // la BD) — no el valor crudo con guion, igual que pasaba con
-    // clasificacion.nombre_clas. Se asegura además que el POST responda 2xx:
-    // antes fallaba en silencio (nadie comprobaba el status) y CP-001/CP-002
-    // fallaban más abajo por no encontrar el movimiento, sin pista de por qué.
     const resMovimiento = await request(app.getHttpServer())
       .post('/movimientos')
       .set('x-api-key', API_KEY)
@@ -121,11 +116,7 @@ describe('RF-009 — Historial y Reportes (integración)', () => {
   }, 30000); // 30s: login de 2 usuarios + 4 productos puede superar el timeout por defecto de Jest (5s), sobre todo con varias suites e2e corriendo en paralelo
 
   afterAll(async () => {
-    // Si beforeAll no llegó a completarse (timeout, login fallido, etc.),
-    // estas variables quedan undefined. Sin esta guarda, afterAll también
-    // fallaba con "Cannot read properties of undefined", lo que convertía
-    // un fallo puntual del beforeAll en "Test suite failed to run" para
-    // TODO el archivo, tapando cuál test realmente falló.
+
     if (cliente?.usuario?.id_usuario) {
       // limpieza de notificaciones generadas por los pedidos de este archivo
       await prisma.notificacion.deleteMany({ where: { id_usuario: cliente.usuario.id_usuario } });
@@ -152,11 +143,7 @@ describe('RF-009 — Historial y Reportes (integración)', () => {
     await prisma.$disconnect();
     if (app) await app.close();
 
-    // Los pedidos creados en este archivo disparan FcmPushService, que
-    // inicializa el SDK de Firebase Admin (conexión HTTP2/gRPC de fondo).
-    // Nadie más la cierra, así que Jest se queda con un handle abierto y
-    // termina lanzando "import a file after the Jest environment has been
-    // torn down" en la siguiente suite. Se cierra explícitamente acá.
+
     await Promise.all(getApps().map((firebaseApp) => deleteApp(firebaseApp)));
   }, 30000);
 
@@ -327,8 +314,7 @@ describe('RF-009 — Historial y Reportes (integración)', () => {
     it.todo('CP-010: al pulsar una alerta de stock bajo/agotado, debe abrir la vista detallada del producto/material afectado (bloqueado: confirmar ruta de detalle en el front)');
 
     it('Comportamiento actual (interino): la alerta de pedido nuevo apunta a /pedidos_realizados', async () => {
-      // Mismo caso que arriba: listado genérico, no el detalle puntual del
-      // pedido. El CP-010 real vive documentado en el it.todo de arriba.
+
       const res = await request(app.getHttpServer())
         .get('/notificaciones')
         .set('x-api-key', API_KEY)

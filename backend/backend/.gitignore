@@ -46,6 +46,7 @@ lerna-debug.log*
 .env.local
 uploads/
 gurama-online-firebase-adminsdk-*.json
+backend/backend/reportes/
 
 # temp directory
 .temp

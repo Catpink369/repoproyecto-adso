@@ -6,9 +6,11 @@ import { ExecutionContext, ConflictException } from '@nestjs/common';
 import { faker } from '@faker-js/faker';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
+import { CloudinaryService } from '../../../../../backend/backend/src/cloudinary/cloudinary.service';
 import { ProductosService } from '../../../../../backend/backend/src/productos/productos.service';
 import { ProductosController } from '../../../../../backend/backend/src/productos/productos.controller';
 import { PrismaService } from '../../../../../backend/backend/src/prisma/prisma.service';
+import { Roles } from '../../../../../backend/backend/src/auth/enums/roles.enum';
 import { CreateProductoDto } from '../../../../../backend/backend/src/productos/dto/create-producto.dto';
 import { UpdateProductoDto } from '../../../../../backend/backend/src/productos/dto/update-producto.dto';
 import { RolesGuard } from '../../../../../backend/backend/src/auth/guards/roles.guard';
@@ -17,6 +19,7 @@ describe('RF-002 - Gestión de Productos', () => {
   let service: ProductosService;
   let controller: ProductosController;
   let prismaMock: any;
+  let cloudinaryMock: any;
   let rolesGuard: RolesGuard;
 
   beforeEach(async () => {
@@ -34,10 +37,15 @@ describe('RF-002 - Gestión de Productos', () => {
       },
     };
 
+    cloudinaryMock = {
+    subirImagen: jest.fn().mockResolvedValue('https://res.cloudinary.com/fake/imagen.jpg'),
+  };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProductosService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: CloudinaryService, useValue: cloudinaryMock },
       ],
       controllers: [ProductosController],
     }).compile();
@@ -139,9 +147,9 @@ describe('RF-002 - Gestión de Productos', () => {
       expect(errores.some((e) => e.property === 'stock_actual')).toBe(true);
     });
 
-    it('CP-005: debe subir una imagen de producto válida durante la creación y reflejar la ruta correctamente', async () => {
+    it('CP-005: debe actualizar la URL de la imagen de un producto exitosamente', async () => {
       const idProducto = faker.number.int({ min: 1, max: 999 });
-      const archivo = { filename: `${idProducto}-imagen.png` } as Express.Multer.File;
+      const urlImagen = 'https://res.cloudinary.com/demo/image/upload/v1234/productos/imagen.png';
 
       prismaMock.producto.findFirst.mockResolvedValue({
         id_producto: idProducto,
@@ -151,12 +159,13 @@ describe('RF-002 - Gestión de Productos', () => {
       });
       prismaMock.producto.update.mockResolvedValue({});
 
-      const resultado = await service.actualizarImagen(idProducto, archivo);
+      const resultado = await service.actualizarImagen(idProducto, urlImagen);
 
-      expect(resultado.ruta_imagen).toBe(`/uploads/productos/${archivo.filename}`);
+      expect(resultado.ruta_imagen).toBe(urlImagen);
+      expect(resultado.statusCode).toBe(200);
       expect(prismaMock.producto.update).toHaveBeenCalledWith({
         where: { id_producto: idProducto },
-        data: expect.objectContaining({ ruta_imagen: `/uploads/productos/${archivo.filename}` }),
+        data: expect.objectContaining({ ruta_imagen: urlImagen }),
       });
     });
 
@@ -291,6 +300,64 @@ describe('RF-002 - Gestión de Productos', () => {
 
   // RF-002.4
   describe('RF-002.4 - Editar producto', () => {
+    it('CP-015: debe actualizar exitosamente los datos básicos de un producto (nombre, descripción, precio) desde un rol autorizado (Administrador/Trabajador)', async () => {
+      const idProducto = faker.number.int({ min: 1, max: 999 });
+
+      const dtoActualizacion = {
+        nom_producto: faker.commerce.productName(),
+        descripcion: faker.commerce.productDescription(),
+        precio_unitario: 35000,
+      };
+
+      // 1ra llamada a findFirst: la usa findOne() para confirmar que el producto existe
+      // 2da llamada a findFirst: valida que el nuevo nombre no pertenezca a OTRO producto
+      prismaMock.producto.findFirst
+        .mockResolvedValueOnce({
+          id_producto: idProducto,
+          nom_producto: 'Nombre anterior',
+          descripcion: 'Descripción anterior',
+          precio_unitario: 20000,
+          estado: true,
+          categoria: { nombre_c: 'Ropa' },
+          clasificacion: { nombre_clas: 'General' },
+        })
+        .mockResolvedValueOnce(null); // no hay otro producto con ese nombre
+
+      prismaMock.producto.update.mockResolvedValue({
+        id_producto: idProducto,
+        ...dtoActualizacion,
+        estado: true,
+      });
+
+      const resultado = await service.update(idProducto, dtoActualizacion as any);
+
+      expect(resultado.statusCode).toBe(200);
+      expect(resultado.message).toBe(`Producto ${idProducto} actualizado exitosamente`);
+      expect(resultado.data.nom_producto).toBe(dtoActualizacion.nom_producto);
+      expect(resultado.data.descripcion).toBe(dtoActualizacion.descripcion);
+      expect(resultado.data.precio_unitario).toBe(dtoActualizacion.precio_unitario);
+
+      expect(prismaMock.producto.update).toHaveBeenCalledWith({
+        where: { id_producto: idProducto },
+        data: expect.objectContaining({
+          nom_producto: dtoActualizacion.nom_producto,
+          descripcion: dtoActualizacion.descripcion,
+          precio_unitario: dtoActualizacion.precio_unitario,
+          ultima_actualiz: expect.any(Date),
+        }),
+      });
+    });
+
+    it('CP-015b: debe permitir la edición a cuentas con rol Administrador o Trabajador', () => {
+      const usuarioAdmin = { id_usuario: faker.string.numeric(10), id_rol_usuario: Roles.ADMIN };           // '1'
+      const usuarioTrabajador = { id_usuario: faker.string.numeric(10), id_rol_usuario: Roles.TRABAJADOR }; // '3'
+
+      const contextoAdmin = contextoFalso(usuarioAdmin, controller.update);
+      const contextoTrabajador = contextoFalso(usuarioTrabajador, controller.update);
+
+      expect(rolesGuard.canActivate(contextoAdmin)).toBe(true);
+      expect(rolesGuard.canActivate(contextoTrabajador)).toBe(true);
+    });
     it('CP-016: debe rechazar la edición con precio o stock mínimo no numéricos o negativos', async () => {
       const dtoInvalido = plainToInstance(UpdateProductoDto, {
         precio_unitario: -500,

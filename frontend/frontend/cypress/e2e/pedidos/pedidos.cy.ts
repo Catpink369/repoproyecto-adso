@@ -57,12 +57,7 @@ describe('RF-007.2 - Consultar/ver estado de pedido', () => {
     it('CP-005: el cliente ve una notificación nueva cuando cambia el estado de su pedido', () => {
         cy.loginCliente();
 
-        // Header_c.jsx hace dos llamadas distintas:
-        //  - /notificaciones/usuario/:id/count  -> al montar (badge del contador)
-        //  - /notificaciones/usuario/:id        -> solo al hacer clic en la campanita
-        // El intercept viejo esperaba la 2da justo después de cy.visit(), pero
-        // esa petición todavía no se dispara hasta que se hace clic en
-        // .notif-wrapper — por eso el wait hacía timeout ("No request ever occurred").
+        
         cy.intercept('GET', '**/notificaciones/usuario/*/count', {
             statusCode: 200,
             body: { count: 1 },
@@ -83,10 +78,7 @@ describe('RF-007.2 - Consultar/ver estado de pedido', () => {
         cy.visit('/cliente');
         cy.wait('@getContador');
 
-        // cliente.jsx muestra una ventana emergente de ofertas al montar
-        // (mostrarVentana -> true en un useEffect), con display:flex que
-        // tapa toda la pantalla y bloquea el clic en .notif-wrapper. Hay
-        // que cerrarla primero con el botón .cerrar.
+        
         cy.get('.ventana .cerrar').click();
 
         cy.get('.notif-wrapper').click();

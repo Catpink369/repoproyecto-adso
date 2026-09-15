@@ -9,6 +9,7 @@ import { PrismaService } from '../../../src/prisma/prisma.service';
 import { FcmPushService } from '../../../src/notificaciones/fcm-push.service';
 import { NotificacionesService } from '../../../src/notificaciones/notificaciones.service';
 import { fakePedidoDetalleCompleto } from '../../utils/mock-factories';
+import { TaskService } from '../../../src/task/task.service';
 
 describe('RF-008 - Gestion de Pagos y Tickets', () => {
 
@@ -43,8 +44,8 @@ describe('RF-008 - Gestion de Pagos y Tickets', () => {
 				};
 
 				notificaciones = {
-					notificarCambioEstadoPedido: jest.fn(),
-					notificarPedidoCreado: jest.fn(), // faltaba: PedidosService.create() siempre la invoca
+					notificarCambioEstadoPedido: jest.fn().mockResolvedValue(undefined),
+					notificarPedidoCreado: jest.fn().mockResolvedValue(undefined), // faltaba: PedidosService.create() siempre la invoca
 				};
 
 				const module: TestingModule = await Test.createTestingModule({
@@ -265,8 +266,8 @@ describe('RF-008 - Gestion de Pagos y Tickets', () => {
 			};
 
 			notificaciones = {
-				notificarCambioEstadoPedido: jest.fn(),
-				notificarPedidoCreado: jest.fn(), // faltaba: PedidosService.create() siempre la invoca
+				notificarCambioEstadoPedido: jest.fn().mockResolvedValue(undefined),
+				notificarPedidoCreado: jest.fn().mockResolvedValue(undefined), // faltaba: PedidosService.create() siempre la invoca
 			};
 
 			const module: TestingModule = await Test.createTestingModule({
@@ -460,6 +461,7 @@ describe('RF-008 - Gestion de Pagos y Tickets', () => {
 						NotificacionesService,
 						{ provide: PrismaService, useValue: prisma },
 						{ provide: FcmPushService, useValue: fcmPush },
+						{ provide: TaskService, useValue: { enviarCambioEstadoPedido: jest.fn() } },
 					],
 				}).compile();
 
