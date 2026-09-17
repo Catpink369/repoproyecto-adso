@@ -136,6 +136,20 @@ async function main() {
     await prisma.material_diseno.create({ data: d })
   }
 
+  // Sincronizar secuencias tras inserts con IDs fijos
+  await prisma.$executeRawUnsafe(`
+    SELECT setval(pg_get_serial_sequence('material', 'id_material'),
+      COALESCE((SELECT MAX(id_material) FROM material), 1));
+  `);
+  await prisma.$executeRawUnsafe(`
+    SELECT setval(pg_get_serial_sequence('material_color', 'id_color'),
+      COALESCE((SELECT MAX(id_color) FROM material_color), 1));
+  `);
+  await prisma.$executeRawUnsafe(`
+    SELECT setval(pg_get_serial_sequence('material_diseno', 'id_diseno'),
+      COALESCE((SELECT MAX(id_diseno) FROM material_diseno), 1));
+  `);
+
   console.log('Base de datos GuramaOnline poblada con éxito.')
 }
 

@@ -62,30 +62,69 @@ describe('RF-008 — Pagos y Tickets (integración)', () => {
         },
         });
 
+        await prisma.$executeRawUnsafe(`
+          SELECT setval(
+            pg_get_serial_sequence('material', 'id_material'),
+            COALESCE((SELECT MAX(id_material) FROM material), 1)
+          );
+        `);
+
+        const materialId = Math.floor(sufijo % 1000000) + 200000;
+
         material = await prisma.material.create({
-        data: {
-            nombre: `Tela Ticket Test ${sufijo}`, tipo: 'Tela', unidad: 'metro',
-            precio_unitario: 9000, stock_actual: 40, stock_minimo: 5, estado: true,
-        },
+          data: {
+            id_material: materialId,
+            nombre: `Tela Ticket Test ${sufijo}`,
+            tipo: 'Tela',
+            unidad: 'metro',
+            precio_unitario: 9000,
+            stock_actual: 40,
+            stock_minimo: 5,
+            estado: true,
+          },
         });
     });
 
     afterAll(async () => {
-        // Limpieza de notificaciones creadas por los pedidos de este archivo
-        // (notificarPedidoCreado / notificarCambioEstadoPedido las persisten
-        await prisma.notificacion.deleteMany({ where: { id_usuario: cliente.usuario.id_usuario } });
+        try {
+            // Limpieza de notificaciones creadas por los pedidos de este archivo
+            if (cliente?.usuario?.id_usuario) {
+                await prisma.notificacion.deleteMany({
+                    where: { id_usuario: cliente.usuario.id_usuario },
+                });
+            }
 
-        await prisma.detalle_pedido_personalizado.deleteMany({ where: { id_material: material.id_material } });
-        await prisma.material.delete({ where: { id_material: material.id_material } }).catch(() => {});
-        const detalles = await prisma.detalles_pedido.findMany({
-        where: { id_producto: producto.id_producto },
-        select: { id_pedido: true },
-        });
-        const idsPedidos = [...new Set(detalles.map((d) => d.id_pedido))];
-        await prisma.ticket_compra.deleteMany({ where: { id_pedido: { in: idsPedidos } } });
-        await prisma.detalles_pedido.deleteMany({ where: { id_producto: producto.id_producto } });
-        await prisma.pedido.deleteMany({ where: { id_pedido: { in: idsPedidos } } });
-        await prisma.producto.delete({ where: { id_producto: producto.id_producto } }).catch(() => {});
+            if (material?.id_material) {
+                await prisma.detalle_pedido_personalizado.deleteMany({
+                    where: { id_material: material.id_material },
+                });
+                await prisma.material
+                    .delete({ where: { id_material: material.id_material } })
+                    .catch(() => {});
+            }
+
+            if (producto?.id_producto) {
+                const detalles = await prisma.detalles_pedido.findMany({
+                    where: { id_producto: producto.id_producto },
+                    select: { id_pedido: true },
+                });
+                const idsPedidos = [...new Set(detalles.map((d) => d.id_pedido))];
+                await prisma.ticket_compra.deleteMany({
+                    where: { id_pedido: { in: idsPedidos } },
+                });
+                await prisma.detalles_pedido.deleteMany({
+                    where: { id_producto: producto.id_producto },
+                });
+                await prisma.pedido.deleteMany({
+                    where: { id_pedido: { in: idsPedidos } },
+                });
+                await prisma.producto
+                    .delete({ where: { id_producto: producto.id_producto } })
+                    .catch(() => {});
+            }
+        } catch {
+            // limpieza best-effort
+        }
         await prisma.$disconnect();
         await app.close();
     });
@@ -227,13 +266,17 @@ describe('RF-008 — Pagos y Tickets (integración)', () => {
                 .expect(200);
 
             const notif = await prisma.notificacion.findFirst({
-                where: { id_usuario: cliente.usuario.id_usuario, mensaje: { contains: `#${idPedido}` } },
+                where: {
+                    id_usuario: cliente.usuario.id_usuario,
+                    titulo: 'Actualización de tu pedido',
+                    mensaje: { contains: `#${idPedido}` },
+                },
                 orderBy: { fecha: 'desc' },
             });
 
             expect(notif).not.toBeNull();
-
             expect(notif?.titulo).toBe('Actualización de tu pedido');
+            expect(notif?.mensaje).toContain(`#${idPedido}`);
         });
     });
 
