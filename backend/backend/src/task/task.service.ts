@@ -1,27 +1,34 @@
 // task/task.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class TaskService {
+    private async enviarCorreo(to: string, subject: string, html: string) {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'api-key': process.env.BREVO_API_KEY!,
+            },
+            body: JSON.stringify({
+                sender: { name: 'Gurama Online', email: 'guramaonline@gmail.com' },
+                to: [{ email: to }],
+                subject,
+                htmlContent: html,
+            }),
+        });
 
-    private transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-    },
-    tls: {
-        rejectUnauthorized: false,
-    },
-    });
+        if (!response.ok) {
+            const error = await response.text();
+            throw new Error(`Error enviando correo (Brevo): ${response.status} - ${error}`);
+        }
+    }
 
     async enviarCodigoReset(correo: string, codigo: string) {
-        await this.transporter.sendMail({
-            from: `"Gurama Online" <${process.env.MAIL_USER}>`,
-            to: correo,
-            subject: 'Recuperación de contraseña - Gurama Online',
-            html: `
+        await this.enviarCorreo(
+            correo,
+            'Recuperación de contraseña - Gurama Online',
+            `
                 <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
                 <h2 style="color: #c5749d;">Gurama Online</h2>
                 <p>Hola, recibimos una solicitud para restablecer tu contraseña.</p>
@@ -35,10 +42,9 @@ export class TaskService {
                 <p style="color: #999; font-size: 12px;">Gurama Online — Productos Artesanales</p>
                 </div>
             `,
-            });
-        }
+        );
+    }
 
-    // ── Correo de cambio de estado de pedido ────────────────────────────
     async enviarCambioEstadoPedido(params: {
         correo: string;
         nombreCliente: string;
@@ -59,11 +65,10 @@ export class TaskService {
         };
         const mensaje = mensajesPredefinidos[estado] ?? `El estado de tu pedido cambió a: ${estado}`;
 
-        await this.transporter.sendMail({
-            from: `"Gurama Online" <${process.env.MAIL_USER}>`,
-            to: correo,
-            subject: `Actualización de tu pedido #${idPedido}`,
-            html: `
+        await this.enviarCorreo(
+            correo,
+            `Actualización de tu pedido #${idPedido}`,
+            `
                 <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
                 <h2 style="color: #c5749d;">Gurama Online</h2>
                 <p>Hola ${nombreCliente},</p>
@@ -78,6 +83,6 @@ export class TaskService {
                 <p style="color: #999; font-size: 12px;">Gurama Online — Productos Artesanales</p>
                 </div>
             `,
-        });
+        );
     }
 }
