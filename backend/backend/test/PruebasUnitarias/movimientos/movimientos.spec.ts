@@ -269,12 +269,13 @@ describe('RF-003 - Gestión de inventario', () => {
       expect(txMock.producto.update).not.toHaveBeenCalled();
     });
 
-    it('CP-006: Un usuario sin permisos (Cliente) puede crear un movimiento', () => {
+    it('CP-006: Un usuario sin permisos (Cliente) NO puede crear un movimiento', () => {
       const usuarioCliente = { id_usuario: faker.string.numeric(10), id_rol_usuario: Roles.USUARIO };
       const contexto = contextoFalso(usuarioCliente, controller.create);
 
       const permitido = rolesGuard.canActivate(contexto);
-      expect(permitido).toBe(true);
+      // @Roles(ADMIN, TRABAJADOR) en POST /movimientos → cliente denegado
+      expect(permitido).toBe(false);
     });
 
     it('CP-007: debe propagar el error cuando falla la conexión con la base de datos', async () => {
@@ -508,12 +509,13 @@ describe('RF-003 - Gestión de inventario', () => {
       expect(errores.some((e) => e.property === 'id_usuario')).toBe(true);
     });
 
-    it('CP-014: Un usuario sin permisos (Cliente) puede crear un movimiento de salida', () => {
+    it('CP-014: Un usuario sin permisos (Cliente) NO puede crear un movimiento de salida', () => {
       const usuarioCliente = { id_usuario: faker.string.numeric(10), id_rol_usuario: Roles.USUARIO };
       const contexto = contextoFalso(usuarioCliente, controller.create);
 
       const permitido = rolesGuard.canActivate(contexto);
-      expect(permitido).toBe(true);
+      // Mismo endpoint POST /movimientos con @Roles(ADMIN, TRABAJADOR)
+      expect(permitido).toBe(false);
     });
   });
 

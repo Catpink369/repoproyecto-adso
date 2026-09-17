@@ -62,6 +62,8 @@ describe('RF-008 — Pagos y Tickets (integración)', () => {
         },
         });
 
+        // Tras el seed con IDs explícitos, la secuencia de PostgreSQL puede quedar
+        // desincronizada y provocar Unique constraint en id_material.
         await prisma.$executeRawUnsafe(`
           SELECT setval(
             pg_get_serial_sequence('material', 'id_material'),
@@ -69,19 +71,11 @@ describe('RF-008 — Pagos y Tickets (integración)', () => {
           );
         `);
 
-        const materialId = Math.floor(sufijo % 1000000) + 200000;
-
         material = await prisma.material.create({
-          data: {
-            id_material: materialId,
-            nombre: `Tela Ticket Test ${sufijo}`,
-            tipo: 'Tela',
-            unidad: 'metro',
-            precio_unitario: 9000,
-            stock_actual: 40,
-            stock_minimo: 5,
-            estado: true,
-          },
+        data: {
+            nombre: `Tela Ticket Test ${sufijo}`, tipo: 'Tela', unidad: 'metro',
+            precio_unitario: 9000, stock_actual: 40, stock_minimo: 5, estado: true,
+        },
         });
     });
 
@@ -265,14 +259,21 @@ describe('RF-008 — Pagos y Tickets (integración)', () => {
                 .send({ estado: 'En preparación' })
                 .expect(200);
 
-            const notif = await prisma.notificacion.findFirst({
-                where: {
-                    id_usuario: cliente.usuario.id_usuario,
-                    titulo: 'Actualización de tu pedido',
-                    mensaje: { contains: `#${idPedido}` },
-                },
-                orderBy: { fecha: 'desc' },
-            });
+            // notificarCambioEstadoPedido se dispara sin await (.catch) → hay carrera.
+            // Reintentamos hasta que exista la notificación de cambio de estado.
+            let notif: any = null;
+            for (let intento = 0; intento < 15; intento++) {
+                notif = await prisma.notificacion.findFirst({
+                    where: {
+                        id_usuario: cliente.usuario.id_usuario,
+                        titulo: 'Actualización de tu pedido',
+                        mensaje: { contains: `#${idPedido}` },
+                    },
+                    orderBy: { fecha: 'desc' },
+                });
+                if (notif) break;
+                await new Promise((r) => setTimeout(r, 200));
+            }
 
             expect(notif).not.toBeNull();
             expect(notif?.titulo).toBe('Actualización de tu pedido');

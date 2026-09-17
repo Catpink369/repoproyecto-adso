@@ -20,6 +20,10 @@ import { ApiBearerAuth, ApiSecurity, ApiOperation, ApiResponse } from '@nestjs/s
 
 import { EnableCors } from '../auth/decorators/cors.decorator';
 
+import { Roles } from '../auth/decorators/roles.decorator';
+
+import { Roles as RolesEnum } from '../auth/enums/roles.enum';
+
 
 
 // Pipe reutilizable para el parámetro :id — reemplaza el mensaje genérico de
@@ -392,7 +396,9 @@ export class MovimientosController {
 
 
 
-  // POST /movimientos/material
+  // POST /movimientos/material — solo Admin / Trabajador (RF-003)
+
+  @Roles(RolesEnum.ADMIN, RolesEnum.TRABAJADOR)
 
   @Post('material')
 
@@ -554,7 +560,7 @@ export class MovimientosController {
 
 
 
-  // POST /movimientos
+  // POST /movimientos — solo Admin / Trabajador (RF-003 / CP-006)
 
 /*  @Post()
 
@@ -563,6 +569,8 @@ export class MovimientosController {
     return this.movimientosService.create(createMovimientoDto);
 
   }*/
+
+  @Roles(RolesEnum.ADMIN, RolesEnum.TRABAJADOR)
 
   @Post() 
 
