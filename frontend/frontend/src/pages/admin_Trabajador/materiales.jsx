@@ -99,6 +99,15 @@ const Materiales = () => {
         if (!nuevoMaterial.nombre || !nuevoMaterial.precio_unitario || !nuevoMaterial.stock_actual) {
             alert('Completa todos los campos obligatorios.'); return;
         }
+        // Nombre del material: letras, números, espacios y guiones (sin caracteres raros)
+        if (!/^[A-Za-zÁÉÍÓÚáéíóúÄËÏÖÜäëïöüÑñÜü0-9\s\-.,]+$/.test(nuevoMaterial.nombre.trim())) {
+            alert('El nombre del material solo puede contener letras, números, espacios y guiones (sin caracteres especiales).');
+            return;
+        }
+        if (!imagenNuevo) {
+            alert('Debes seleccionar una imagen para el material.');
+            return;
+        }
         setGuardando(true);
         try {
             const creado = await apiPost('/pedidos-personalizados/materiales', {
@@ -194,11 +203,22 @@ const Materiales = () => {
     // ── Colores: crear / eliminar ─────────────────────────
     const handleAgregarColor = async (e) => {
         e.preventDefault();
-        if (!nuevoColorNombre.trim()) { alert('El color necesita un nombre.'); return; }
+        const nombreColor = nuevoColorNombre.trim();
+        if (!nombreColor) { alert('El color necesita un nombre.'); return; }
+        // Solo letras y espacios (sin números ni caracteres especiales como ///)
+        if (!/^[A-Za-zÁÉÍÓÚáéíóúÄËÏÖÜäëïöüÑñÜü\s]+$/.test(nombreColor)) {
+            alert('El nombre del color solo puede contener letras y espacios (sin números ni caracteres especiales).');
+            return;
+        }
+        // Evitar duplicados (mismo nombre, sin importar mayúsculas)
+        if (colores.some(c => c.nombre?.toLowerCase() === nombreColor.toLowerCase())) {
+            alert('Ya existe un color con ese nombre para este material.');
+            return;
+        }
         setGuardandoColor(true);
         try {
             await apiPost(`/pedidos-personalizados/materiales/${gestionando.id_material}/colores`, {
-                nombre: nuevoColorNombre.trim(),
+                nombre: nombreColor,
                 codigo_hex: nuevoColorHex,
             });
             setNuevoColorNombre('');

@@ -1,10 +1,17 @@
-import { IsNotEmpty, IsString, IsOptional, IsNumber, IsBoolean, MaxLength, Min } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsNumber, IsBoolean, MaxLength, Min, Matches } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
+
+const NOMBRE_PRODUCTO_OK = /^[A-Za-zÁÉÍÓÚáéíóúÄËÏÖÜäëïöüÑñÜü0-9\s\-.,]+$/;
+const COLOR_OK = /^[A-Za-zÁÉÍÓÚáéíóúÄËÏÖÜäëïöüÑñÜü\s]+$/;
+
 export class CreateProductoDto {
 
     @IsString()
     @IsNotEmpty({ message: 'El nombre del producto es obligatorio' })
     @MaxLength(60, { message: 'El nombre del producto no puede tener más de 60 caracteres' })
+    @Matches(NOMBRE_PRODUCTO_OK, {
+        message: 'El nombre del producto solo puede contener letras, números, espacios y guiones (sin caracteres especiales)',
+    })
     nom_producto: string;
 
     @IsNumber()
@@ -28,6 +35,9 @@ export class CreateProductoDto {
     @IsString()
     @IsOptional()
     @MaxLength(60, { message: 'El color no puede tener más de 60 caracteres' })
+    @Matches(COLOR_OK, {
+        message: 'El color solo puede contener letras y espacios (sin números ni caracteres especiales)',
+    })
     color?: string;
 
     @IsString()

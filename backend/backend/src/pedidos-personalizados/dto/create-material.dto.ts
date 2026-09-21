@@ -1,13 +1,17 @@
 import { Type } from 'class-transformer';
-import { IsString, IsIn, IsNumber, Min, MaxLength, IsOptional, IsNotEmpty } from 'class-validator';
+import { IsString, IsIn, IsNumber, Min, MaxLength, IsOptional, IsNotEmpty, Matches } from 'class-validator';
 
 const TIPOS_MATERIAL = ['Tela', 'Bordado', 'Diseño', 'Relleno', 'Accesorio'];
 const UNIDADES_MATERIAL = ['metro', 'unidad'];
+const NOMBRE_MATERIAL_OK = /^[A-Za-zÁÉÍÓÚáéíóúÄËÏÖÜäëïöüÑñÜü0-9\s\-.,]+$/;
 
 export class CreateMaterialDto {
   @IsString()
   @IsNotEmpty({ message: 'El nombre del material es obligatorio.' })
   @MaxLength(60, { message: 'El nombre no puede superar los 60 caracteres.' })
+  @Matches(NOMBRE_MATERIAL_OK, {
+    message: 'El nombre del material solo puede contener letras, números, espacios y guiones (sin caracteres especiales).',
+  })
   nombre!: string;
 
   @IsIn(TIPOS_MATERIAL, {

@@ -6,9 +6,11 @@ import "../../components/css/styles.css";
 
 import { apiPatch } from '../../context/api.js';
 
-const SOLO_LETRAS = /^[A-Za-zÁÉÍÓÚáéíóúÄËÏÖÜäëïöüÑñÜü\s]+$/;
+// Un solo nombre/apellido: solo letras, sin espacios ni caracteres especiales
+const SOLO_LETRAS = /^[A-Za-zÁÉÍÓÚáéíóúÄËÏÖÜäëïöüÑñÜü]+$/;
 const SOLO_DIGITOS = /^\d+$/;
-const CORREO_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Correo estricto: local@dominio.tld (tld 2-10 letras)
+const CORREO_OK = /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z]{2,10})+$/;
 
 function validarFormulario(formData) {
     if (!formData.nom_1?.trim() || !formData.ape_1?.trim() || !formData.correo?.trim() || !String(formData.telefono).trim()) {
@@ -16,25 +18,26 @@ function validarFormulario(formData) {
     }
 
     if (!SOLO_LETRAS.test(formData.nom_1.trim())) {
-        return 'El primer nombre solo puede contener letras y espacios (sin números ni caracteres especiales).';
+        return 'El primer nombre solo puede contener letras (sin espacios, números ni caracteres especiales).';
     }
     if (formData.nom_2?.trim() && !SOLO_LETRAS.test(formData.nom_2.trim())) {
-        return 'El segundo nombre solo puede contener letras y espacios (sin números ni caracteres especiales).';
+        return 'El segundo nombre solo puede contener letras (sin espacios, números ni caracteres especiales).';
     }
     if (!SOLO_LETRAS.test(formData.ape_1.trim())) {
-        return 'El primer apellido solo puede contener letras y espacios (sin números ni caracteres especiales).';
+        return 'El primer apellido solo puede contener letras (sin espacios, números ni caracteres especiales).';
     }
     if (formData.ape_2?.trim() && !SOLO_LETRAS.test(formData.ape_2.trim())) {
-        return 'El segundo apellido solo puede contener letras y espacios (sin números ni caracteres especiales).';
+        return 'El segundo apellido solo puede contener letras (sin espacios, números ni caracteres especiales).';
     }
 
-    if (!CORREO_OK.test(formData.correo.trim())) {
-        return 'El correo electrónico no es válido.';
+    const correo = formData.correo.trim();
+    if (!CORREO_OK.test(correo) || /\.{2,}/.test(correo)) {
+        return 'El correo electrónico no es válido. Use el formato ejemplo@dominio.com';
     }
 
-    const tel = String(formData.telefono).trim();
+    const tel = String(formData.telefono).replace(/\s/g, '').trim();
     if (!SOLO_DIGITOS.test(tel)) {
-        return 'El teléfono solo puede contener números (sin letras ni símbolos).';
+        return 'El teléfono solo puede contener números (sin letras, espacios ni símbolos).';
     }
     if (tel.length < 7) {
         return 'El teléfono debe tener al menos 7 dígitos.';
@@ -82,7 +85,9 @@ export default function CambiarDatosAdmin() {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        // Teléfono: solo dígitos (no permite espacios ni símbolos)
+        const nuevoValor = name === 'telefono' ? value.replace(/\D/g, '') : value;
+        setFormData(prev => ({ ...prev, [name]: nuevoValor }));
         if (error) setError('');
     };
 
@@ -100,19 +105,20 @@ export default function CambiarDatosAdmin() {
         setLoading(true);
 
         try {
+            const telLimpio = String(formData.telefono).replace(/\s/g, '').trim();
             const response = await apiPatch(`/usuarios/${usuarioActual.id_usuario}`, {
                 nom_1: formData.nom_1.trim(),
                 nom_2: formData.nom_2?.trim() || null,
                 ape_1: formData.ape_1.trim(),
                 ape_2: formData.ape_2?.trim() || null,
                 correo: formData.correo.trim(),
-                telefono: Number(String(formData.telefono).trim()),
+                telefono: Number(telLimpio),
                 t_doc: formData.t_doc
             });
 
             if (response.id_usuario || response.nom_1) {
                 setMensaje('¡Datos actualizados exitosamente!');
-                updateusuarioActual({ ...usuarioActual, ...formData, telefono: Number(String(formData.telefono).trim()) });
+                updateusuarioActual({ ...usuarioActual, ...formData, telefono: Number(telLimpio) });
                 setTimeout(() => navigate('/perfil_admin'), 1500);
             } else {
                 setError(response.error || response.message || 'Error al actualizar.');

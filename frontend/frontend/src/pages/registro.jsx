@@ -8,6 +8,10 @@ import "../components/css/styles.css";
 const API_URL = import.meta.env.VITE_API_URL;
 const API_KEY = import.meta.env.VITE_API_KEY;
 
+const SOLO_LETRAS = /^[A-Za-zÁÉÍÓÚáéíóúÄËÏÖÜäëïöüÑñÜü]+$/;
+const SOLO_DIGITOS = /^\d+$/;
+const CORREO_OK = /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z]{2,10})+$/;
+
 const Registro = () => {
   const [nom_1, setNom1] = useState("");
   const [nom_2, setNom2] = useState("");
@@ -31,14 +35,51 @@ const Registro = () => {
       return;
     }
 
+    if (!SOLO_LETRAS.test(nom_1.trim())) {
+      setErrorMessage("El primer nombre solo puede contener letras (sin espacios, números ni caracteres especiales).");
+      return;
+    }
+    if (nom_2.trim() && !SOLO_LETRAS.test(nom_2.trim())) {
+      setErrorMessage("El segundo nombre solo puede contener letras (sin espacios, números ni caracteres especiales).");
+      return;
+    }
+    if (!SOLO_LETRAS.test(ape_1.trim())) {
+      setErrorMessage("El primer apellido solo puede contener letras (sin espacios, números ni caracteres especiales).");
+      return;
+    }
+    if (ape_2.trim() && !SOLO_LETRAS.test(ape_2.trim())) {
+      setErrorMessage("El segundo apellido solo puede contener letras (sin espacios, números ni caracteres especiales).");
+      return;
+    }
+
+    const correoTrim = correo.trim();
+    if (!CORREO_OK.test(correoTrim) || /\.{2,}/.test(correoTrim)) {
+      setErrorMessage("El correo electrónico no es válido. Use el formato ejemplo@dominio.com");
+      return;
+    }
+
+    const telLimpio = telefono.replace(/\s/g, '').trim();
+    if (!SOLO_DIGITOS.test(telLimpio)) {
+      setErrorMessage("El teléfono solo puede contener números (sin letras, espacios ni símbolos).");
+      return;
+    }
+    if (telLimpio.length < 7) {
+      setErrorMessage("El teléfono debe tener al menos 7 dígitos.");
+      return;
+    }
+    if (telLimpio.length > 15) {
+      setErrorMessage("El teléfono no puede tener más de 15 dígitos.");
+      return;
+    }
+
     const datosUsuario = {
       id_usuario: id_usuario.trim(),
       nom_1: nom_1.trim(),
       nom_2: nom_2.trim() || null,
       ape_1: ape_1.trim(),
       ape_2: ape_2.trim() || null,
-      correo: correo.trim(),
-      telefono: (telefono.trim()), 
+      correo: correoTrim,
+      telefono: telLimpio,
       contrasena: contrasena.trim(),
       t_doc: t_doc,
       id_rol_usuario: "2", // cliente por defecto
@@ -149,9 +190,10 @@ const Registro = () => {
             type="tel"
             id="telefono"
             value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
-            placeholder="Número de teléfono"
+            onChange={(e) => setTelefono(e.target.value.replace(/\D/g, ''))}
+            placeholder="Solo números, ej. 3001234567"
             required
+            inputMode="numeric"
           />
 
           <label htmlFor="contrasena">Contraseña</label>

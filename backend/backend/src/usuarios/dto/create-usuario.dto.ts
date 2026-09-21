@@ -13,9 +13,13 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-/** Solo letras (incluye tildes y ñ) y espacios — nombres/apellidos */
+// Un solo nombre/apellido: solo letras, sin espacios
 const SOLO_LETRAS =
-  /^[A-Za-zÁÉÍÓÚáéíóúÄËÏÖÜäëïöüÑñÜü\s]+$/;
+  /^[A-Za-zÁÉÍÓÚáéíóúÄËÏÖÜäëïöüÑñÜü]+$/;
+
+// Correo estricto (tld 2-10 letras)
+const CORREO_ESTRICTO =
+  /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z]{2,10})+$/;
 
 export class CreateUsuarioDto {
   @IsString()
@@ -30,7 +34,7 @@ export class CreateUsuarioDto {
   @IsNotEmpty({ message: 'El primer nombre es obligatorio' })
   @MaxLength(50, { message: 'El primer nombre no puede tener más de 50 caracteres' })
   @Matches(SOLO_LETRAS, {
-    message: 'El primer nombre solo puede contener letras y espacios (sin números ni caracteres especiales)',
+    message: 'El primer nombre solo puede contener letras (sin espacios, números ni caracteres especiales)',
   })
   nom_1: string;
 
@@ -38,7 +42,7 @@ export class CreateUsuarioDto {
   @IsOptional()
   @MaxLength(50, { message: 'El segundo nombre no puede tener más de 50 caracteres' })
   @Matches(SOLO_LETRAS, {
-    message: 'El segundo nombre solo puede contener letras y espacios (sin números ni caracteres especiales)',
+    message: 'El segundo nombre solo puede contener letras (sin espacios, números ni caracteres especiales)',
   })
   nom_2?: string;
 
@@ -46,7 +50,7 @@ export class CreateUsuarioDto {
   @IsNotEmpty({ message: 'El primer apellido es obligatorio' })
   @MaxLength(50, { message: 'El primer apellido no puede tener más de 50 caracteres' })
   @Matches(SOLO_LETRAS, {
-    message: 'El primer apellido solo puede contener letras y espacios (sin números ni caracteres especiales)',
+    message: 'El primer apellido solo puede contener letras (sin espacios, números ni caracteres especiales)',
   })
   ape_1: string;
 
@@ -54,13 +58,16 @@ export class CreateUsuarioDto {
   @IsOptional()
   @MaxLength(50, { message: 'El segundo apellido no puede tener más de 50 caracteres' })
   @Matches(SOLO_LETRAS, {
-    message: 'El segundo apellido solo puede contener letras y espacios (sin números ni caracteres especiales)',
+    message: 'El segundo apellido solo puede contener letras (sin espacios, números ni caracteres especiales)',
   })
   ape_2?: string;
 
   @IsEmail({}, { message: 'El correo electrónico no es válido' })
   @IsNotEmpty({ message: 'El correo electrónico es obligatorio' })
   @MaxLength(40, { message: 'El correo no puede tener más de 40 caracteres' })
+  @Matches(CORREO_ESTRICTO, {
+    message: 'El correo electrónico no es válido. Use el formato ejemplo@dominio.com',
+  })
   correo: string;
 
   @Type(() => Number)

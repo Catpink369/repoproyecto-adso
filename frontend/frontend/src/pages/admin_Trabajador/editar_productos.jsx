@@ -131,6 +131,26 @@ export default function EditarProducto() {
             return;
         }
 
+        // Nombre del producto: sin caracteres extraños
+        if (!/^[A-Za-zÁÉÍÓÚáéíóúÄËÏÖÜäëïöüÑñÜü0-9\s\-.,]+$/.test(formData.nom_producto.trim())) {
+            setMensaje({
+                text: "El nombre del producto solo puede contener letras, números, espacios y guiones (sin caracteres especiales).",
+                type: 'error'
+            });
+            setCargando(false);
+            return;
+        }
+
+        // Color (si se indica): solo letras y espacios
+        if (formData.color?.trim() && !/^[A-Za-zÁÉÍÓÚáéíóúÄËÏÖÜäëïöüÑñÜü\s]+$/.test(formData.color.trim())) {
+            setMensaje({
+                text: "El color solo puede contener letras y espacios (sin números ni caracteres especiales).",
+                type: 'error'
+            });
+            setCargando(false);
+            return;
+        }
+
         const productoId = id || productoDesdeState?.id_producto;
 
         try {
