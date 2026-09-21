@@ -11,6 +11,42 @@ const getHeaders = () => {
     };
 };
 
+/** Extrae un mensaje legible del body de error de NestJS / fetch */
+const extraerMensajeError = (errorData, status) => {
+    if (!errorData) return `Error ${status || ''}`.trim();
+
+    let msg = errorData.message ?? errorData.error ?? errorData.msg;
+
+    // class-validator suele devolver un array de mensajes
+    if (Array.isArray(msg)) {
+        msg = msg.filter(Boolean).join('. ');
+    }
+
+    if (typeof msg === 'object' && msg !== null) {
+        msg = JSON.stringify(msg);
+    }
+
+    if (!msg || String(msg).trim() === '') {
+        msg = `Error ${status || 'en la solicitud'}`;
+    }
+
+    return String(msg);
+};
+
+const handleErrorResponse = async (response) => {
+    let errorData = null;
+    try {
+        errorData = await response.json();
+    } catch {
+        errorData = null;
+    }
+    const mensaje = extraerMensajeError(errorData, response.status);
+    const err = new Error(mensaje);
+    err.status = response.status;
+    err.data = errorData;
+    throw err;
+};
+
 // GET
 export const apiGet = async (endpoint) => {
     const response = await fetch(`${API_URL}${endpoint}`, {
@@ -18,8 +54,7 @@ export const apiGet = async (endpoint) => {
         credentials: 'include',
     });
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Error ${response.status}`);
+        await handleErrorResponse(response);
     }
 
     return response.json();
@@ -34,8 +69,7 @@ export const apiPost = async (endpoint, data) => {
         credentials: 'include',
     });
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Error ${response.status}`);
+        await handleErrorResponse(response);
     }
 
     return response.json();
@@ -50,8 +84,7 @@ export const apiPatch = async (endpoint, data) => {
         credentials: 'include',
     });
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Error ${response.status}`);
+        await handleErrorResponse(response);
     }
 
     return response.json();
@@ -65,8 +98,7 @@ export const apiDelete = async (endpoint) => {
         credentials: 'include',
     });
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Error ${response.status}`);
+        await handleErrorResponse(response);
     }
 
     return response.json();

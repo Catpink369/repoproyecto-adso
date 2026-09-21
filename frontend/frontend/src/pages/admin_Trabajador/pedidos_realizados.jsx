@@ -21,7 +21,11 @@ export default function PedidosRealizados() {
     const [nuevoMetodoTemp, setNuevoMetodoTemp] = useState('');
     const [procesandoMetodo, setProcesandoMetodo] = useState(false);
 
-    const [filtroTipo, setFiltroTipo] = useState('todos');
+    // Filtros combinables (tipo y estado se aplican con AND).
+    // filtrosTipo vacío = todos los tipos; filtrosEstado vacío = todos los
+    // estados excepto Anulado (comportamiento de "Todos").
+    const [filtrosTipo, setFiltrosTipo] = useState([]);       // 'estandar' | 'personalizado'
+    const [filtrosEstado, setFiltrosEstado] = useState([]);   // 'finalizados' | 'en_preparacion' | 'pagado' | 'anulados'
 
     // 'desc' = más reciente arriba (default), 'asc' = más antiguo arriba.
     // El orden es puramente por fecha, sin importar estado ni método de pago.
@@ -47,7 +51,14 @@ export default function PedidosRealizados() {
     };
 
     useEffect(() => { cargarPedidos(); }, []);
-    useEffect(() => { setPaginaActual(1); }, [filtroTipo, ordenFecha]);
+    useEffect(() => { setPaginaActual(1); }, [filtrosTipo, filtrosEstado, ordenFecha]);
+
+    // Toggle multi-selección: si ya está, lo quita; si no, lo agrega.
+    const toggleFiltro = (lista, setLista, value) => {
+        setLista(prev =>
+            prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]
+        );
+    };
 
     // ─── CARGAR PEDIDOS ───────────────────────────────────────────────────────
     // silent=true: se usa para resincronizar en segundo plano después de
@@ -632,16 +643,30 @@ export default function PedidosRealizados() {
         );
     };
 
-    // ─── PEDIDOS FILTRADOS ────────────────────────────────────────────────────
+    // ─── PEDIDOS FILTRADOS (tipo AND estado; multi-selección) ─────────────────
+    const coincideEstado = (pedido) => {
+        // Sin filtros de estado → "Todos": ocultar anulados (como antes)
+        if (filtrosEstado.length === 0) {
+            return pedido.estado !== 'Anulado';
+        }
+        return filtrosEstado.some(f => {
+            if (f === 'finalizados')    return pedido.estado === 'Finalizado' || pedido.estado === 'Entregado';
+            if (f === 'en_preparacion') return pedido.estado === 'En preparación';
+            if (f === 'pagado')         return pedido.estado === 'Pagado';
+            if (f === 'anulados')       return pedido.estado === 'Anulado';
+            if (f === 'pendiente')      return pedido.estado === 'Pendiente';
+            return false;
+        });
+    };
+
+    const coincideTipo = (pedido) => {
+        // Sin filtros de tipo → todos los tipos
+        if (filtrosTipo.length === 0) return true;
+        return filtrosTipo.includes(pedido._tipo);
+    };
+
     const pedidosFiltrados = pedidos
-        .filter(p => {
-            if (filtroTipo === 'anulados')      return p.estado === 'Anulado';
-            if (filtroTipo === 'finalizados')   return p.estado === 'Finalizado' || p.estado === 'Entregado';
-            if (p.estado === 'Anulado')         return false;
-            if (filtroTipo === 'estandar')      return p._tipo === 'estandar';
-            if (filtroTipo === 'personalizado') return p._tipo === 'personalizado';
-            return true;
-        })
+        .filter(p => coincideTipo(p) && coincideEstado(p))
         .sort((a, b) => {
             const fa = new Date(a.fecha || 0).getTime();
             const fb = new Date(b.fecha || 0).getTime();
@@ -671,7 +696,7 @@ export default function PedidosRealizados() {
                 <HeaderPedidos />
                 <section className="cuadro-blanco pedidos">
 
-                    {/* Fila 1: título + filtros de categoría */}
+                    {/* Fila 1: título + filtros de estado (multi-selección) */}
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -683,35 +708,58 @@ export default function PedidosRealizados() {
                             Pedidos Realizados ({pedidosFiltrados.length})
                         </h2>
                         <span style={{ color: '#ccc', fontSize: '20px' }}>|</span>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: '500', fontSize: '14px', color: '#666' }}>Filtrar:</span>
+                            {/* Todos: limpia filtros de estado */}
+                            <button
+                                type="button"
+                                onClick={() => setFiltrosEstado([])}
+                                style={{
+                                    padding: '5px 14px',
+                                    borderRadius: '20px',
+                                    border: filtrosEstado.length === 0 ? 'none' : '1.5px solid #888',
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    fontWeight: filtrosEstado.length === 0 ? 'bold' : 'normal',
+                                    background: filtrosEstado.length === 0 ? '#888' : 'transparent',
+                                    color: filtrosEstado.length === 0 ? '#fff' : '#888',
+                                    transition: 'all 0.15s ease',
+                                }}
+                            >
+                                Todos
+                            </button>
                             {[
-                                { value: 'todos',       label: 'Todos',       color: '#888'    },
-                                { value: 'finalizados', label: 'Finalizados', color: '#8e44ad' },
-                                { value: 'anulados',    label: 'Anulados',    color: '#e74c3c' },
-                            ].map(({ value, label, color }) => (
-                                <button
-                                    key={value}
-                                    onClick={() => setFiltroTipo(value)}
-                                    style={{
-                                        padding: '5px 14px',
-                                        borderRadius: '20px',
-                                        border: filtroTipo === value ? 'none' : `1.5px solid ${color}`,
-                                        cursor: 'pointer',
-                                        fontSize: '13px',
-                                        fontWeight: filtroTipo === value ? 'bold' : 'normal',
-                                        background: filtroTipo === value ? color : 'transparent',
-                                        color: filtroTipo === value ? '#fff' : color,
-                                        transition: 'all 0.15s ease',
-                                    }}
-                                >
-                                    {label}
-                                </button>
-                            ))}
+                                { value: 'finalizados',    label: 'Finalizados',     color: '#8e44ad' },
+                                { value: 'en_preparacion', label: 'En preparación',  color: '#3498db' },
+                                { value: 'pagado',         label: 'Pagado',          color: '#1399b2' },
+                                { value: 'anulados',       label: 'Anulados',        color: '#e74c3c' },
+                            ].map(({ value, label, color }) => {
+                                const activo = filtrosEstado.includes(value);
+                                return (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => toggleFiltro(filtrosEstado, setFiltrosEstado, value)}
+                                        style={{
+                                            padding: '5px 14px',
+                                            borderRadius: '20px',
+                                            border: activo ? 'none' : `1.5px solid ${color}`,
+                                            cursor: 'pointer',
+                                            fontSize: '13px',
+                                            fontWeight: activo ? 'bold' : 'normal',
+                                            background: activo ? color : 'transparent',
+                                            color: activo ? '#fff' : color,
+                                            transition: 'all 0.15s ease',
+                                        }}
+                                    >
+                                        {label}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    {/* Fila 2: filtros de tipo + orden por fecha */}
+                    {/* Fila 2: filtros de tipo (sin Anulados) + orden por fecha */}
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -724,26 +772,29 @@ export default function PedidosRealizados() {
                             {[
                                 { value: 'estandar',      label: 'Estándar',      color: '#5dade2' },
                                 { value: 'personalizado', label: 'Personalizado', color: '#da819f' },
-                                { value: 'anulados',      label: 'Anulados',      color: '#e74c3c' },
-                            ].map(({ value, label, color }) => (
-                                <button
-                                    key={value}
-                                    onClick={() => setFiltroTipo(value)}
-                                    style={{
-                                        padding: '5px 14px',
-                                        borderRadius: '20px',
-                                        border: filtroTipo === value ? 'none' : `1.5px solid ${color}`,
-                                        cursor: 'pointer',
-                                        fontSize: '13px',
-                                        fontWeight: filtroTipo === value ? 'bold' : 'normal',
-                                        background: filtroTipo === value ? color : 'transparent',
-                                        color: filtroTipo === value ? '#fff' : color,
-                                        transition: 'all 0.15s ease',
-                                    }}
-                                >
-                                    {label}
-                                </button>
-                            ))}
+                            ].map(({ value, label, color }) => {
+                                const activo = filtrosTipo.includes(value);
+                                return (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => toggleFiltro(filtrosTipo, setFiltrosTipo, value)}
+                                        style={{
+                                            padding: '5px 14px',
+                                            borderRadius: '20px',
+                                            border: activo ? 'none' : `1.5px solid ${color}`,
+                                            cursor: 'pointer',
+                                            fontSize: '13px',
+                                            fontWeight: activo ? 'bold' : 'normal',
+                                            background: activo ? color : 'transparent',
+                                            color: activo ? '#fff' : color,
+                                            transition: 'all 0.15s ease',
+                                        }}
+                                    >
+                                        {label}
+                                    </button>
+                                );
+                            })}
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                             <span style={{ fontWeight: '500', fontSize: '14px', color: '#666' }}>Ordenar:</span>
