@@ -332,6 +332,7 @@ const PersonalizarCubrelecho = () => {
                                     ) : telas.length === 0 ? (
                                         <p style={{ color: '#e74c3c' }}>No hay telas disponibles.</p>
                                     ) : (
+                                        <>
                                         <div className="lista-telas">
                                             {telasPagina.map(tela => (
                                                 <div key={tela.id_material}
@@ -347,17 +348,28 @@ const PersonalizarCubrelecho = () => {
                                         </div>
                                         {telas.length > TELAS_POR_PAGINA && (
                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-                                                <button type="button" disabled={paginaTelas <= 1}
+                                                <button
+                                                    type="button"
+                                                    disabled={paginaTelas < 2}
                                                     onClick={() => setPaginaTelas(p => Math.max(1, p - 1))}
-                                                    style={{ minWidth: 32, height: 32, borderRadius: 8, border: '1.5px solid #e8d5e0', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>‹</button>
+                                                    style={{ minWidth: 32, height: 32, borderRadius: 8, border: '1.5px solid #e8d5e0', background: '#fff', cursor: 'pointer', fontWeight: 600 }}
+                                                >
+                                                    {'<'}
+                                                </button>
                                                 <span style={{ fontSize: '0.85rem', color: '#7a5060' }}>
-                                                    {inicioTelas + 1}–{Math.min(inicioTelas + TELAS_POR_PAGINA, telas.length)} de {telas.length} telas
+                                                    {inicioTelas + 1}-{Math.min(inicioTelas + TELAS_POR_PAGINA, telas.length)} de {telas.length} telas
                                                 </span>
-                                                <button type="button" disabled={paginaTelas >= totalPaginasTelas}
+                                                <button
+                                                    type="button"
+                                                    disabled={paginaTelas >= totalPaginasTelas}
                                                     onClick={() => setPaginaTelas(p => Math.min(totalPaginasTelas, p + 1))}
-                                                    style={{ minWidth: 32, height: 32, borderRadius: 8, border: '1.5px solid #e8d5e0', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>›</button>
+                                                    style={{ minWidth: 32, height: 32, borderRadius: 8, border: '1.5px solid #e8d5e0', background: '#fff', cursor: 'pointer', fontWeight: 600 }}
+                                                >
+                                                    {'>'}
+                                                </button>
                                             </div>
                                         )}
+                                        </>
                                     )}
                                 </div>
                             </div>
