@@ -32,6 +32,17 @@ const Catalogo_c = () => {
     const [clasificaciones, setClasificaciones] = useState(['Todas']);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState(null);
+    const [paginaActual, setPaginaActual] = useState(1);
+    const ITEMS_POR_PAGINA = 12; // grilla del catálogo cliente
+
+
+    // Solo mostrar al cliente productos que tengan imagen cargada
+    const productoTieneImagen = (p) => {
+        const ruta = p?.ruta_imagen;
+        if (!ruta) return false;
+        const s = String(ruta).trim();
+        return s !== '' && s !== 'null' && s !== 'undefined';
+    };
 
     // Cargar productos desde la API
     const fetchProductos = async () => {
@@ -40,11 +51,14 @@ const Catalogo_c = () => {
             const response = await apiGet('/productos');
             const productosAPI = Array.isArray(response) ? response : [];
 
-            const productosMapeados = productosAPI.map(p => ({
-                ...p,
-                nombre_c:    p.categoria?.nombre_c    || null,
-                nombre_clas: p.clasificacion?.nombre_clas || null,
-            }));
+            const productosMapeados = productosAPI
+                .map(p => ({
+                    ...p,
+                    nombre_c:    p.categoria?.nombre_c    || null,
+                    nombre_clas: p.clasificacion?.nombre_clas || null,
+                }))
+                // No mostrar al cliente productos sin imagen
+                .filter(productoTieneImagen);
 
             setProducts(productosMapeados);
             
@@ -53,8 +67,8 @@ const Catalogo_c = () => {
             
             const clasificacionesUnicas = ['Todas', 'Últimas Unidades', ...new Set(
                 productosMapeados
-                    .filter(p => p.nombre_clas && p.nombre_clas.toLowerCase() !== 'sin clasificar')
-                    .map(p => p.nombre_clas)
+                    .filter(p => p.nombre_clas && p.nombre_clas.toLowerCase().replace(/_/g, ' ') !== 'sin clasificar')
+                    .map(p => p.nombre_clas.replace(/_/g, ' '))
             )];
             setClasificaciones(clasificacionesUnicas);
             
@@ -71,11 +85,16 @@ const Catalogo_c = () => {
         fetchProductos();
     }, []);
 
-    // Aplicar filtro de clasificación desde URL cuando cambian los searchParams
+    // Aplicar filtro de clasificación / búsqueda desde URL (ej. desde popup "Ver ofertas")
     useEffect(() => {
         const clasificacionURL = searchParams.get('clasificacion');
         if (clasificacionURL) {
-            setClas_seleccionada(clasificacionURL.replace(/_/g, ' '));
+            // "En_oferta" o "En%20oferta" → "En oferta"
+            setClas_seleccionada(decodeURIComponent(clasificacionURL).replace(/_/g, ' '));
+        }
+        const searchURL = searchParams.get('search');
+        if (searchURL != null) {
+            setSearchTerm(decodeURIComponent(searchURL));
         }
     }, [searchParams]);
 
@@ -171,9 +190,11 @@ const Catalogo_c = () => {
                 if (clas_seleccionada === 'Últimas Unidades') {
                     coincide_clas = isStockBajo(product);
                 } else {
-                    // Comparación flexible para clasificaciones
-                    const clasProducto = product.nombre_clas ? product.nombre_clas.toLowerCase() : '';
-                    const clasBuscada = clas_seleccionada.toLowerCase();
+                    // Normalizar guiones bajos → espacios (ej. En_oferta → en oferta)
+                    const clasProducto = product.nombre_clas
+                        ? product.nombre_clas.replace(/_/g, ' ').toLowerCase()
+                        : '';
+                    const clasBuscada = clas_seleccionada.replace(/_/g, ' ').toLowerCase();
                     
                     // Manejar variaciones de "Nuevo"
                     if (clasBuscada === 'nuevo' || clasBuscada === 'nuevos') {
@@ -199,8 +220,12 @@ const Catalogo_c = () => {
         });
 
         setFilteredProducts(productos_filtrados);
-        
+        setPaginaActual(1);
     }, [cat_seleccionada, clas_seleccionada, searchTerm, products]);
+
+    const totalPaginas = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_POR_PAGINA));
+    const inicioSlice = (paginaActual - 1) * ITEMS_POR_PAGINA;
+    const productosPagina = filteredProducts.slice(inicioSlice, inicioSlice + ITEMS_POR_PAGINA);
 
     // Función para obtener el badge del producto
     const getBadgeInfo = (producto) => {
@@ -347,7 +372,7 @@ const Catalogo_c = () => {
 
                 {/* CONTENEDOR DE PRODUCTOS */}
                 <div className="contenedor-productos">
-                    {filteredProducts.map((product) => {
+                    {productosPagina.map((product) => {
                         const badgeInfo = getBadgeInfo(product);
                         const cantidadEnCarrito = getCantidadEnCarrito(product.id_producto);
                         const stockRestante = product.stock_actual - cantidadEnCarrito;
@@ -482,6 +507,34 @@ const Catalogo_c = () => {
                         </p>
                     )}
                 </div>
+
+                {filteredProducts.length > ITEMS_POR_PAGINA && (
+                    <div className="paginacion-bar">
+                        <button type="button" className="paginacion-btn" disabled={paginaActual <= 1}
+                            onClick={() => setPaginaActual(p => Math.max(1, p - 1))}>‹</button>
+                        {Array.from({ length: totalPaginas }, (_, i) => i + 1)
+                            .filter(n => n === 1 || n === totalPaginas || Math.abs(n - paginaActual) <= 1)
+                            .reduce((acc, n, idx, arr) => {
+                                if (idx > 0 && n - arr[idx - 1] > 1) acc.push('…');
+                                acc.push(n);
+                                return acc;
+                            }, [])
+                            .map((n, idx) =>
+                                n === '…' ? (
+                                    <span key={`e-${idx}`} style={{ padding: '0 4px', color: '#9a7a8a' }}>…</span>
+                                ) : (
+                                    <button key={n} type="button"
+                                        className={`paginacion-btn ${paginaActual === n ? 'activo' : ''}`}
+                                        onClick={() => setPaginaActual(n)}>{n}</button>
+                                )
+                            )}
+                        <button type="button" className="paginacion-btn" disabled={paginaActual >= totalPaginas}
+                            onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}>›</button>
+                        <div className="paginacion-info">
+                            Página {paginaActual} de {totalPaginas} · {inicioSlice + 1}–{Math.min(inicioSlice + ITEMS_POR_PAGINA, filteredProducts.length)} de {filteredProducts.length} productos
+                        </div>
+                    </div>
+                )}
             </section>
         </main>
             
@@ -489,6 +542,44 @@ const Catalogo_c = () => {
 
         {/* CSS para animación */}
         <style>{`
+
+            .paginacion-bar {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                flex-wrap: wrap;
+                margin: 24px 0 8px;
+            }
+            .paginacion-btn {
+                min-width: 36px;
+                height: 36px;
+                padding: 0 12px;
+                border-radius: 8px;
+                border: 1.5px solid #e8d5dc;
+                background: #fff;
+                color: #5a3d54;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+            .paginacion-btn:disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+            }
+            .paginacion-btn.activo {
+                background: #c45c7e;
+                border-color: #c45c7e;
+                color: #fff;
+            }
+            .paginacion-info {
+                width: 100%;
+                text-align: center;
+                font-size: 13px;
+                color: #7a5060;
+                margin-top: 4px;
+            }
+
             @keyframes slideIn {
                 from {
                     transform: translateX(100%);

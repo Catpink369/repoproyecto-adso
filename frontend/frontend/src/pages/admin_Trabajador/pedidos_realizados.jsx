@@ -26,6 +26,8 @@ export default function PedidosRealizados() {
     // 'desc' = más reciente arriba (default), 'asc' = más antiguo arriba.
     // El orden es puramente por fecha, sin importar estado ni método de pago.
     const [ordenFecha, setOrdenFecha] = useState('desc');
+    const [paginaActual, setPaginaActual] = useState(1);
+    const ITEMS_POR_PAGINA = 10; // filas de pedido son pesadas (detalle expandible)
 
     const opcionesMetodoPago = ['Por_definir', 'Efectivo', 'Tarjeta', 'Transferencia', 'Nequi', 'DaviPlata'];
 
@@ -45,6 +47,7 @@ export default function PedidosRealizados() {
     };
 
     useEffect(() => { cargarPedidos(); }, []);
+    useEffect(() => { setPaginaActual(1); }, [filtroTipo, ordenFecha]);
 
     // ─── CARGAR PEDIDOS ───────────────────────────────────────────────────────
     // silent=true: se usa para resincronizar en segundo plano después de
@@ -630,13 +633,25 @@ export default function PedidosRealizados() {
     };
 
     // ─── PEDIDOS FILTRADOS ────────────────────────────────────────────────────
-    const pedidosFiltrados = pedidos.filter(p => {
-        if (filtroTipo === 'anulados')      return p.estado === 'Anulado';
-        if (p.estado === 'Anulado')         return false;
-        if (filtroTipo === 'estandar')      return p._tipo === 'estandar';
-        if (filtroTipo === 'personalizado') return p._tipo === 'personalizado';
-        return true;
-    });
+    const pedidosFiltrados = pedidos
+        .filter(p => {
+            if (filtroTipo === 'anulados')      return p.estado === 'Anulado';
+            if (filtroTipo === 'finalizados')   return p.estado === 'Finalizado' || p.estado === 'Entregado';
+            if (p.estado === 'Anulado')         return false;
+            if (filtroTipo === 'estandar')      return p._tipo === 'estandar';
+            if (filtroTipo === 'personalizado') return p._tipo === 'personalizado';
+            return true;
+        })
+        .sort((a, b) => {
+            const fa = new Date(a.fecha || 0).getTime();
+            const fb = new Date(b.fecha || 0).getTime();
+            return ordenFecha === 'asc' ? fa - fb : fb - fa;
+        });
+
+    const totalPaginas = Math.max(1, Math.ceil(pedidosFiltrados.length / ITEMS_POR_PAGINA));
+    const paginaSegura = Math.min(paginaActual, totalPaginas);
+    const inicioSlice = (paginaSegura - 1) * ITEMS_POR_PAGINA;
+    const pedidosPagina = pedidosFiltrados.slice(inicioSlice, inicioSlice + ITEMS_POR_PAGINA);
 
     // ─── RENDER ───────────────────────────────────────────────────────────────
     if (loading) return (
@@ -785,7 +800,7 @@ export default function PedidosRealizados() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    pedidosFiltrados.map((pedido) => {
+                                    pedidosPagina.map((pedido) => {
                                         const accentColor = getRowAccent(pedido);
                                         return (
                                             <React.Fragment key={`${pedido._tipo}-${pedido.id_pedido}`}>
@@ -1025,6 +1040,40 @@ export default function PedidosRealizados() {
                             </tbody>
                         </table>
                     </div>
+
+                    {pedidosFiltrados.length > ITEMS_POR_PAGINA && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', margin: '20px 0 8px' }}>
+                            <button type="button" disabled={paginaSegura <= 1}
+                                onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+                                style={{ minWidth: 36, height: 36, borderRadius: 8, border: '1.5px solid #e8d5dc', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>‹</button>
+                            {Array.from({ length: totalPaginas }, (_, i) => i + 1)
+                                .filter(n => n === 1 || n === totalPaginas || Math.abs(n - paginaSegura) <= 1)
+                                .reduce((acc, n, idx, arr) => {
+                                    if (idx > 0 && n - arr[idx - 1] > 1) acc.push('…');
+                                    acc.push(n);
+                                    return acc;
+                                }, [])
+                                .map((n, idx) =>
+                                    n === '…' ? (
+                                        <span key={`e-${idx}`} style={{ padding: '0 4px', color: '#9a7a8a' }}>…</span>
+                                    ) : (
+                                        <button key={n} type="button" onClick={() => setPaginaActual(n)}
+                                            style={{
+                                                minWidth: 36, height: 36, borderRadius: 8, fontWeight: 600, cursor: 'pointer',
+                                                border: paginaSegura === n ? 'none' : '1.5px solid #e8d5dc',
+                                                background: paginaSegura === n ? '#c45c7e' : '#fff',
+                                                color: paginaSegura === n ? '#fff' : '#5a3d54',
+                                            }}>{n}</button>
+                                    )
+                                )}
+                            <button type="button" disabled={paginaSegura >= totalPaginas}
+                                onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
+                                style={{ minWidth: 36, height: 36, borderRadius: 8, border: '1.5px solid #e8d5dc', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>›</button>
+                            <div style={{ width: '100%', textAlign: 'center', fontSize: 13, color: '#7a5060', marginTop: 4 }}>
+                                Página {paginaSegura} de {totalPaginas} · {inicioSlice + 1}–{Math.min(inicioSlice + ITEMS_POR_PAGINA, pedidosFiltrados.length)} de {pedidosFiltrados.length} pedidos
+                            </div>
+                        </div>
+                    )}
                 </section>
             </main>
         </div>

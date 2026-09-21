@@ -55,6 +55,8 @@ const PersonalizarSabana = () => {
     const [colorSeleccionado, setColorSeleccionado] = useState(null);
     const [disenoSeleccionado, setDisenoSeleccionado] = useState(null);
     const [cargandoOpciones, setCargandoOpciones]   = useState(false);
+    const [paginaTelas, setPaginaTelas]             = useState(1);
+    const TELAS_POR_PAGINA = 4; // mostrar de a 4 telas para no saturar la vista
 
     useEffect(() => {
         const fetchTelas = async () => {
@@ -105,6 +107,10 @@ const PersonalizarSabana = () => {
             setDisenoSeleccionado(null);
         }
     };
+
+    const totalPaginasTelas = Math.max(1, Math.ceil(telas.length / TELAS_POR_PAGINA));
+    const inicioTelas = (paginaTelas - 1) * TELAS_POR_PAGINA;
+    const telasPagina = telas.slice(inicioTelas, inicioTelas + TELAS_POR_PAGINA);
 
     const formatPrice = (price) =>
         Number(price)?.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
@@ -277,7 +283,7 @@ const PersonalizarSabana = () => {
                                 <p style={{ color: '#e74c3c' }}>No hay telas disponibles.</p>
                             ) : (
                                 <div className="lista-telas">
-                                    {telas.map(tela => (
+                                    {telasPagina.map(tela => (
                                         <div key={tela.id_material}
                                             className={`tela-item ${telaSeleccionada?.id_material === tela.id_material ? 'activo' : ''}`}
                                             onClick={() => handleSeleccionarTela(tela)}>
@@ -289,6 +295,19 @@ const PersonalizarSabana = () => {
                                         </div>
                                     ))}
                                 </div>
+                                {telas.length > TELAS_POR_PAGINA && (
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+                                        <button type="button" disabled={paginaTelas <= 1}
+                                            onClick={() => setPaginaTelas(p => Math.max(1, p - 1))}
+                                            style={{ minWidth: 32, height: 32, borderRadius: 8, border: '1.5px solid #e8d5e0', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>‹</button>
+                                        <span style={{ fontSize: '0.85rem', color: '#7a5060' }}>
+                                            {inicioTelas + 1}–{Math.min(inicioTelas + TELAS_POR_PAGINA, telas.length)} de {telas.length} telas
+                                        </span>
+                                        <button type="button" disabled={paginaTelas >= totalPaginasTelas}
+                                            onClick={() => setPaginaTelas(p => Math.min(totalPaginasTelas, p + 1))}
+                                            style={{ minWidth: 32, height: 32, borderRadius: 8, border: '1.5px solid #e8d5e0', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>›</button>
+                                    </div>
+                                )}
                             )}
                         </div>
 

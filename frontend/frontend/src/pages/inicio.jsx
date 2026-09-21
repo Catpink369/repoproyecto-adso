@@ -24,9 +24,18 @@ function Inicio() {
     const [searchTerm, setSearchTerm] = useState('');
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState(null);
+    const [paginaActual, setPaginaActual] = useState(1);
+    const ITEMS_POR_PAGINA = 12; // catálogo en grilla: 12 se ve bien en 3–4 columnas
 
-    // Funciones auxiliares
-    
+
+    // Solo mostrar al cliente productos que tengan imagen cargada
+    const productoTieneImagen = (p) => {
+        const ruta = p?.ruta_imagen;
+        if (!ruta) return false;
+        const s = String(ruta).trim();
+        return s !== '' && s !== 'null' && s !== 'undefined';
+    };
+
     // Manejar cambio de categoría
     const handleCategoryFilter = (category) => {
         setcat_seleccionada(category);
@@ -109,15 +118,17 @@ function Inicio() {
                 setCargando(true);
                 const response = await apiGet('/productos');
                 const productos = Array.isArray(response) ? response : response.data || [];
-                setProducts(productos);
+                // No mostrar al cliente productos sin imagen
+                const conImagen = productos.filter(productoTieneImagen);
+                setProducts(conImagen);
                 
                 // Extraer categorías únicas (reemplazando _ por espacio si existen)
-                const categoriasUnicas = ['Todo', ...new Set(productos.map(p => p.nombre_c?.replace(/_/g, ' ')).filter(Boolean))];
+                const categoriasUnicas = ['Todo', ...new Set(conImagen.map(p => p.nombre_c?.replace(/_/g, ' ')).filter(Boolean))];
                 setCategorias(categoriasUnicas);
                 
                 // Extraer clasificaciones únicas (excluyendo "Sin clasificar" y reemplazando _ por espacio)
                 const clasificacionesUnicas = ['Todas', 'Últimas Unidades', ...new Set(
-                    productos
+                    conImagen
                         .filter(p => p.nombre_clas && p.nombre_clas.toLowerCase() !== 'sin clasificar')
                         .map(p => p.nombre_clas.replace(/_/g, ' '))
                 )];
@@ -178,8 +189,12 @@ function Inicio() {
         });
 
         setFilteredProducts(productos_filtrados);
-        
+        setPaginaActual(1); // volver a página 1 al cambiar filtros/búsqueda
     }, [cat_seleccionada, clas_seleccionada, searchTerm, products]);
+
+    const totalPaginas = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_POR_PAGINA));
+    const inicioSlice = (paginaActual - 1) * ITEMS_POR_PAGINA;
+    const productosPagina = filteredProducts.slice(inicioSlice, inicioSlice + ITEMS_POR_PAGINA);
 
 
     return (
@@ -268,7 +283,7 @@ function Inicio() {
                     </div>
                 ) : (
                     <div className="contenedor-productos">
-                        {filteredProducts.map((product) => {
+                        {productosPagina.map((product) => {
                             const badgeInfo = getBadgeInfo(product);
                             
                             return (
@@ -355,6 +370,35 @@ function Inicio() {
                                 No se encontraron productos para los criterios de búsqueda actuales.
                             </p>
                         )}
+                    </div>
+                )}
+
+                {/* Paginación catálogo */}
+                {!cargando && !error && filteredProducts.length > ITEMS_POR_PAGINA && (
+                    <div className="paginacion-bar">
+                        <button type="button" className="paginacion-btn" disabled={paginaActual <= 1}
+                            onClick={() => setPaginaActual(p => Math.max(1, p - 1))}>‹</button>
+                        {Array.from({ length: totalPaginas }, (_, i) => i + 1)
+                            .filter(n => n === 1 || n === totalPaginas || Math.abs(n - paginaActual) <= 1)
+                            .reduce((acc, n, idx, arr) => {
+                                if (idx > 0 && n - arr[idx - 1] > 1) acc.push('…');
+                                acc.push(n);
+                                return acc;
+                            }, [])
+                            .map((n, idx) =>
+                                n === '…' ? (
+                                    <span key={`e-${idx}`} style={{ padding: '0 4px', color: '#9a7a8a' }}>…</span>
+                                ) : (
+                                    <button key={n} type="button"
+                                        className={`paginacion-btn ${paginaActual === n ? 'activo' : ''}`}
+                                        onClick={() => setPaginaActual(n)}>{n}</button>
+                                )
+                            )}
+                        <button type="button" className="paginacion-btn" disabled={paginaActual >= totalPaginas}
+                            onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}>›</button>
+                        <div className="paginacion-info">
+                            Página {paginaActual} de {totalPaginas} · {inicioSlice + 1}–{Math.min(inicioSlice + ITEMS_POR_PAGINA, filteredProducts.length)} de {filteredProducts.length} productos
+                        </div>
                     </div>
                 )}
 

@@ -213,7 +213,7 @@ export default function Movimientos(){
 
                 {/* Tarjetas de acceso rápido */}
                 <section className="cuadro-blanco movimientos-principal">
-                    <h2>Registre todas sus entradas y salidas aquí</h2>
+                    <h2>Registre todas sus entradas y salidas de productos aquí</h2>
 
                     <div className="contenedor-movimientos">
                         <div className="tarjeta">

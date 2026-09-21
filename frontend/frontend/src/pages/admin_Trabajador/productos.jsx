@@ -7,6 +7,23 @@ import "../../components/css/styles.css";
 import { apiGet, apiDelete } from '../../context/api.js';
 import { getImageUrl as formatearRutaImagen } from '../../utils/getImageUrl.js';
 
+
+// Límites de fecha para filtros: no futuro y no más de 24 meses atrás
+const getFechaHoy = () => new Date().toISOString().split('T')[0];
+const getFechaMinima = () => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 24);
+    return d.toISOString().split('T')[0];
+};
+const clampFecha = (valor) => {
+    if (!valor) return valor;
+    const hoy = getFechaHoy();
+    const min = getFechaMinima();
+    if (valor > hoy) return hoy;
+    if (valor < min) return min;
+    return valor;
+};
+
 export default function Productos(){
     const [productos, setProductos] = useState([]);
     const [productosFiltrados, setProductosFiltrados] = useState([]);
@@ -30,6 +47,8 @@ export default function Productos(){
         campo: 'id_producto',
         direccion: 'desc'
     });
+    const [paginaActual, setPaginaActual] = useState(1);
+    const ITEMS_POR_PAGINA = 15; // tabla admin: 15 filas es cómodo de revisar
 
     const isStockBajo = (producto) => {
         return producto.stock_actual <= producto.stock_minimo;
@@ -168,7 +187,12 @@ export default function Productos(){
         });
 
         setProductosFiltrados(resultado);
+        setPaginaActual(1);
     };
+
+    const totalPaginas = Math.max(1, Math.ceil(productosFiltrados.length / ITEMS_POR_PAGINA));
+    const inicioSlice = (paginaActual - 1) * ITEMS_POR_PAGINA;
+    const productosPagina = productosFiltrados.slice(inicioSlice, inicioSlice + ITEMS_POR_PAGINA);
 
     const handleOrdenamiento = (campo) => {
         setOrdenamiento(prev => ({
@@ -178,10 +202,26 @@ export default function Productos(){
     };
 
     const handleFiltroChange = (campo, valor) => {
+        const valorFinal = (campo === 'fechaDesde' || campo === 'fechaHasta')
+            ? clampFecha(valor)
+            : valor;
         setFiltros(prev => ({
             ...prev,
-            [campo]: valor
+            [campo]: valorFinal
         }));
+    };
+
+    const borrarFiltros = () => {
+        setBusqueda('');
+        setFiltros({
+            categoria: '',
+            stockBajo: false,
+            fechaDesde: '',
+            fechaHasta: '',
+            precioMin: '',
+            precioMax: ''
+        });
+        setOrdenamiento({ campo: 'id_producto', direccion: 'desc' });
     };
 
     const handleEditar = (producto) => {
@@ -323,6 +363,24 @@ export default function Productos(){
                             )}
                         </button>
 
+                        {(filtrosActivos > 0 || busqueda.trim() !== '') && (
+                            <button
+                                className="btn-categoria"
+                                onClick={borrarFiltros}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    background: '#f5f5f5',
+                                    border: '1px solid #ccc'
+                                }}
+                                title="Limpiar búsqueda y filtros"
+                            >
+                                <i className="fa-solid fa-eraser"></i>
+                                Borrar filtros
+                            </button>
+                        )}
+
                         <select 
                             value={`${ordenamiento.campo}-${ordenamiento.direccion}`}
                             onChange={(e) => {
@@ -457,6 +515,8 @@ export default function Productos(){
                                         <input 
                                             type="date"
                                             value={filtros.fechaDesde}
+                                            min={getFechaMinima()}
+                                            max={getFechaHoy()}
                                             onChange={(e) => handleFiltroChange('fechaDesde', e.target.value)}
                                             style={{
                                                 flex: 1,
@@ -469,6 +529,8 @@ export default function Productos(){
                                         <input 
                                             type="date"
                                             value={filtros.fechaHasta}
+                                            min={getFechaMinima()}
+                                            max={getFechaHoy()}
                                             onChange={(e) => handleFiltroChange('fechaHasta', e.target.value)}
                                             style={{
                                                 flex: 1,
@@ -528,7 +590,7 @@ export default function Productos(){
                                         </td>
                                     </tr>
                                 ) : (
-                                    productosFiltrados.map((producto) => {
+                                    productosPagina.map((producto) => {
                                         const srcImagen = formatearRutaImagen(producto.ruta_imagen);
                                         return (
                                             <tr key={producto.id_producto}>
@@ -610,6 +672,40 @@ export default function Productos(){
                             </tbody>
                         </table>
                     </div>
+
+                    {productosFiltrados.length > ITEMS_POR_PAGINA && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', margin: '20px 0 8px' }}>
+                            <button type="button" disabled={paginaActual <= 1}
+                                onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+                                style={{ minWidth: 36, height: 36, borderRadius: 8, border: '1.5px solid #e8d5dc', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>‹</button>
+                            {Array.from({ length: totalPaginas }, (_, i) => i + 1)
+                                .filter(n => n === 1 || n === totalPaginas || Math.abs(n - paginaActual) <= 1)
+                                .reduce((acc, n, idx, arr) => {
+                                    if (idx > 0 && n - arr[idx - 1] > 1) acc.push('…');
+                                    acc.push(n);
+                                    return acc;
+                                }, [])
+                                .map((n, idx) =>
+                                    n === '…' ? (
+                                        <span key={`e-${idx}`} style={{ padding: '0 4px', color: '#9a7a8a' }}>…</span>
+                                    ) : (
+                                        <button key={n} type="button" onClick={() => setPaginaActual(n)}
+                                            style={{
+                                                minWidth: 36, height: 36, borderRadius: 8, fontWeight: 600, cursor: 'pointer',
+                                                border: paginaActual === n ? 'none' : '1.5px solid #e8d5dc',
+                                                background: paginaActual === n ? '#c45c7e' : '#fff',
+                                                color: paginaActual === n ? '#fff' : '#5a3d54',
+                                            }}>{n}</button>
+                                    )
+                                )}
+                            <button type="button" disabled={paginaActual >= totalPaginas}
+                                onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
+                                style={{ minWidth: 36, height: 36, borderRadius: 8, border: '1.5px solid #e8d5dc', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>›</button>
+                            <div style={{ width: '100%', textAlign: 'center', fontSize: 13, color: '#7a5060', marginTop: 4 }}>
+                                Página {paginaActual} de {totalPaginas} · {inicioSlice + 1}–{Math.min(inicioSlice + ITEMS_POR_PAGINA, productosFiltrados.length)} de {productosFiltrados.length} productos
+                            </div>
+                        </div>
+                    )}
                 </section>
             </main>
         </div> 

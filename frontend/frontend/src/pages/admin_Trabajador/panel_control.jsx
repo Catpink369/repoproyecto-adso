@@ -9,6 +9,23 @@ import {
 } from 'recharts';
 import { Link } from 'react-router-dom';
 
+
+// Límites de fecha para filtros: no futuro y no más de 24 meses atrás
+const getFechaHoy = () => new Date().toISOString().split('T')[0];
+const getFechaMinima = () => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 24);
+    return d.toISOString().split('T')[0];
+};
+const clampFecha = (valor) => {
+    if (!valor) return valor;
+    const hoy = getFechaHoy();
+    const min = getFechaMinima();
+    if (valor > hoy) return hoy;
+    if (valor < min) return min;
+    return valor;
+};
+
 // ─────────────────────────────────────────────
 //  SUBCOMPONENTE: HISTORIAL DE VENTAS
 // ─────────────────────────────────────────────
@@ -65,13 +82,17 @@ function HistorialVentas() {
                 <div>
                     <label className="filtro-label">Desde:</label>
                     <input type="date" value={rangoFechas.desde}
-                        onChange={(e) => setRangoFechas(p => ({ ...p, desde: e.target.value }))}
+                        min={getFechaMinima()}
+                        max={getFechaHoy()}
+                        onChange={(e) => setRangoFechas(p => ({ ...p, desde: clampFecha(e.target.value) }))}
                         className="filtro-date-input" />
                 </div>
                 <div>
                     <label className="filtro-label">Hasta:</label>
                     <input type="date" value={rangoFechas.hasta}
-                        onChange={(e) => setRangoFechas(p => ({ ...p, hasta: e.target.value }))}
+                        min={getFechaMinima()}
+                        max={getFechaHoy()}
+                        onChange={(e) => setRangoFechas(p => ({ ...p, hasta: clampFecha(e.target.value) }))}
                         className="filtro-date-input" />
                 </div>
                 <button className="btn-registrar" onClick={fetchEstadisticas}>Actualizar</button>
@@ -562,13 +583,17 @@ function Reportes() {
                 <div>
                     <label className="filtro-label">Desde:</label>
                     <input type="date" value={fechaDesde}
-                        onChange={e => setFechaDesde(e.target.value)}
+                        min={getFechaMinima()}
+                        max={getFechaHoy()}
+                        onChange={e => setFechaDesde(clampFecha(e.target.value))}
                         className="filtro-date-input" />
                 </div>
                 <div>
                     <label className="filtro-label">Hasta:</label>
                     <input type="date" value={fechaHasta}
-                        onChange={e => setFechaHasta(e.target.value)}
+                        min={getFechaMinima()}
+                        max={getFechaHoy()}
+                        onChange={e => setFechaHasta(clampFecha(e.target.value))}
                         className="filtro-date-input" />
                 </div>
                 <button className="btn-registrar btn-no-imprimir" onClick={handlePrint}>Imprimir Reporte</button>

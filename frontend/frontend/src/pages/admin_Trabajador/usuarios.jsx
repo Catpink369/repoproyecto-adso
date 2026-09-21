@@ -425,6 +425,8 @@ export default function Usuarios() {
     const [modalRegistrar, setModalRegistrar] = useState(false);
     const [usuarioEditar, setUsuarioEditar] = useState(null);
     const [toast, setToast] = useState({ text: '', type: '' });
+    const [paginaActual, setPaginaActual] = useState(1);
+    const ITEMS_POR_PAGINA = 12; // tabla de usuarios
 
     const mostrarToast = (text, type = 'success') => {
         setToast({ text, type });
@@ -446,6 +448,7 @@ export default function Usuarios() {
     };
 
     useEffect(() => { cargarUsuarios(); }, []);
+    useEffect(() => { setPaginaActual(1); }, [tabActiva, searchTerm, filtroEstado]);
 
     const handleCambiarEstado = async (usuario) => {
         if (usuario.correo === 'valruiz@gmail.com') {
@@ -487,6 +490,11 @@ export default function Usuarios() {
             (filtroEstado === 'inactivos' && u.estado === 0);
         return ok && okEstado;
     });
+
+    const totalPaginas = Math.max(1, Math.ceil(visibles.length / ITEMS_POR_PAGINA));
+    const paginaSegura = Math.min(paginaActual, totalPaginas);
+    const inicioSlice = (paginaSegura - 1) * ITEMS_POR_PAGINA;
+    const usuariosPagina = visibles.slice(inicioSlice, inicioSlice + ITEMS_POR_PAGINA);
 
     const stats = {
         total: porTab.length,
@@ -618,7 +626,7 @@ export default function Usuarios() {
                                                 </p>
                                             </td>
                                         </tr>
-                                    ) : visibles.map((u, i) => (
+                                    ) : usuariosPagina.map((u, i) => (
                                         <tr key={u.id_usuario} style={{ background: i % 2 === 0 ? '#fff' : C.rosaLight }}>
                                             <td style={s.td}>
                                                 <div style={s.nombreCell}>
@@ -677,10 +685,42 @@ export default function Usuarios() {
                             </table>
                         </div>
 
+                        {visibles.length > ITEMS_POR_PAGINA && (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', padding: '16px 24px' }}>
+                                <button type="button" disabled={paginaSegura <= 1}
+                                    onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+                                    style={{ minWidth: 36, height: 36, borderRadius: 8, border: '1.5px solid #e8d5dc', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>‹</button>
+                                {Array.from({ length: totalPaginas }, (_, i) => i + 1)
+                                    .filter(n => n === 1 || n === totalPaginas || Math.abs(n - paginaSegura) <= 1)
+                                    .reduce((acc, n, idx, arr) => {
+                                        if (idx > 0 && n - arr[idx - 1] > 1) acc.push('…');
+                                        acc.push(n);
+                                        return acc;
+                                    }, [])
+                                    .map((n, idx) =>
+                                        n === '…' ? (
+                                            <span key={`e-${idx}`} style={{ padding: '0 4px', color: '#9a7a8a' }}>…</span>
+                                        ) : (
+                                            <button key={n} type="button" onClick={() => setPaginaActual(n)}
+                                                style={{
+                                                    minWidth: 36, height: 36, borderRadius: 8, fontWeight: 600, cursor: 'pointer',
+                                                    border: paginaSegura === n ? 'none' : '1.5px solid #e8d5dc',
+                                                    background: paginaSegura === n ? '#c45c7e' : '#fff',
+                                                    color: paginaSegura === n ? '#fff' : '#5a3d54',
+                                                }}>{n}</button>
+                                        )
+                                    )}
+                                <button type="button" disabled={paginaSegura >= totalPaginas}
+                                    onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
+                                    style={{ minWidth: 36, height: 36, borderRadius: 8, border: '1.5px solid #e8d5dc', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>›</button>
+                            </div>
+                        )}
+
                         {/* Footer contador */}
                         {visibles.length > 0 && (
                             <div style={{ padding: '14px 24px', borderTop: `1px solid ${C.fondo}`, fontSize: '13px', color: C.gris }}>
-                                Mostrando <strong>{visibles.length}</strong> de <strong>{porTab.length}</strong> {tabActiva}
+                                Mostrando <strong>{inicioSlice + 1}–{Math.min(inicioSlice + ITEMS_POR_PAGINA, visibles.length)}</strong> de <strong>{visibles.length}</strong> {tabActiva}
+                                {visibles.length !== porTab.length ? ` (filtrados de ${porTab.length})` : ''}
                             </div>
                         )}
                     </div>

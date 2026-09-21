@@ -25,6 +25,8 @@ const Materiales = () => {
     const [error, setError]                         = useState(null);
     const [buscar, setBuscar]                       = useState('');
     const [tipoFiltro, setTipoFiltro]               = useState('Todos');
+    const [paginaActual, setPaginaActual]           = useState(1);
+    const ITEMS_POR_PAGINA = 15; // tabla de materiales
 
     // formulario crear
     const [mostrarFormulario, setMostrarFormulario] = useState(false);
@@ -75,6 +77,12 @@ const Materiales = () => {
         const coincideTipo     = tipoFiltro === 'Todos' || m.tipo === tipoFiltro;
         return coincideBusqueda && coincideTipo;
     });
+
+    useEffect(() => { setPaginaActual(1); }, [buscar, tipoFiltro]);
+
+    const totalPaginas = Math.max(1, Math.ceil(materialesFiltrados.length / ITEMS_POR_PAGINA));
+    const inicioSlice = (paginaActual - 1) * ITEMS_POR_PAGINA;
+    const materialesPagina = materialesFiltrados.slice(inicioSlice, inicioSlice + ITEMS_POR_PAGINA);
 
     const formatPrice = (p) =>
         Number(p).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
@@ -678,7 +686,7 @@ const Materiales = () => {
                                                 <div className="tabla-vacia-mensaje"><p>No se encontraron materiales</p></div>
                                             </td>
                                         </tr>
-                                    ) : materialesFiltrados.map(m => (
+                                    ) : materialesPagina.map(m => (
                                         <tr key={m.id_material}>
                                             <td>
                                                 {m.ruta_imagen
@@ -720,6 +728,40 @@ const Materiales = () => {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    )}
+
+                    {materialesFiltrados.length > ITEMS_POR_PAGINA && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', margin: '20px 0 8px' }}>
+                            <button type="button" disabled={paginaActual <= 1}
+                                onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+                                style={{ minWidth: 36, height: 36, borderRadius: 8, border: '1.5px solid #e8d5dc', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>‹</button>
+                            {Array.from({ length: totalPaginas }, (_, i) => i + 1)
+                                .filter(n => n === 1 || n === totalPaginas || Math.abs(n - paginaActual) <= 1)
+                                .reduce((acc, n, idx, arr) => {
+                                    if (idx > 0 && n - arr[idx - 1] > 1) acc.push('…');
+                                    acc.push(n);
+                                    return acc;
+                                }, [])
+                                .map((n, idx) =>
+                                    n === '…' ? (
+                                        <span key={`e-${idx}`} style={{ padding: '0 4px', color: '#9a7a8a' }}>…</span>
+                                    ) : (
+                                        <button key={n} type="button" onClick={() => setPaginaActual(n)}
+                                            style={{
+                                                minWidth: 36, height: 36, borderRadius: 8, fontWeight: 600, cursor: 'pointer',
+                                                border: paginaActual === n ? 'none' : '1.5px solid #e8d5dc',
+                                                background: paginaActual === n ? '#c45c7e' : '#fff',
+                                                color: paginaActual === n ? '#fff' : '#5a3d54',
+                                            }}>{n}</button>
+                                    )
+                                )}
+                            <button type="button" disabled={paginaActual >= totalPaginas}
+                                onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
+                                style={{ minWidth: 36, height: 36, borderRadius: 8, border: '1.5px solid #e8d5dc', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>›</button>
+                            <div style={{ width: '100%', textAlign: 'center', fontSize: 13, color: '#7a5060', marginTop: 4 }}>
+                                Página {paginaActual} de {totalPaginas} · {inicioSlice + 1}–{Math.min(inicioSlice + ITEMS_POR_PAGINA, materialesFiltrados.length)} de {materialesFiltrados.length} materiales
+                            </div>
                         </div>
                     )}
                 </div>

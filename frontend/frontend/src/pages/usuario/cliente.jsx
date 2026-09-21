@@ -22,16 +22,26 @@ const Cliente = () => {
     const [products, setProducts] = useState([]);
     const [cargando, setCargando] = useState(true);
 
+    // Solo mostrar al cliente productos que tengan imagen cargada
+    const productoTieneImagen = (p) => {
+        const ruta = p?.ruta_imagen;
+        if (!ruta) return false;
+        const s = String(ruta).trim();
+        return s !== '' && s !== 'null' && s !== 'undefined';
+    };
+
     // Cargar todos los productos (para la ventana emergente)
     useEffect(() => {
         const fetchProductos = async () => {
             try {
                 setCargando(true);
-                const productos = await apiGet('/productos');
+                const productosRaw = await apiGet('/productos');
+                const productos = (Array.isArray(productosRaw) ? productosRaw : [])
+                    .filter(productoTieneImagen);
                 
                 setProducts(productos);
                 
-                // Filtrar solo productos con clasificación "nuevo" o "nuevos"
+                // Filtrar solo productos con clasificación "nuevo" o "nuevos" (y con imagen)
                 const nuevos = productos.filter(p => 
                     p.nombre_clas && 
                     (p.nombre_clas.toLowerCase() === 'nuevo' || 
@@ -71,10 +81,11 @@ const Cliente = () => {
     };
 
 
-    // redirige al catálogo con filtro de ofertas
+    // Igual que en inicio: aplica filtro "En oferta" al ir al catálogo
     const handleVerOfertas = () => {
         setMostrarVentana(false);
-        navigate('/catalogo_c?clasificacion=En%20oferta');
+        // catalogo_c lee ?clasificacion= y selecciona el filtro (normaliza _ y espacios)
+        navigate('/catalogo_c?clasificacion=En oferta');
     };
 
     return (
