@@ -33,7 +33,7 @@ const Catalogo_c = () => {
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState(null);
     const [paginaActual, setPaginaActual] = useState(1);
-    const ITEMS_POR_PAGINA = 15; // tres filas en la grilla de escritorio
+    const ITEMS_POR_PAGINA = 20;
 
 
     // Solo mostrar al cliente productos que tengan imagen cargada
@@ -65,11 +65,32 @@ const Catalogo_c = () => {
             const categoriasUnicas = ['Todo', ...new Set(productosMapeados.map(p => p.nombre_c).filter(Boolean))];
             setCategorias(categoriasUnicas);
             
-            const clasificacionesUnicas = ['Todas', 'Últimas Unidades', ...new Set(
-                productosMapeados
-                    .filter(p => p.nombre_clas && p.nombre_clas.toLowerCase().replace(/_/g, ' ') !== 'sin clasificar')
-                    .map(p => p.nombre_clas.replace(/_/g, ' '))
-            )];
+            const clasificacionesUnicas = [
+                'Todas',
+                'Últimas Unidades',
+                ...new Set(
+                    productosMapeados
+                        .filter(p => {
+                            if (!p.nombre_clas) return false;
+                        
+                            const clasificacion = p.nombre_clas
+                                .replace(/_/g, ' ')
+                                .toLowerCase()
+                                .trim();
+                        
+                            return (
+                                clasificacion !== 'sin clasificar' &&
+                                clasificacion !== 'ultimas unidades' &&
+                                Number(p.stock_actual) > 0
+                            );
+                        })
+                        .map(p =>
+                            p.nombre_clas
+                                .replace(/_/g, ' ')
+                                .trim()
+                        )
+                )
+            ];
             setClasificaciones(clasificacionesUnicas);
             
             setError(null);
