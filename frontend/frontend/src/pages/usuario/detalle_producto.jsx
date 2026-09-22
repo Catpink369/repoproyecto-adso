@@ -43,62 +43,98 @@ const ProductoDetalle = () => {
     // Función para determinar si el stock es bajo
     const isStockBajo = () => {
         if (!producto) return false;
-        return producto.stock_actual <= producto.stock_minimo;
+        return producto.stock_actual > 0 && producto.stock_actual <= producto.stock_minimo;
     };
 
     // Función para obtener el texto de clasificación (oculta "Sin clasificar")
     const getClasificacionTexto = () => {
         if (!producto) return '';
-        
-        // Si el stock es bajo, mostrar "Últimas Unidades"
+
+        // Producto agotado:
+        // no mostrar "Últimas Unidades" ni ninguna clasificación
+        if (Number(producto.stock_actual) <= 0) {
+            return null;
+        }
+
+        // Stock bajo
         if (isStockBajo()) {
             return 'Últimas Unidades';
         }
-        
-        // Si tiene clasificación y NO es "Sin clasificar"
-        if (producto.nombre_clas && producto.nombre_clas.toLowerCase() !== 'sin clasificar') {
-            const clasificacion = producto.nombre_clas.toLowerCase();
-            
+
+        if (
+            producto.nombre_clas &&
+            producto.nombre_clas.toLowerCase() !== 'sin clasificar'
+        ) {
+            const clasificacion = producto.nombre_clas
+                .replace(/_/g, ' ')
+                .toLowerCase()
+                .trim();
+
             if (clasificacion === 'nuevo' || clasificacion === 'nuevos') {
                 return 'Nuevo';
             }
-            if (clasificacion === 'en oferta' || clasificacion === 'oferta') {
+
+            if (
+                clasificacion === 'en oferta' ||
+                clasificacion === 'oferta'
+            ) {
                 return 'En Oferta';
             }
-            if (clasificacion.includes('vendido') || clasificacion === 'mas vendidos') {
+
+            if (
+                clasificacion.includes('vendido') ||
+                clasificacion === 'mas vendidos'
+            ) {
                 return 'Más Vendido';
             }
-            if (clasificacion === 'ultimas unidades' || clasificacion === 'últimas unidades') {
+
+            if (
+                clasificacion === 'ultimas unidades' ||
+                clasificacion === 'últimas unidades'
+            ) {
                 return 'Últimas Unidades';
             }
-            if (clasificacion === 'destacado' || clasificacion === 'destacados') {
+
+            if (
+                clasificacion === 'destacado' ||
+                clasificacion === 'destacados'
+            ) {
                 return 'Destacado';
             }
-            if (clasificacion === 'edición limitada' || clasificacion === 'limitado') {
+
+            if (
+                clasificacion === 'edición limitada' ||
+                clasificacion === 'limitado'
+            ) {
                 return 'Edición Limitada';
             }
-            
-            // Clasificación personalizada: reemplaza guiones bajos por espacios
-            return producto.nombre_clas.replace(/_/g, ' ');
+
+            return clasificacion;
         }
-        
-        // Si es "Sin clasificar", no mostrar badge
+
         return null;
     };
 
     // Función para verificar si debe mostrar el badge
     const shouldShowBadge = () => {
         if (!producto) return false;
-        
-        // Siempre mostrar si stock bajo
-        if (isStockBajo()) return true;
-        
-        // No mostrar si es "Sin clasificar"
-        if (!producto.nombre_clas || producto.nombre_clas.toLowerCase() === 'sin clasificar') {
+
+        // Nunca mostrar clasificación si está agotado
+        if (Number(producto.stock_actual) <= 0) {
             return false;
         }
-        
-        // Mostrar para cualquier otra clasificación
+
+        if (isStockBajo()) {
+            return true;
+        }
+
+        if (
+            !producto.nombre_clas ||
+            producto.nombre_clas.toLowerCase() === 'sin clasificar'
+        ) {
+            return false;
+        }
+
         return true;
     };
 

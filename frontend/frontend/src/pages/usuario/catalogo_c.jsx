@@ -33,7 +33,7 @@ const Catalogo_c = () => {
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState(null);
     const [paginaActual, setPaginaActual] = useState(1);
-    const ITEMS_POR_PAGINA = 12; // grilla del catálogo cliente
+    const ITEMS_POR_PAGINA = 15; // tres filas en la grilla de escritorio
 
 
     // Solo mostrar al cliente productos que tengan imagen cargada
@@ -130,7 +130,7 @@ const Catalogo_c = () => {
 
     // Función para determinar si el stock es bajo
     const isStockBajo = (producto) => {
-        return producto.stock_actual <= producto.stock_minimo;
+        return producto.stock_actual > 0 && producto.stock_actual <= producto.stock_minimo;
     };
 
     // Función para agregar al carrito desde el catálogo
@@ -229,7 +229,13 @@ const Catalogo_c = () => {
 
     // Función para obtener el badge del producto
     const getBadgeInfo = (producto) => {
-        if (isStockBajo(producto) && producto.stock_actual > 0) {
+        // Si el producto está agotado, NO mostrar "Últimas Unidades"
+        if (Number(producto.stock_actual) <= 0) {
+            return { mostrar: false };
+        }
+        
+        // Si tiene stock bajo, mostrar Últimas Unidades
+        if (isStockBajo(producto)) {
             return {
                 texto: 'Últimas Unidades',
                 color: '#f88787ff',
@@ -238,26 +244,60 @@ const Catalogo_c = () => {
         }
 
         if (producto.nombre_clas) {
-            const clasificacion = producto.nombre_clas.toLowerCase();
+            // Normalizar clasificación:
+            // "ultimas_unidades" -> "ultimas unidades"
+            const clasificacion = producto.nombre_clas
+                .replace(/_/g, ' ')
+                .toLowerCase()
+                .trim();
 
             if (clasificacion === 'sin clasificar') {
                 return { mostrar: false };
             }
 
             if (clasificacion === 'nuevo' || clasificacion === 'nuevos') {
-                return { texto: 'Nuevo', color: '#33f321ff', mostrar: true };
+                return {
+                    texto: 'Nuevo',
+                    color: '#33f321ff',
+                    mostrar: true
+                };
             }
+
             if (clasificacion === 'en oferta' || clasificacion === 'oferta') {
-                return { texto: 'En Oferta', color: '#ec9614ff', mostrar: true };
+                return {
+                    texto: 'En Oferta',
+                    color: '#ec9614ff',
+                    mostrar: true
+                };
             }
-            if (clasificacion.includes('vendido') || clasificacion === 'mas vendidos') {
-                return { texto: 'Más Vendido', color: '#0b87ecff', mostrar: true };
+
+            if (
+                clasificacion.includes('vendido') ||
+                clasificacion === 'mas vendidos'
+            ) {
+                return {
+                    texto: 'Más Vendido',
+                    color: '#0b87ecff',
+                    mostrar: true
+                };
             }
-            if (clasificacion === 'ultimas unidades' || clasificacion === 'últimas unidades') {
-                return { texto: 'Últimas Unidades', color: '#eb54bdff', mostrar: true };
+
+            if (
+                clasificacion === 'ultimas unidades' ||
+                clasificacion === 'últimas unidades'
+            ) {
+                return {
+                    texto: 'Últimas Unidades',
+                    color: '#eb54bdff',
+                    mostrar: true
+                };
             }
-            
-            return { texto: producto.nombre_clas.replace(/_/g, ' '), color: '#bbbbbbff', mostrar: true };
+
+            return {
+                texto: clasificacion.replace(/_/g, ' '),
+                color: '#bbbbbbff',
+                mostrar: true
+            };
         }
 
         return { mostrar: false };

@@ -42,7 +42,7 @@ const ProductoDetalles = () => {
     // Función para determinar si el stock es bajo
     const isStockBajo = () => {
         if (!producto) return false;
-        return producto.stock_actual <= producto.stock_minimo;
+        return producto.stock_actual > 0 && producto.stock_actual <= producto.stock_minimo;
     };
 
     // Función para obtener el texto de clasificación (oculta "Sin clasificar")
@@ -67,7 +67,7 @@ const ProductoDetalles = () => {
             if (clasificacion.includes('vendido') || clasificacion === 'mas vendidos') {
                 return 'Más Vendido';
             }
-            if (clasificacion === 'ultimas unidades' || clasificacion === 'últimas unidades') {
+            if ((clasificacion === 'ultimas unidades' || clasificacion === 'últimas unidades') && producto.stock_actual > 0) {
                 return 'Últimas Unidades';
             }
             if (clasificacion === 'destacado' || clasificacion === 'destacados') {

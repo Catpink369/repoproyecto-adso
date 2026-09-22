@@ -25,7 +25,7 @@ function Inicio() {
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState(null);
     const [paginaActual, setPaginaActual] = useState(1);
-    const ITEMS_POR_PAGINA = 12; // catálogo en grilla: 12 se ve bien en 3–4 columnas
+    const ITEMS_POR_PAGINA = 15; // tres filas en la grilla de escritorio
 
 
     // Solo mostrar al cliente productos que tengan imagen cargada
@@ -53,7 +53,7 @@ function Inicio() {
 
     // Función para determinar si el stock es bajo
     const isStockBajo = (producto) => {
-        return producto.stock_actual <= producto.stock_minimo;
+        return producto.stock_actual > 0 && producto.stock_actual <= producto.stock_minimo;
     };
 
     // Función para obtener el badge del producto
@@ -83,7 +83,7 @@ function Inicio() {
             if (clasificacion.includes('vendido') || clasificacion === 'mas vendidos') {
                 return { texto: 'Más Vendido', color: '#0b87ecff', mostrar: true };
             }
-            if (clasificacion === 'ultimas unidades' || clasificacion === 'últimas unidades') {
+            if ((clasificacion === 'ultimas unidades' || clasificacion === 'últimas unidades') && producto.stock_actual > 0) {
                 return { texto: 'Últimas Unidades', color: '#eb54bdff', mostrar: true };
             }
             

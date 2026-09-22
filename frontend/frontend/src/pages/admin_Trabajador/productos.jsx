@@ -51,7 +51,7 @@ export default function Productos(){
     const ITEMS_POR_PAGINA = 15; // tabla admin: 15 filas es cómodo de revisar
 
     const isStockBajo = (producto) => {
-        return producto.stock_actual <= producto.stock_minimo;
+        return producto.stock_actual > 0 && producto.stock_actual <= producto.stock_minimo;
     };
 
     // Función para obtener la clasificación reemplazando '_' por espacios
@@ -117,9 +117,7 @@ export default function Productos(){
         }
 
         if (filtros.stockBajo) {
-            resultado = resultado.filter(p => 
-                p.stock_actual <= p.stock_minimo
-            );
+            resultado = resultado.filter(isStockBajo);
         }
 
         if (filtros.precioMin !== '') {
@@ -639,8 +637,8 @@ export default function Productos(){
                                                     <span style={{
                                                         padding: '4px 8px',
                                                         borderRadius: '4px',
-                                                        backgroundColor: producto.stock_actual <= producto.stock_minimo ? '#ffebee' : '#e8f5e9',
-                                                        color: producto.stock_actual <= producto.stock_minimo ? '#c62828' : '#2e7d32',
+                                                        backgroundColor: isStockBajo(producto) ? '#ffebee' : '#e8f5e9',
+                                                        color: isStockBajo(producto) ? '#c62828' : '#2e7d32',
                                                         fontWeight: 'bold'
                                                     }}>
                                                         {producto.stock_actual}
