@@ -71,7 +71,9 @@ export default function PedidosRealizados() {
             const estandar = (Array.isArray(responseEstandar)
                 ? responseEstandar
                 : responseEstandar.data || []
-            ).map(p => ({ ...p, _tipo: 'estandar' }));
+            )
+            .filter(p => p.id_tipo !== 'P_P')  
+            .map(p => ({ ...p, _tipo: 'estandar' }));
 
             const responsePersonal = await apiGet('/pedidos-personalizados');
             const personalizados = (Array.isArray(responsePersonal)
@@ -84,7 +86,8 @@ export default function PedidosRealizados() {
                 estado:          p.pedido?.estado,
                 usuario:         p.pedido?.usuario ?? null,
                 ticket_compra:   p.pedido?.ticket_compra ?? null,
-                detalles_pedido: p.detalles ?? [],
+                // ← CORRECCIÓN 1: mapeo más seguro
+                detalles_pedido: Array.isArray(p.detalles) ? p.detalles : [],
                 tipo_producto:   p.tipo_producto,
                 tamanio:         p.tamanio,
                 precio_total:    p.precio_total,
@@ -117,15 +120,33 @@ export default function PedidosRealizados() {
 
         try {
             let detalle;
+
             if (pedido._tipo === 'personalizado') {
+                // ← CORRECCIÓN 3: fallback robusto
+                let detallesMateriales = pedido.detalles_pedido ?? [];
+
+                // Si los detalles vienen vacíos, intentamos recargarlos
+                if (detallesMateriales.length === 0) {
+                    try {
+                        const todos = await apiGet('/pedidos-personalizados');
+                        const lista = Array.isArray(todos) ? todos : (todos.data || []);
+                        const encontrado = lista.find(p => p.id_ped_personal === pedido.id_pedido);
+                        if (encontrado?.detalles) {
+                            detallesMateriales = encontrado.detalles;
+                        }
+                    } catch (e) {
+                        console.warn('No se pudieron recargar los detalles del personalizado', e);
+                    }
+                }
+
                 const padre = await apiGet(`/pedidos/detalle/${pedido.id_pedido_ref}`);
                 detalle = {
-                    usuario:         padre.usuario,
-                    ticket_compra:   padre.ticket_compra,
+                    usuario:         padre.usuario ?? pedido.usuario,
+                    ticket_compra:   padre.ticket_compra ?? pedido.ticket_compra,
                     tipo_producto:   pedido.tipo_producto,
                     tamanio:         pedido.tamanio,
                     precio_total:    pedido.precio_total,
-                    detalles_pedido: pedido.detalles_pedido,
+                    detalles_pedido: detallesMateriales,
                     _tipo:           'personalizado',
                 };
             } else {
@@ -963,17 +984,16 @@ export default function PedidosRealizados() {
                                                         </strong>
                                                     </td>
 
-                                                    {/* ITEMS */}
+                                                    {/* ITEMS  ← CORRECCIÓN 2 */}
                                                     <td>
                                                         <span className="pedido-productos-badge">
-                                                            {pedido._tipo === 'personalizado'
-                                                                ? '—'
-                                                                : (() => {
-                                                                    const count = pedido.detalles_pedido?.length ?? 0;
-                                                                    return count === 0
-                                                                        ? <span style={{ color: '#e74c3c', fontWeight: 'bold' }}>⚠ Sin items</span>
-                                                                        : `${count} item${count !== 1 ? 's' : ''}`;
-                                                                })()}
+                                                            {(() => {
+                                                                const count = pedido.detalles_pedido?.length ?? 0;
+                                                                if (count === 0) {
+                                                                    return <span style={{ color: '#e74c3c', fontWeight: 'bold' }}>⚠ Sin items</span>;
+                                                                }
+                                                                return `${count} item${count !== 1 ? 's' : ''}`;
+                                                            })()}
                                                         </span>
                                                     </td>
 
