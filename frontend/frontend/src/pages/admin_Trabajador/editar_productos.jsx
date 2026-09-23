@@ -195,7 +195,15 @@ export default function EditarProducto() {
 
         } catch (error) {
             console.error("Error al actualizar:", error);
-            setMensaje({ text: error.message || "Error al actualizar el producto.", type: 'error' });
+            // Mostrar el mensaje real del backend (validación, conflicto, etc.)
+            let msg = error?.message || error?.data?.message || '';
+            if (Array.isArray(msg)) msg = msg.filter(Boolean).join('. ');
+            if (!msg || /failed to fetch|networkerror|load failed/i.test(String(msg))) {
+                msg = 'Error de conexión al actualizar el producto. Intenta de nuevo.';
+            } else if (/error al actualizar el producto/i.test(String(msg)) && !error?.data) {
+                msg = 'No se pudo actualizar el producto. Verifica los datos e intenta de nuevo.';
+            }
+            setMensaje({ text: String(msg), type: 'error' });
         } finally {
             setCargando(false);
         }

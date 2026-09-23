@@ -230,7 +230,19 @@ function ModalRegistrar({ onClose, onGuardado }) {
             await apiPost('/usuarios', payload);
             onGuardado('Trabajador registrado exitosamente.');
         } catch (e) {
-            setError(e.message || 'Error al registrar el usuario.');
+            let msg = e?.message || e?.data?.message || 'Error al registrar el usuario.';
+            if (Array.isArray(msg)) msg = msg.filter(Boolean).join('. ');
+            const msgLower = String(msg).toLowerCase();
+            if (msgLower.includes('documento') || msgLower.includes('id_usuario')) {
+                msg = String(msg).includes('documento')
+                    ? msg
+                    : 'El número de documento ya está registrado.';
+            } else if (msgLower.includes('correo') && msgLower.includes('registrad')) {
+                msg = String(msg).includes('correo')
+                    ? msg
+                    : 'El correo electrónico ya está registrado.';
+            }
+            setError(String(msg));
         } finally {
             setGuardando(false);
         }

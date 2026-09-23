@@ -26,7 +26,7 @@ export class ProductosController {
   @ApiOperation({ summary: 'Crear un nuevo producto' })
   @ApiResponse({ status: 201, description: 'Producto creado exitosamente.' })
   @ApiResponse({ status: 400, description: 'Datos del producto inválidos.' })
-  @ApiResponse({ status: 409, description: 'Ya existe un producto con este codigo o nombre.' })
+  @ApiResponse({ status: 409, description: 'Ya existe un producto con este código o nombre.' })
   async create(@Body() dto: CreateProductoDto) {
     try {
       return await this.productosService.create(dto);
@@ -45,7 +45,7 @@ export class ProductosController {
     try {
       return await this.productosService.findAll(query);
     } catch (error: any) {
-      throw new InternalServerErrorException('Error al obtener el catalogo de productos.');
+      throw new InternalServerErrorException('Error al obtener el catálogo de productos.');
     }
   }
 
@@ -104,8 +104,8 @@ export class ProductosController {
   @ApiResponse({ status: 400, description: 'ID del producto o datos inválidos.' })
   @ApiResponse({ status: 401, description: 'No autorizado.' })
   @ApiResponse({ status: 404, description: 'Producto no encontrado.' })
-  @ApiResponse({ status: 409, description: 'Ya existe un producto con este codigo o nombre.' })
-  @ApiResponse({ status: 500, description: 'Error al actualizar el producto.' })
+  @ApiResponse({ status: 409, description: 'Ya existe un producto con este código o nombre.' })
+  @ApiResponse({ status: 500, description: 'No se pudo actualizar el producto. Verifica los datos e intenta de nuevo.' })
   async update(@Param('id') id: string, @Body() dto: UpdateProductoDto) {
     try {
       const productoActualizado = await this.productosService.update(+id, dto);
@@ -114,14 +114,28 @@ export class ProductosController {
         throw new NotFoundException('Producto no encontrado.');
       }
       return productoActualizado;
-    } catch (error: any) {
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        } catch (error: any) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ConflictException ||
+        error instanceof UnprocessableEntityException
+      ) {
         throw error;
       }
       if (error.code === '23505' || error.code === 'P2002') {
-        throw new ConflictException('Ya existe un producto con este codigo o nombre.');
+        throw new ConflictException('Ya existe un producto con este código o nombre.');
       }
-      throw new InternalServerErrorException('Error al actualizar el producto.'); 
+      // class-validator messages
+      if (Array.isArray(error?.response?.message)) {
+        throw new BadRequestException(error.response.message.join('. '));
+      }
+      const detalle = error?.message && typeof error.message === 'string' ? error.message : null;
+      throw new InternalServerErrorException(
+        detalle && !/internal|unexpected/i.test(detalle)
+          ? detalle
+          : 'No se pudo actualizar el producto. Verifica los datos e intenta de nuevo.',
+      );
     }
   }
 

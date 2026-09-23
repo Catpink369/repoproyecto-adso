@@ -20,6 +20,27 @@ export class UsuariosService {
   // --------------------------------------------------------
   async create(dto: CreateUsuarioDto) {
     console.log('service - crear usuario:', JSON.stringify(dto));
+
+    // Verificar si el número de documento ya está registrado
+    const existentePorId = await this.prisma.usuario.findUnique({
+      where: { id_usuario: dto.id_usuario },
+    });
+    if (existentePorId) {
+      throw new ConflictException(
+        'El número de documento ya está registrado. Si ya tienes una cuenta, inicia sesión.',
+      );
+    }
+
+    // Verificar si el correo ya está registrado
+    const existentePorCorreo = await this.prisma.usuario.findFirst({
+      where: { correo: dto.correo },
+    });
+    if (existentePorCorreo) {
+      throw new ConflictException(
+        'El correo electrónico ya está registrado. Usa otro correo o inicia sesión.',
+      );
+    }
+
     // hashear contraseña
     const hashedPassword = await bcrypt.hash(dto.contrasena, SALT_ROUNDS);
 

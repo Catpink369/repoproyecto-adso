@@ -66,9 +66,9 @@ export class MovimientosController {
 
   @HttpCode(HttpStatus.OK)
 
-  @ApiOperation({ summary: 'Obtener lista de moviminetos'})
+  @ApiOperation({ summary: 'Obtener lista de movimientos'})
 
-  @ApiResponse({ status: 200, description: 'Lista de moviminetos obtenida exitosamente.'})
+  @ApiResponse({ status: 200, description: 'Lista de movimientos obtenida exitosamente.'})
 
   @ApiResponse({ status: 401, description: 'No autorizado - Token faltante.'})
 
@@ -110,7 +110,7 @@ export class MovimientosController {
 
   @ApiResponse({ status: 200, description: 'Resumen general obtenido exitosamente.'})
 
-  @ApiResponse({ status: 400, description: 'Datos invalidos.'})
+  @ApiResponse({ status: 400, description: 'Datos inválidos.'})
 
   @ApiResponse({ status: 403, description: 'No tienes los permisos necesarios.'})
 
@@ -154,7 +154,7 @@ export class MovimientosController {
 
   @ApiResponse({ status: 200, description: 'Movimientos por día obtenidos exitosamente.'})
 
-  @ApiResponse({ status: 400, description: 'Datos invalidos.'})
+  @ApiResponse({ status: 400, description: 'Datos inválidos.'})
 
   @ApiResponse({ status: 500, description: 'Error interno al obtener los movimientos por día. '})
 
@@ -196,7 +196,7 @@ export class MovimientosController {
 
   @ApiResponse({ status: 200, description: 'Movimientos por tipo obtenidos exitosamente.'})
 
-  @ApiResponse({ status: 400, description: 'Datos invalidos.'})
+  @ApiResponse({ status: 400, description: 'Datos inválidos.'})
 
   @ApiResponse({ status: 500, description: 'Error interno al obtener movimientos por tipo.'})
 
@@ -238,7 +238,7 @@ export class MovimientosController {
 
   @ApiResponse({ status: 200, description: 'TOP productos mas vendidos obtenidos exitosamente.'})
 
-  @ApiResponse({ status: 400, description: 'Datos invalidos.'})
+  @ApiResponse({ status: 400, description: 'Datos inválidos.'})
 
   @ApiResponse({ status: 500, description: 'Error interno al obtener el TOP productos mas vendidos.'})
 
@@ -450,7 +450,7 @@ export class MovimientosController {
 
   @ApiResponse({ status: 200, description: 'Movimientos por tipo obtenidos exitosamente.'})
 
-  @ApiResponse({ status: 400, description: 'Datos invalidos.'})
+  @ApiResponse({ status: 400, description: 'Datos inválidos.'})
 
   @ApiResponse({ status: 404, description: 'No se encontraron movimientos para el tipo especificado.'})
 
@@ -580,7 +580,7 @@ export class MovimientosController {
 
   @ApiResponse({ status: 201, description: 'Movimiento registrado exitosamente y stock actualizado.' })
 
-  @ApiResponse({ status: 400, description: 'Datos invalidos (ver mensaje de detalle por campo).' })
+  @ApiResponse({ status: 400, description: 'Datos inválidos (ver mensaje de detalle por campo).' })
 
   @ApiResponse({ status: 404, description: 'El producto asociado al movimiento no existe.' })
 
@@ -636,7 +636,7 @@ export class MovimientosController {
 
   @ApiResponse({ status: 200, description: 'Movimiento actualizado exitosamente.' })
 
-  @ApiResponse({ status: 400, description: 'Datos invalidos (ver mensaje de detalle por campo).' })
+  @ApiResponse({ status: 400, description: 'Datos inválidos (ver mensaje de detalle por campo).' })
 
   @ApiResponse({ status: 403, description: 'Prohibido - No tienes permisos suficientes.' })
 

@@ -12,7 +12,7 @@ export class CategoriasController {
   @Public()
   @Get() 
   @ApiOperation({ summary: 'Obtener todas las categorias' })
-  @ApiResponse({ status: 200, description: 'Lista de categorias obtenida con exito.' })
+  @ApiResponse({ status: 200, description: 'Lista de categorías obtenida con éxito.' })
   @ApiResponse({ status: 400, description: 'Datos inválidos.' })
   @ApiResponse({ status: 500, description: 'Error interno al consultar la base de datos.' })
 
@@ -36,7 +36,7 @@ export class CategoriasController {
   @Public()
   @Get('clasificaciones')
   @ApiOperation({ summary: 'Obtener todas las categorias' })
-  @ApiResponse({ status: 200, description: 'Lista de categorias obtenida con exito.' })
+  @ApiResponse({ status: 200, description: 'Lista de categorías obtenida con éxito.' })
   @ApiResponse({ status: 400, description: 'Datos inválidos.' })
   @ApiResponse({ status: 500, description: 'Error interno al consultar la base de datos.' })
 

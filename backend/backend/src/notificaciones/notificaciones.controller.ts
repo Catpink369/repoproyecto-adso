@@ -33,7 +33,7 @@ export class NotificacionesController {
   // GET /notificaciones/count
   @Get('count')
   @ApiOperation({ summary: 'Contar notificaciones'})
-  @ApiResponse({ status: 200, description: 'Conteo generado con exito.'})
+  @ApiResponse({ status: 200, description: 'Conteo generado con éxito.'})
   @ApiResponse({ status: 500, description: 'Error interno al procesar datos' })
 
   count(@Query() query: any) {

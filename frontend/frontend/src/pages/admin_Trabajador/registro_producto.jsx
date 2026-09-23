@@ -196,9 +196,13 @@ export default function FormularioProductoNuevo() {
             handleReset();
             setTimeout(() => navigate('/productos'), 2000);
 
-        } catch (error) {  
-            const errorMessage = error.response?.data?.error || error.message || "Error al registrar el producto.";
-            setMensaje({ text: errorMessage, type: 'error' });
+        } catch (error) {
+            let errorMessage = error?.message || error?.response?.data?.message || error?.response?.data?.error || "Error al registrar el producto.";
+            if (Array.isArray(errorMessage)) errorMessage = errorMessage.filter(Boolean).join('. ');
+            if (!errorMessage || /failed to fetch|networkerror|load failed/i.test(String(errorMessage))) {
+                errorMessage = 'Error de conexión al registrar el producto. Intenta de nuevo.';
+            }
+            setMensaje({ text: String(errorMessage), type: 'error' });
         } finally {
             setCargando(false);
         }

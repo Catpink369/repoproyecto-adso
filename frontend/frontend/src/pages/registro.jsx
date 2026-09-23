@@ -96,8 +96,24 @@ const Registro = () => {
       })
       .catch(error => {
         console.error("Error al registrar:", error.response?.data);
-        const mensaje = error.response?.data?.message || "Error al registrar el usuario";
-        setErrorMessage(Array.isArray(mensaje) ? mensaje.join(', ') : mensaje);
+        const data = error.response?.data;
+        let mensaje = data?.message || data?.error || "Error al registrar el usuario. Intenta de nuevo.";
+        if (Array.isArray(mensaje)) {
+          mensaje = mensaje.filter(Boolean).join('. ');
+        }
+        // Mensajes más claros según el tipo de conflicto
+        const msgStr = String(mensaje).toLowerCase();
+        if (msgStr.includes('documento') || msgStr.includes('id_usuario') || (msgStr.includes('ya está registrado') && msgStr.includes('documento'))) {
+          setErrorMessage(typeof mensaje === 'string' && mensaje.includes('documento')
+            ? mensaje
+            : 'El número de documento ya está registrado. Si ya tienes una cuenta, inicia sesión.');
+        } else if (msgStr.includes('correo') && msgStr.includes('registrad')) {
+          setErrorMessage(typeof mensaje === 'string' && mensaje.includes('correo')
+            ? mensaje
+            : 'El correo electrónico ya está registrado. Usa otro correo o inicia sesión.');
+        } else {
+          setErrorMessage(String(mensaje));
+        }
       });
   };
 

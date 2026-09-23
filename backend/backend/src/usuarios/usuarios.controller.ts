@@ -30,18 +30,34 @@ export class UsuariosController {
   @ApiOperation({ summary: 'Crear usuario' })
   @ApiResponse({ status: 201, description: 'Usuario creado exitosamente.' })
   @ApiResponse({ status: 400, description: 'Datos inválidos.' })
-  @ApiResponse({ status: 409, description: 'El correo ya está registrado.' })
+  @ApiResponse({ status: 409, description: 'El documento o el correo ya están registrados.' })
   @ApiResponse({ status: 500, description: 'Error interno.' })
   async create(@Body() createUsuarioDto: CreateUsuarioDto) {
     console.log('controller - crear usuario:', JSON.stringify(createUsuarioDto));
     try {
       return await this.usuariosService.create(createUsuarioDto);
     } catch (error: any) {
-      if (error.code === '23505' || error.code === 11000 || error.code === 'P2002') {
-        throw new ConflictException('El correo ya está registrado');
-      }
+      // ConflictException ya trae el mensaje específico (documento o correo)
       if (error instanceof BadRequestException || error instanceof ConflictException) {
         throw error;
+      }
+      // Respaldo por si la BD lanza restricción única sin pasar por el service
+      if (error.code === '23505' || error.code === 11000 || error.code === 'P2002') {
+        const target = error.meta?.target;
+        const campos = Array.isArray(target) ? target.join(',') : String(target || '');
+        if (campos.includes('id_usuario')) {
+          throw new ConflictException(
+            'El número de documento ya está registrado. Si ya tienes una cuenta, inicia sesión.',
+          );
+        }
+        if (campos.includes('correo')) {
+          throw new ConflictException(
+            'El correo electrónico ya está registrado. Usa otro correo o inicia sesión.',
+          );
+        }
+        throw new ConflictException(
+          'Ya existe un usuario con esos datos (documento o correo). Verifica la información e intenta de nuevo.',
+        );
       }
       throw new InternalServerErrorException('Error interno al crear el usuario');
     }
