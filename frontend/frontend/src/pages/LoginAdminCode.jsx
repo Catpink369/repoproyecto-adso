@@ -8,7 +8,7 @@ import Headeri from "../components/Header";
 export default function LoginAdminCode() {
   const [codigo, setCodigo] = useState("");
   const [errorMessage, setErrorMessage] = useState(null);
-  const [verificando, setVerificando] = useState(false); 
+  const [verificando, setVerificando] = useState(false);
   const { verifyAdminCode, usuarioPendiente, usuarioActual } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -21,14 +21,14 @@ export default function LoginAdminCode() {
       return;
     }
 
- setVerificando(true); // bloquea el useEffect antes de verificar
+    setVerificando(true);
 
     const result = await verifyAdminCode(codigo.trim());
 
     if (result.success) {
-      navigate("/panel_control");
+      navigate("/panel_control", { replace: true });
     } else {
-      setVerificando(false); // si falla, vuelve a permitir el useEffect
+      setVerificando(false);
       if (result.message?.includes("Demasiados intentos")) {
         setErrorMessage(result.message);
       } else {
@@ -38,30 +38,28 @@ export default function LoginAdminCode() {
   };
 
   const volver = () => {
-    sessionStorage.removeItem('usuarioPendiente');
-    navigate("/login");
+    sessionStorage.removeItem("usuarioPendiente");
+    navigate("/login", { replace: true });
   };
 
   useEffect(() => {
-    if (verificando) return; 
+    if (verificando) return;
 
     if (usuarioActual) {
-      navigate("/panel_control");
+      navigate("/panel_control", { replace: true });
     }
     if (!usuarioPendiente) {
-      console.log("No hay usuarioPendiente, redirigiendo a login");
-      navigate("/login");
+      navigate("/login", { replace: true });
     }
-  }, [usuarioActual, usuarioPendiente, navigate, verificando]); 
+  }, [usuarioActual, usuarioPendiente, navigate, verificando]);
 
-  if (!usuarioPendiente && !usuarioActual) 
-    return null;
+  if (!usuarioPendiente && !usuarioActual) return null;
 
   return (
     <>
-      <Headeri /> 
+      <Headeri />
 
-      <main> 
+      <main>
         <form className="form-container">
           <div className="subtitulo">
             <h2>Iniciar sesión</h2>
@@ -73,7 +71,7 @@ export default function LoginAdminCode() {
             </div>
           )}
 
-          <p style={{ marginBottom: '20px', textAlign: 'center', color: '#5a3d54' }}>
+          <p style={{ marginBottom: "20px", textAlign: "center", color: "#5a3d54" }}>
             Está ingresando, para continuar ingrese su código
           </p>
 
@@ -88,12 +86,11 @@ export default function LoginAdminCode() {
             onChange={(e) => setCodigo(e.target.value)}
           />
 
-          <button type="submit" onClick={handleSubmit}>Ingresar</button>
-          
-          <button 
-            type="button" 
-            onClick={volver}
-          > 
+          <button type="submit" onClick={handleSubmit}>
+            Ingresar
+          </button>
+
+          <button type="button" onClick={volver}>
             Volver
           </button>
         </form>

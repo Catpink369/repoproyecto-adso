@@ -1,43 +1,46 @@
-import React, { useState, useContext} from "react";
-import { Link, useNavigate } from "react-router-dom"; 
-// logica de autentificacion :D
-import { AuthContext } from "../context/AuthContext.jsx"; 
-// estilos
-import Headerlog from "../components/Header_log"; 
+import React, { useState, useContext, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext.jsx";
+import Headerlog from "../components/Header_log";
 import "../components/css/styles.css";
 
-export default function Login() { 
-  const { login } = useContext(AuthContext); 
+export default function Login() {
+  const { login, usuarioActual, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [listo, setListo] = useState(false); // para evitar parpadeos
+
+  // Al montar el Login: si hay sesión activa, la cerramos
+  useEffect(() => {
+    const limpiarSesion = async () => {
+      if (usuarioActual) {
+        await logout();
+      }
+      setListo(true);
+    };
+
+    limpiarSesion();
+  }, []);
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
     setErrorMessage("");
-    
-    console.log('Enviando al backend:');
-    console.log('   Correo:', correo);
-    console.log('   Contraseña (longitud):', contrasena.length);
-    
+
     const result = await login(correo, contrasena);
 
-    console.log('Respuesta del login:', result);
-
     if (result.success) {
-      console.log('Login exitoso - Redirigiendo a /cliente');
-      navigate("/cliente");
-    } 
-    else if (result.needs_code) {
-      console.log('Requiere código - Redirigiendo a /admin-code');
-      navigate("/admin-code");
-    } 
-    else {
-      console.log('Login fallido:', result.message);
-      
-      //  el mensaje de error indica demasiados intentos y muestra mensaje
+      const rol = result.user?.id_rol_usuario;
+      if (rol === "1" || rol === "3") {
+        navigate("/panel_control", { replace: true });
+      } else {
+        navigate("/cliente", { replace: true });
+      }
+    } else if (result.needs_code) {
+      navigate("/admin-code", { replace: true });
+    } else {
       if (result.message && result.message.includes("Demasiados intentos")) {
         setErrorMessage(result.message);
       } else {
@@ -46,13 +49,27 @@ export default function Login() {
     }
   };
 
+  // Mientras se limpia la sesión anterior, no mostramos el formulario
+  if (!listo) {
+    return (
+      <>
+        <Headerlog />
+        <main>
+          <div className="form-container">
+            <p style={{ textAlign: "center" }}>Cargando...</p>
+          </div>
+        </main>
+      </>
+    );
+  }
+
   return (
     <>
-      <Headerlog /> 
+      <Headerlog />
 
       <main>
         <form className="form-container" onSubmit={handleSubmit}>
-          <div className="subtitulo"> 
+          <div className="subtitulo">
             <h2>Iniciar sesión</h2>
           </div>
 
@@ -85,7 +102,7 @@ export default function Login() {
 
           <button type="submit">Ingresar</button>
 
-          <div className="preguntas"> 
+          <div className="preguntas">
             <p>
               <Link to="/registro">¿No tiene cuenta?</Link>
             </p>

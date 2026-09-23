@@ -1,15 +1,19 @@
-import React from "react";
+import React, { useContext } from "react";
 import perfil from '../assets/icono_usuarioA.png';
 import './css/headerA.css';
-
+import { AuthContext } from '../context/AuthContext';
+import { getRolLabel } from '../utils/roles';
 
 export default function HeaderPedidos() {
+    const { usuarioActual } = useContext(AuthContext);
+    const rolLabel = getRolLabel(usuarioActual);
+
     return(
         <header className="header-panel">
             <h1>Pedidos realizados</h1>
             <div className="icono">
                 <a href="/perfil_admin"> 
-                    <span>Admin Gurama</span>
+                    <span>{rolLabel} Gurama</span>
                     <img src={perfil} alt="perfil" />
                 </a>
             </div>
