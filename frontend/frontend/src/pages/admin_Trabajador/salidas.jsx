@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react";
 import Sidebarmov from "../../components/Sidebarmov";
-import HeaderPanel from "../../components/HeaderPanel";
+import HeaderMovimientos from "../../components/HeaderMovimientos";
 import "../../components/css/styles.css"; 
 import { AuthContext } from "../../context/AuthContext.jsx"; 
 import { useNavigate } from 'react-router-dom';
@@ -149,7 +149,7 @@ export default function FormularioSalidaProducto() {
         <div className="dashboard-layout">
             <Sidebarmov />
             <main className="contenido">
-                <HeaderPanel title="Venta Manual/Presencial"/>
+                <HeaderMovimientos title="Venta Manual/Presencial"/>
 
                 {mensaje.text && (
                     <div className={`alerta ${mensaje.type}`}>

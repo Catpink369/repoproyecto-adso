@@ -1,15 +1,12 @@
 import React, { createContext, useState } from 'react';
 import axios from 'axios';
-import { secureStorage } from '../utils/storage'; // importa el helper
+import { secureStorage } from '../utils/storage';
+import { esAdministrador } from '../utils/roles';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const API_KEY = import.meta.env.VITE_API_KEY;
 
 export const AuthContext = createContext();
-
-const esAdministrador = (user) => {
-    return user?.id_rol_usuario === '1' || user?.id_rol_usuario === '3';
-};
 
 const getInitialUser = () => {
     const sessionUser = secureStorage.getItem('user', sessionStorage);
@@ -28,7 +25,7 @@ export const AuthProvider = ({ children }) => {
 
     const saveusuarioPendiente = (user) => {
         setUsuarioPendiente(user);
-        secureStorage.setItem('usuarioPendiente', user, sessionStorage); // encriptado
+        secureStorage.setItem('usuarioPendiente', user, sessionStorage);
     };
 
     const clearusuarioPendiente = () => {
@@ -38,20 +35,23 @@ export const AuthProvider = ({ children }) => {
 
     const updateusuarioActual = (newdatosUsuario) => {
         setUsuarioActual(newdatosUsuario);
+
         if (esAdministrador(newdatosUsuario)) {
-            secureStorage.setItem('user', newdatosUsuario, sessionStorage); // encriptado
+            // Admin → solo sessionStorage
+            secureStorage.setItem('user', newdatosUsuario, sessionStorage);
             secureStorage.removeItem('user', localStorage);
         } else {
-            secureStorage.setItem('user', newdatosUsuario, localStorage); // encriptado
+            // Cliente → solo localStorage
+            secureStorage.setItem('user', newdatosUsuario, localStorage);
             secureStorage.removeItem('user', sessionStorage);
         }
     };
 
-    /* ==========LOGIN============ */
-
+    /* ========== LOGIN ============ */
     const login = async (correo, contrasena) => {
         try {
-            const response = await axios.post(`${API_URL}/auth/login`,
+            const response = await axios.post(
+                `${API_URL}/auth/login`,
                 { correo, contrasena },
                 {
                     headers: { 'x-api-key': API_KEY },
@@ -68,25 +68,43 @@ export const AuthProvider = ({ children }) => {
 
             updateusuarioActual(user);
             clearusuarioPendiente();
-            localStorage.setItem('token', data.token);
-            return { success: true, user };
 
+            // Token según el rol (claves separadas)
+            if (esAdministrador(user)) {
+                sessionStorage.setItem('token_admin', data.token);
+                localStorage.removeItem('token_client');
+                localStorage.removeItem('token'); // limpia clave vieja
+            } else {
+                localStorage.setItem('token_client', data.token);
+                sessionStorage.removeItem('token_admin');
+                localStorage.removeItem('token'); // limpia clave vieja
+            }
+
+            return { success: true, user };
         } catch (error) {
-            const message = error.response?.data?.message || "Error de conexión o credenciales inválidas.";
+            const message =
+                error.response?.data?.message ||
+                'Error de conexión o credenciales inválidas.';
             return { success: false, message };
         }
     };
 
-    /* ==========CODIGO ADMIN============ */
+    /* ========== CÓDIGO ADMIN ============ */
     const verifyAdminCode = async (codigo) => {
-        const userToVerify = usuarioPendiente || secureStorage.getItem('usuarioPendiente', sessionStorage);
+        const userToVerify =
+            usuarioPendiente ||
+            secureStorage.getItem('usuarioPendiente', sessionStorage);
 
         if (!userToVerify) {
-            return { success: false, message: "No hay sesión pendiente. Vuelve a iniciar sesión." };
+            return {
+                success: false,
+                message: 'No hay sesión pendiente. Vuelve a iniciar sesión.',
+            };
         }
 
         try {
-            const response = await axios.post(`${API_URL}/auth/verify-code`,
+            const response = await axios.post(
+                `${API_URL}/auth/verify-code`,
                 { id_usuario: userToVerify.id_usuario, codigo },
                 {
                     headers: { 'x-api-key': API_KEY },
@@ -99,50 +117,66 @@ export const AuthProvider = ({ children }) => {
             if (data.success) {
                 updateusuarioActual(data.user);
                 clearusuarioPendiente();
-                localStorage.setItem('token', data.token);
+
+                // Token de admin
+                sessionStorage.setItem('token_admin', data.token);
+                localStorage.removeItem('token_client');
+                localStorage.removeItem('token');
+
                 return { success: true, user: data.user };
             }
 
-            return { success: false, message: data.message || "Código incorrecto" };
-
+            return {
+                success: false,
+                message: data.message || 'Código incorrecto',
+            };
         } catch (error) {
-            const message = error.response?.data?.message || "Error al verificar el código";
+            const message =
+                error.response?.data?.message || 'Error al verificar el código';
             return { success: false, message };
         }
     };
 
-    /* ==========CERRAR SESIÓN============ */
-    
+    /* ========== CERRAR SESIÓN ============ */
     const logout = async () => {
         try {
-            await axios.post(`${API_URL}/auth/logout`, {}, {
-                headers: { 'x-api-key': API_KEY },
-                withCredentials: true,
-            });
+            await axios.post(
+                `${API_URL}/auth/logout`,
+                {},
+                {
+                    headers: { 'x-api-key': API_KEY },
+                    withCredentials: true,
+                }
+            );
         } catch (_) {}
 
         setUsuarioActual(null);
         clearusuarioPendiente();
         secureStorage.removeItem('user', localStorage);
         secureStorage.removeItem('user', sessionStorage);
-        localStorage.removeItem('token'); 
+        localStorage.removeItem('token');
+        localStorage.removeItem('token_client');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('token_admin');
     };
 
     const userId = usuarioActual ? usuarioActual.id_usuario : null;
 
     return (
-        <AuthContext.Provider value={{
-            usuarioActual,
-            userId,
-            usuarioPendiente,
-            login,
-            logout,
-            verifyAdminCode,
-            isLoggedIn: !!usuarioActual,
-            updateusuarioActual,
-            saveusuarioPendiente,
-            clearusuarioPendiente
-        }}>
+        <AuthContext.Provider
+            value={{
+                usuarioActual,
+                userId,
+                usuarioPendiente,
+                login,
+                logout,
+                verifyAdminCode,
+                isLoggedIn: !!usuarioActual,
+                updateusuarioActual,
+                saveusuarioPendiente,
+                clearusuarioPendiente,
+            }}
+        >
             {children}
         </AuthContext.Provider>
     );

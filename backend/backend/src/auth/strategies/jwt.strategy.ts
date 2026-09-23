@@ -16,19 +16,30 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private prisma: PrismaService) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(), // Bearer tiene prioridad
         cookieExtractor,
-        ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,
       secretOrKey: process.env.JWT_SECRET! || 'clave_secreta_guruma',
     });
   }
 
-    async validate(payload: any) {
-        const user = await this.prisma.usuario.findUnique({
-        where: { id_usuario: payload.sub },
-        });
-        if (!user) throw new UnauthorizedException();
-        return user;
+  async validate(payload: any) {
+    const user = await this.prisma.usuario.findUnique({
+      where: { id_usuario: payload.sub },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
     }
+
+    // Si el usuario está desactivado (estado = 0), se invalida la sesión inmediatamente
+    if (user.estado === 0) {
+      throw new UnauthorizedException(
+        'Tu cuenta ha sido desactivada. Contacta al administrador.',
+      );
+    }
+
+    return user;
+  }
 }

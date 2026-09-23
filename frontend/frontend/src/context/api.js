@@ -2,11 +2,13 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 // Obtiene los headers con token y authorization
 const getHeaders = () => {
-    const token = localStorage.getItem('token');
+    // Primero token de admin, luego de cliente
+    const token = sessionStorage.getItem('token_admin') || localStorage.getItem('token_client');
+
     return {
         'Content-Type': 'application/json',
         'x-api-key': import.meta.env.VITE_API_KEY,
-        ...(token && { 'Authorization': `Bearer ${token}` }),
+        ...(token && { Authorization: `Bearer ${token}` }),
     };
 };
 
@@ -39,7 +41,25 @@ const handleErrorResponse = async (response) => {
     } catch {
         errorData = null;
     }
+
     const mensaje = extraerMensajeError(errorData, response.status);
+
+    // Si la cuenta fue desactivada → limpiar sesión y redirigir
+    if (
+        response.status === 401 &&
+        mensaje.toLowerCase().includes('desactivada')
+    ) {
+        localStorage.removeItem('token_client');
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('token_admin');
+        sessionStorage.removeItem('token');
+        localStorage.removeItem('user');
+        sessionStorage.removeItem('user');
+
+        // Redirigir al login
+        window.location.href = '/login';
+    }
+
     const err = new Error(mensaje);
     err.status = response.status;
     err.data = errorData;
