@@ -1,5 +1,9 @@
 name: gurama
 
+# LOCAL / Docker normal → BD guramaonline
+# Pruebas UI: docker compose -f docker-compose.yml -f docker-compose.test.yml up
+# (backend usa gurama_test; front sigue en :8080)
+
 services:
   backend:
     build:
@@ -8,6 +12,11 @@ services:
     container_name: gurama-backend
     ports:
       - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-doKi12345}@db:5432/${POSTGRES_DB:-guramaonline}?schema=public
+      API_KEY: ${API_KEY:-xyz123}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-gurama}
+      PORT: 3000
     env_file:
       - ../backend/backend/.env
     depends_on:
@@ -19,9 +28,9 @@ services:
       context: ../frontend/frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL}
-        VITE_API_KEY: ${VITE_API_KEY}
-        VITE_STORAGE_KEY: ${VITE_STORAGE_KEY}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+        VITE_API_KEY: ${VITE_API_KEY:-xyz123}
+        VITE_STORAGE_KEY: ${VITE_STORAGE_KEY:-GurumaStorage}
     container_name: gurama-frontend
     ports:
       - "8080:80"
@@ -33,9 +42,9 @@ services:
     image: postgres:16
     container_name: gurama-db
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-doKi12345}
+      POSTGRES_DB: ${POSTGRES_DB:-guramaonline}
     ports:
       - "5432:5432"
     volumes:
