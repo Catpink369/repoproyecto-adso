@@ -140,7 +140,7 @@ const Registro = () => {
           >
             <option value="CC">Cédula de Ciudadanía (CC)</option>
             <option value="CE">Cédula de Extranjería (CE)</option>
-            <option value="TI">Tarjeta de Identidad (TI)</option>
+            <option value="PASS">Pasaporte (PASS)</option>
           </select>
 
           <label htmlFor="id_usuario">Número de documento</label>

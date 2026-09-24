@@ -327,7 +327,7 @@ enum metodo_pago_id_met_pago {
 enum tipo_documento_t_doc {
   CC
   CE
-  TI
+  PASS
 }
 
 enum tipo_movimiento_id_m {
@@ -373,7 +373,7 @@ enum metodo_pago_nom_metodo {
 enum tipo_documento_desc_doc {
   C_dula_de_ciudadan_a  @map("Cédula de ciudadanía")
   C_dula_de_extranjer_a @map("Cédula de extranjería")
-  Tarjeta_de_identidad  @map("Tarjeta de identidad")
+  Pasaporte
 }
 
 enum tipo_movimiento_nom_movimiento {
