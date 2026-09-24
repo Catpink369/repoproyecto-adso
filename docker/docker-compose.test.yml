@@ -1,0 +1,8 @@
+﻿services:
+  backend:
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:doKi12345@db:5432/gurama_test?schema=public
+      API_KEY: xyz123
+      JWT_SECRET: clave_secreta_guruma
+    env_file: []

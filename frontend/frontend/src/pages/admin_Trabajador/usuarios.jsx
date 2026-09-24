@@ -219,9 +219,20 @@ function ModalRegistrar({ onClose, onGuardado }) {
             return;
         }
         
+        // Vacío → null: evita 400 de class-validator (Matches en nom_2/ape_2 con "").
+        // Teléfono como número: el DTO exige entero positivo.
         const payload = {
-            ...form,
+            id_usuario: form.id_usuario.trim(),
+            t_doc: form.t_doc,
+            nom_1: form.nom_1.trim(),
+            nom_2: form.nom_2?.trim() ? form.nom_2.trim() : null,
+            ape_1: form.ape_1.trim(),
+            ape_2: form.ape_2?.trim() ? form.ape_2.trim() : null,
+            correo: form.correo.trim(),
+            telefono: form.telefono ? Number(String(form.telefono).replace(/\D/g, '')) : undefined,
+            contrasena: form.contrasena,
             codigo: form.id_rol_usuario === '2' ? null : form.codigo,
+            id_rol_usuario: form.id_rol_usuario,
             estado: 1,
         };
         
@@ -362,12 +373,31 @@ function ModalEditar({ usuario, onClose, onGuardado }) {
             setError('Nombre, apellido y correo son obligatorios.');
             return;
         }
+        // Vacío → null / omitir: evita 400 de class-validator (Matches con "")
+        const payload = {
+            nom_1: form.nom_1.trim(),
+            nom_2: form.nom_2?.trim() ? form.nom_2.trim() : null,
+            ape_1: form.ape_1.trim(),
+            ape_2: form.ape_2?.trim() ? form.ape_2.trim() : null,
+            correo: form.correo.trim(),
+            telefono: form.telefono
+                ? Number(String(form.telefono).replace(/\D/g, ''))
+                : undefined,
+            id_rol_usuario: form.id_rol_usuario,
+            ...(form.id_rol_usuario !== '2' && form.codigo?.trim()
+                ? { codigo: form.codigo.trim() }
+                : form.id_rol_usuario === '2'
+                    ? { codigo: null }
+                    : {}),
+        };
         setGuardando(true);
         try {
-            await apiPatch(`/usuarios/${usuario.id_usuario}`, form);
+            await apiPatch(`/usuarios/${usuario.id_usuario}`, payload);
             onGuardado('Usuario actualizado exitosamente.');
         } catch (e) {
-            setError(e.message || 'Error al actualizar el usuario.');
+            let msg = e?.message || e?.data?.message || 'Error al actualizar el usuario.';
+            if (Array.isArray(msg)) msg = msg.filter(Boolean).join('. ');
+            setError(String(msg));
         } finally {
             setGuardando(false);
         }
