@@ -18,10 +18,14 @@ const cypressEnv = fs.existsSync(cypressEnvPath)
  * Cypress → FRONT (Docker :8080 o Vite :5173) → API :3000 → BD del backend.
  *
  * Pruebas automatizadas: backend DEBE usar gurama_test
- *   docker compose -f docker-compose.yml -f docker-compose.test.yml up -d
+ *   docker compose -f docker-compose.yml -f docker-compose.test.yml up --build -d
  *
  * App local normal: solo docker-compose.yml → guramaonline
  * Todo apagado / despliegue: Render + Vercel (BD producción)
+ *
+ * Importante: el frontend en :8080 debe haberse construido con
+ * VITE_API_URL=http://localhost:3000 (ver docker/.env). Si se construyó
+ * con la URL de Render, las pruebas modifican producción.
  */
 export default defineConfig({
   e2e: {
@@ -39,12 +43,14 @@ export default defineConfig({
       const front = config.env.FRONT_URL || config.baseUrl || '';
       if (/onrender\.com|vercel\.app/i.test(api) || /onrender\.com|vercel\.app/i.test(front)) {
         console.warn(
-          '\n⚠️  Cypress apunta a producción. Para gurama_test usa localhost:8080 + docker-compose.test.yml\n',
+          '\n⚠️  Cypress apunta a producción. Para gurama_test usa localhost:8080 + docker-compose.test.yml\n' +
+            '   y reconstruye el frontend con VITE_API_URL=http://localhost:3000 (docker/.env).\n',
         );
       } else {
         console.log(
           `\n✓ Cypress → front: ${front} | api: ${api}\n` +
-            `  Asegura backend con DATABASE_URL=.../gurama_test (docker-compose.test.yml)\n`,
+            `  Asegura backend con DATABASE_URL=.../gurama_test (docker-compose.test.yml)\n` +
+            `  y frontend construido con VITE_API_URL=http://localhost:3000\n`,
         );
       }
       return config;

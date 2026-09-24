@@ -1,8 +1,8 @@
 name: gurama
 
 # LOCAL / Docker normal → BD guramaonline
-# Pruebas UI: docker compose -f docker-compose.yml -f docker-compose.test.yml up
-# (backend usa gurama_test; front sigue en :8080)
+# Pruebas UI: docker compose -f docker-compose.yml -f docker-compose.test.yml up --build
+# (backend usa gurama_test; front sigue en :8080 con VITE_API_URL=http://localhost:3000)
 
 services:
   backend:
@@ -28,6 +28,8 @@ services:
       context: ../frontend/frontend
       dockerfile: Dockerfile
       args:
+        # Debe ser localhost:3000 para que Cypress (y el navegador en el host)
+        # hable con el backend local, NO con Render.
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
         VITE_API_KEY: ${VITE_API_KEY:-xyz123}
         VITE_STORAGE_KEY: ${VITE_STORAGE_KEY:-GurumaStorage}
