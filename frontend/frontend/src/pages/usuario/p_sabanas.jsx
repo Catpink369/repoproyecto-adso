@@ -58,6 +58,11 @@ const PersonalizarSabana = () => {
     const [paginaTelas, setPaginaTelas]             = useState(1);
     const TELAS_POR_PAGINA = 4; // mostrar de a 4 telas para no saturar la vista
 
+    // Extras opcionales (Accesorio, Bordado, Relleno) — no mezclados con telas
+    const [extras, setExtras]                       = useState([]);
+    const [extrasSeleccionados, setExtrasSeleccionados] = useState([]); // ids de material
+    const [cargandoExtras, setCargandoExtras]       = useState(true);
+
     useEffect(() => {
         const fetchTelas = async () => {
             try {
@@ -70,6 +75,29 @@ const PersonalizarSabana = () => {
             }
         };
         fetchTelas();
+    }, []);
+
+    useEffect(() => {
+        const fetchExtras = async () => {
+            try {
+                const [accesorios, bordados, rellenos] = await Promise.all([
+                    apiGet('/pedidos-personalizados/materiales/Accesorio').catch(() => []),
+                    apiGet('/pedidos-personalizados/materiales/Bordado').catch(() => []),
+                    apiGet('/pedidos-personalizados/materiales/Relleno').catch(() => []),
+                ]);
+                const lista = [
+                    ...(Array.isArray(accesorios) ? accesorios : []),
+                    ...(Array.isArray(bordados) ? bordados : []),
+                    ...(Array.isArray(rellenos) ? rellenos : []),
+                ];
+                setExtras(lista);
+            } catch (err) {
+                console.error('Error al cargar extras:', err);
+            } finally {
+                setCargandoExtras(false);
+            }
+        };
+        fetchExtras();
     }, []);
 
     // Cargar colores y diseños cuando cambia la tela seleccionada
@@ -123,9 +151,23 @@ const PersonalizarSabana = () => {
         return metros;
     };
 
+    const toggleExtra = (id_material) => {
+        setExtrasSeleccionados(prev =>
+            prev.includes(id_material)
+                ? prev.filter(id => id !== id_material)
+                : [...prev, id_material]
+        );
+    };
+
+    const calcularPrecioExtras = () =>
+        extras
+            .filter(e => extrasSeleccionados.includes(e.id_material))
+            .reduce((sum, e) => sum + Number(e.precio_unitario || 0), 0);
+
     const calcularPrecio = () => {
         if (!tamano || !telaSeleccionada) return null;
-        const subtotal = calcularMetros() * Number(telaSeleccionada.precio_unitario);
+        const subtotalTela = calcularMetros() * Number(telaSeleccionada.precio_unitario);
+        const subtotal = subtotalTela + calcularPrecioExtras();
         return Math.ceil(subtotal / 1000) * 1000;
     };
 
@@ -181,6 +223,16 @@ const PersonalizarSabana = () => {
                 concepto: `Funda${cantidadFundas > 1 ? 's' : ''} de almohada (${cantidadFundas})`,
             });
         }
+
+        extras
+            .filter(e => extrasSeleccionados.includes(e.id_material))
+            .forEach(extra => {
+                materiales.push({
+                    id_material: extra.id_material,
+                    cantidad: 1,
+                    concepto: extra.tipo || 'Extra',
+                });
+            });
 
         const dto = {
             id_usuario:    usuarioActual.id_usuario,
@@ -239,6 +291,15 @@ const PersonalizarSabana = () => {
                                     {sobresabana && <div>Incluye sobresábana</div>}
                                     {almohadas !== 'no' && (
                                         <div>{almohadas === 'una' ? '1 funda' : '2 fundas'} de almohada</div>
+                                    )}
+                                    {extrasSeleccionados.length > 0 && (
+                                        <div>
+                                            <strong>Extras:</strong>{' '}
+                                            {extras
+                                                .filter(e => extrasSeleccionados.includes(e.id_material))
+                                                .map(e => e.nombre)
+                                                .join(', ')}
+                                        </div>
                                     )}
                                 </div>
                             )}
@@ -413,6 +474,45 @@ const PersonalizarSabana = () => {
                                     onChange={e => setSobresabana(e.target.checked)} />
                                 <span>Incluir sobresábana (+2m)</span>
                             </label>
+                        </div>
+
+                        <div className="opcion-seccion">
+                            <h3>Extras (opcionales)</h3>
+                            <p style={{ fontSize: '0.85rem', color: '#9a7a8a', marginBottom: '10px' }}>
+                                Accesorios, bordados y rellenos. Puedes seleccionar varios.
+                            </p>
+                            {cargandoExtras ? (
+                                <p style={{ color: '#9a7a8a' }}>Cargando extras...</p>
+                            ) : extras.length === 0 ? (
+                                <p style={{ fontSize: '0.88rem', color: '#9a7a8a' }}>
+                                    No hay extras disponibles por ahora.
+                                </p>
+                            ) : (
+                                <div className="opciones-radio-grid">
+                                    {extras.map(extra => {
+                                        const activo = extrasSeleccionados.includes(extra.id_material);
+                                        const unidadLabel = extra.unidad === 'metro' ? '/metro' : '/und';
+                                        return (
+                                            <label
+                                                key={extra.id_material}
+                                                className={`radio-card ${activo ? 'seleccionado' : ''}`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={activo}
+                                                    onChange={() => toggleExtra(extra.id_material)}
+                                                />
+                                                <span>
+                                                    {extra.nombre}
+                                                    <small style={{ color: '#9a7a8a', marginLeft: 6 }}>
+                                                        ({extra.tipo}) {formatPrice(extra.precio_unitario)}{unidadLabel}
+                                                    </small>
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

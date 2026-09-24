@@ -1,10 +1,4 @@
 // Flujo completo - Rol Administrador (versión estabilizada)
-// Cambios clave vs versión anterior:
-//  - Espera explícita a la API al crear/editar producto (evita race en Pasos 4-7)
-//  - Tras editar, vuelve a /productos y confirma el nombre antes de movimientos
-//  - Búsquedas de usuarios con debounce + reintento de filtrado
-//  - Limpieza de modales residuales entre pasos de usuarios
-//  - Timeouts más amplios y asserts menos frágiles
 
 export {};
 

@@ -5,7 +5,7 @@
 
 export {};
 
-const FRONT_URL = Cypress.env('FRONT_URL') || 'http://localhost:5173';
+const FRONT_URL = Cypress.env('FRONT_URL') || 'http://localhost:8080';
 
 Cypress.on('uncaught:exception', () => false);
 
