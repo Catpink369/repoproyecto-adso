@@ -1,14 +1,8 @@
-# Sobrescribe el backend para apuntar a gurama_test (Cypress / pruebas E2E UI)
-# Uso:
-#   docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --build
-#   npx cypress run
-#
-# Seed previo (una vez):
-#   DATABASE_URL=postgresql://postgres:doKi12345@localhost:5432/gurama_test npx prisma db seed
-
-services:
+﻿services:
   backend:
     environment:
       NODE_ENV: test
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-doKi12345}@db:5432/gurama_test?schema=public
-      API_KEY: ${API_KEY:-xyz123}
+      DATABASE_URL: postgresql://postgres:doKi12345@db:5432/gurama_test?schema=public
+      API_KEY: xyz123
+      JWT_SECRET: clave_secreta_guruma
+    env_file: []

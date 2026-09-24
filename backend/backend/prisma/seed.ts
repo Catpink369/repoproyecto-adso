@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import * as bcrypt from 'bcrypt'
 
 const prisma = new PrismaClient()
 
@@ -131,12 +132,12 @@ async function main() {
   })
 
   // ─── USUARIOS (Cypress + admin inicial) ───────────────────────────────────
-  // Hashes bcrypt (cost 10) generados para las contraseñas de cypress.env.json
-  const HASH_VALE123 = '$2b$10$hXv/7U6iqVT3h4kAFCiar.osa0uVUsQm8.HWAmcZuUa7u5BgXVgJ2'
-  const HASH_07212728 = '$2b$10$gdOT1Z4BkBG.SrWcBl7qx.tj464Xt.cfWStsIuZl01Y3E3K.ju99a'
-  const HASH_123456 = '$2b$10$CC.oZK0dzx0qmv9w0F0jZe3cDLIVjt3ThGL3lwaa0XM93aQ0wy6fu'
-  const HASH_CODIGO_12345 = '$2b$10$k.twtJSJdD15eZPmccKd..h.c6o.dAJ4y8F2j6Fi/VRnJ9YNONXyu'
-  const HASH_CODIGO_36910 = '$2b$10$RqpEaOg1xa.7HVRmDZF02er5tkLDlvAIcMe1BoiMGHYylyUr5tEga'
+  // Hashes en runtime con el mismo bcrypt del backend (evita desajustes)
+  const HASH_VALE123 = await bcrypt.hash('vale123', 10)
+  const HASH_07212728 = await bcrypt.hash('07212728', 10)
+  const HASH_123456 = await bcrypt.hash('123456', 10)
+  const HASH_CODIGO_12345 = await bcrypt.hash('12345', 10)
+  const HASH_CODIGO_36910 = await bcrypt.hash('36910', 10)
 
   // Admin
   await prisma.usuario.upsert({
@@ -167,9 +168,20 @@ async function main() {
     },
   })
 
-  // Trabajador (Cypress)
+  // Trabajador (Cypress) — id fijo que usa administrador.cy.ts (Paso 12/15)
+  // Si quedó un Trab-01 antiguo con el mismo correo, se elimina para evitar conflicto UNIQUE.
+  const harryViejo = await prisma.usuario.findFirst({
+    where: {
+      OR: [{ id_usuario: 'Trab-01' }, { correo: 'harry@gmail.com' }],
+      NOT: { id_usuario: '123412332' },
+    },
+  })
+  if (harryViejo) {
+    await prisma.usuario.delete({ where: { id_usuario: harryViejo.id_usuario } }).catch(() => {})
+  }
+
   await prisma.usuario.upsert({
-    where: { id_usuario: 'Trab-01' },
+    where: { id_usuario: '123412332' },
     update: {
       correo: 'harry@gmail.com',
       contrasena: HASH_123456,
@@ -179,9 +191,11 @@ async function main() {
       estado: 1,
       intentos_fallidos: 0,
       bloqueado_hasta: null,
+      nom_1: 'Harry',
+      ape_1: 'Potter',
     },
     create: {
-      id_usuario: 'Trab-01',
+      id_usuario: '123412332',
       nom_1: 'Harry',
       ape_1: 'Potter',
       correo: 'harry@gmail.com',
@@ -401,6 +415,27 @@ async function main() {
       id_clasificacion: clasNuevos.id_clasificacion,
       color: 'Blanco',
     },
+    // Segundo amigurumi "Nuevos" — Cypress Cliente filtra Amigurumis + Nuevos y agrega 2
+    {
+      nom_producto: 'Amigurumi gatito gris',
+      precio_unitario: 28000,
+      stock_actual: 50,
+      stock_minimo: 8,
+      descripcion: 'Gatito amigurumi gris, tamaño pequeño.',
+      id_categoria: catAmi.id_categoria,
+      id_clasificacion: clasNuevos.id_clasificacion,
+      color: 'Gris',
+    },
+    {
+      nom_producto: 'Amigurumi panda nuevo',
+      precio_unitario: 38000,
+      stock_actual: 40,
+      stock_minimo: 5,
+      descripcion: 'Panda amigurumi colección nuevos.',
+      id_categoria: catAmi.id_categoria,
+      id_clasificacion: clasNuevos.id_clasificacion,
+      color: 'Blanco',
+    },
     {
       nom_producto: 'Llavero corazón tejido',
       precio_unitario: 12000,
@@ -513,7 +548,9 @@ async function main() {
   console.log(
     `Seed OK — usuarios: ${nUsr}, productos: ${nProd}, materiales: ${nMat}`,
   )
-  console.log('Base de datos GuramaOnline (PostgreSQL) poblada con éxito.')
+  console.log(
+    'Seed aplicado sobre DATABASE_URL actual (gurama_test o guramaonline).',
+  )
 }
 
 main()

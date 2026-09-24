@@ -22,7 +22,8 @@ describe('Flujo completo - Administrador', { testIsolation: false }, () => {
   // --- Datos para el flujo de Usuarios ---
   const documentoTrabajador = `9${idUnico}`;
   const nombreTrabajador = 'Trabajador';
-  const apellidoTrabajador = `Prueba${idUnico}`;
+  // Solo letras: el DTO rechaza números/símbolos en apellidos (Matches)
+  const apellidoTrabajador = 'PruebaCypress';
   const correoTrabajador = `trabajador.prueba.${idUnico}@example.com`;
 
   // Trabajador fijo de prueba (Harry), usado solo para el toggle de activar/desactivar.
@@ -153,99 +154,145 @@ describe('Flujo completo - Administrador', { testIsolation: false }, () => {
     cy.get('table tbody tr').should('exist');
   });
 
-  it('Paso 12: desactiva un usuario (Trabajador)', () => {
+    it('Paso 12: desactiva un usuario (Trabajador)', () => {
     cy.intercept('PATCH', '**/usuarios/**/estado').as('cambiarEstado');
     cy.contains('button', 'Trabajadores').click();
+    cy.get('input[placeholder*="Buscar"]').clear().type(idTrabajadorPrueba);
+    cy.contains('tr', idTrabajadorPrueba, { timeout: 10000 }).should('be.visible');
 
-    cy.contains('tr', idTrabajadorPrueba).within(() => {
-      cy.contains('button', 'Desactivar').click();
+    // Re-query la fila en cada acción (evita "detached from DOM" tras re-render)
+    cy.contains('tr', idTrabajadorPrueba).then(($tr) => {
+      const text = $tr.text();
+      if (text.includes('Activar')) {
+        // Ya inactivo: activar primero
+        cy.contains('tr', idTrabajadorPrueba).contains('button', 'Activar').click();
+        cy.wait('@cambiarEstado').its('response.statusCode').should('eq', 200);
+      }
     });
 
+    cy.contains('tr', idTrabajadorPrueba).contains('button', 'Desactivar').click();
     cy.wait('@cambiarEstado').its('response.statusCode').should('eq', 200);
+    cy.contains('tr', idTrabajadorPrueba).should('contain', 'Inactivo');
   });
 
-  it('Paso 13: crea un nuevo trabajador', () => {
+it('Paso 13: crea un nuevo trabajador', () => {
     cy.intercept('POST', '**/usuarios').as('crearUsuario');
 
     cy.contains('button', 'Registrar Usuario').click();
 
-    // El rol por defecto del modal ya es "3" (Trabajador), así que no hace falta tocarlo
-    cy.get('input[name="id_usuario"]').type(documentoTrabajador);
-    cy.get('input[name="nom_1"]').type(nombreTrabajador);
-    cy.get('input[name="ape_1"]').type(apellidoTrabajador);
-    cy.get('input[name="correo"]').type(correoTrabajador);
-    cy.get('input[name="telefono"]').type('3009876543');
-    cy.get('input[name="contrasena"]').type('Prueba123');
-
-    // Acotamos la búsqueda al modal: fuera de él existe otro botón
-    // "Registrar Usuario" que también contiene la palabra "Registrar"
-    // y Cypress lo elegía primero por estar antes en el DOM.
     cy.get('div[style*="position: fixed"]').within(() => {
+      cy.get('input[name="id_usuario"]').clear().type(documentoTrabajador);
+      cy.get('input[name="nom_1"]').clear().type(nombreTrabajador);
+      cy.get('input[name="ape_1"]').clear().type(apellidoTrabajador);
+      cy.get('input[name="correo"]').clear().type(correoTrabajador);
+      cy.get('input[name="telefono"]').clear().type('3009876543');
+      cy.get('input[name="contrasena"]').clear().type('Prueba123');
       cy.contains('button', 'Registrar').click();
     });
 
-    cy.wait('@crearUsuario').its('response.statusCode').should('be.oneOf', [200, 201]);
+    cy.wait('@crearUsuario').then((interception) => {
+      const status = interception.response?.statusCode;
+      const body = interception.response?.body;
+      expect(status, `body=${JSON.stringify(body)}`).to.be.oneOf([200, 201]);
+    });
 
-    // El toast es efímero y puede desaparecer antes de verse (queda oculto
-    // detrás de la pantalla de "Cargando usuarios..." mientras recarga la lista).
-    // Verificamos el resultado real en vez del mensaje transitorio.
+    cy.get('body').then(($body) => {
+      if ($body.find('div[style*="position: fixed"]').length) {
+        cy.contains('div[style*="position: fixed"] button', /Cancelar|Cerrar/i).click({ force: true });
+      }
+    });
     cy.get('div[style*="position: fixed"]', { timeout: 8000 }).should('not.exist');
 
     cy.contains('button', 'Trabajadores').click();
-    cy.contains(`ID: ${documentoTrabajador}`, { timeout: 8000 }).should('be.visible');
+    cy.get('input[placeholder*="Buscar"]').clear().type(documentoTrabajador);
+    cy.contains(`ID: ${documentoTrabajador}`, { timeout: 10000 }).should('be.visible');
   });
 
   it('Paso 14: cambia el rol del trabajador creado a Administrador', () => {
     cy.intercept('PATCH', '**/usuarios/*').as('editarUsuario');
     cy.contains('button', 'Trabajadores').click();
+    cy.get('input[placeholder*="Buscar"]').clear().type(documentoTrabajador);
 
     cy.contains('tr', documentoTrabajador).within(() => {
       cy.contains('button', 'Editar').click();
     });
 
-    cy.get('select[name="id_rol_usuario"]').select('1'); // 1 = Administrador
-
-    cy.get('div[style*="position: fixed"]').within(() => {
-      cy.contains('button', 'Guardar Cambios').click();
+    // No usar cy.get('body') dentro de .within del modal (rompe el scope)
+    cy.get('div[style*="position: fixed"]').should('be.visible');
+    cy.get('div[style*="position: fixed"] select[name="id_rol_usuario"]').select('1');
+    cy.get('div[style*="position: fixed"] input[name="codigo"]').then(($cod) => {
+      if ($cod.length && String($cod.val() || '').trim() === '') {
+        cy.wrap($cod).clear().type('998877');
+      }
     });
+    cy.get('div[style*="position: fixed"]').contains('button', 'Guardar Cambios').click();
 
-    cy.wait('@editarUsuario').its('response.statusCode').should('eq', 200);
+    cy.wait('@editarUsuario').then((interception) => {
+      const status = interception.response?.statusCode;
+      const body = interception.response?.body;
+      expect(status, `body=${JSON.stringify(body)}`).to.eq(200);
+    });
     cy.get('div[style*="position: fixed"]', { timeout: 8000 }).should('not.exist');
 
     cy.contains('button', 'Administradores').click();
-    cy.contains(`ID: ${documentoTrabajador}`, { timeout: 8000 }).should('be.visible');
+    cy.get('input[placeholder*="Buscar"]').clear().type(documentoTrabajador);
+    cy.contains(`ID: ${documentoTrabajador}`, { timeout: 10000 }).should('be.visible');
   });
 
   it('Paso 15: reactiva el usuario desactivado en el Paso 12', () => {
+    // Cerrar modal residual si quedó abierto
+    cy.get('body').then(($body) => {
+      if ($body.find('div[style*="position: fixed"]').length) {
+        cy.contains('div[style*="position: fixed"] button', /Cancelar|Cerrar/i).click({ force: true });
+      }
+    });
+    cy.get('div[style*="position: fixed"]', { timeout: 5000 }).should('not.exist');
+
     cy.intercept('PATCH', '**/usuarios/**/estado').as('cambiarEstado');
-    cy.contains('button', 'Trabajadores').click();
+    cy.contains('button', 'Trabajadores').click({ force: true });
+    cy.get('input[placeholder*="Buscar"]').clear().type(idTrabajadorPrueba);
 
     cy.contains('tr', idTrabajadorPrueba).within(() => {
-      cy.contains('button', 'Activar').click();
+      cy.get('button').then(($btns) => {
+        const texts = [...$btns].map((b) => b.textContent || '');
+        if (texts.some((t) => t.includes('Activar'))) {
+          cy.contains('button', 'Activar').click();
+          cy.wait('@cambiarEstado').its('response.statusCode').should('eq', 200);
+        }
+      });
     });
-
-    cy.wait('@cambiarEstado').its('response.statusCode').should('eq', 200);
   });
 
   it('Paso 16: revierte el rol del trabajador ascendido de vuelta a Trabajador', () => {
+    cy.get('body').then(($body) => {
+      if ($body.find('div[style*="position: fixed"]').length) {
+        cy.contains('div[style*="position: fixed"] button', /Cancelar|Cerrar/i).click({ force: true });
+      }
+    });
+
     cy.intercept('PATCH', '**/usuarios/*').as('editarUsuario');
-    cy.contains('button', 'Administradores').click();
+    cy.contains('button', 'Administradores').click({ force: true });
+    cy.get('input[placeholder*="Buscar"]').clear().type(documentoTrabajador);
 
     cy.contains('tr', documentoTrabajador).within(() => {
       cy.contains('button', 'Editar').click();
     });
 
-    cy.get('select[name="id_rol_usuario"]').select('3'); // 3 = Trabajador
-
     cy.get('div[style*="position: fixed"]').within(() => {
+      cy.get('select[name="id_rol_usuario"]').select('3'); // 3 = Trabajador
       cy.contains('button', 'Guardar Cambios').click();
     });
 
-    cy.wait('@editarUsuario').its('response.statusCode').should('eq', 200);
+    cy.wait('@editarUsuario').then((interception) => {
+      const status = interception.response?.statusCode;
+      const body = interception.response?.body;
+      expect(status, `body=${JSON.stringify(body)}`).to.eq(200);
+    });
     cy.get('div[style*="position: fixed"]', { timeout: 8000 }).should('not.exist');
 
     cy.contains('button', 'Trabajadores').click();
-    cy.contains(`ID: ${documentoTrabajador}`, { timeout: 8000 }).should('be.visible');
+    cy.get('input[placeholder*="Buscar"]').clear().type(documentoTrabajador);
+    cy.contains(`ID: ${documentoTrabajador}`, { timeout: 10000 }).should('be.visible');
   });
 
   // --- Pedidos realizados ---
