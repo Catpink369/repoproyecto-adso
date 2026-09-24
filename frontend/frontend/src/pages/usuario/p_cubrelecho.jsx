@@ -64,11 +64,18 @@ const PersonalizarCubrelecho = () => {
     const [extrasSeleccionados, setExtrasSeleccionados] = useState([]);
     const [cargandoExtras, setCargandoExtras]       = useState(true);
 
+    // Solo materiales con imagen real (sin ruta → no aparecen en personalización)
+    const materialConImagen = (m) => {
+        const r = m?.ruta_imagen;
+        return typeof r === 'string' && r.trim() !== '' && r.trim().toLowerCase() !== 'null';
+    };
+
     useEffect(() => {
         const fetchTelas = async () => {
             try {
                 const data = await apiGet('/pedidos-personalizados/materiales/Tela');
-                setTelas(Array.isArray(data) ? data : []);
+                const lista = Array.isArray(data) ? data.filter(materialConImagen) : [];
+                setTelas(lista);
             } catch (err) {
                 console.error('Error al cargar telas:', err);
             } finally {
@@ -90,7 +97,7 @@ const PersonalizarCubrelecho = () => {
                     ...(Array.isArray(accesorios) ? accesorios : []),
                     ...(Array.isArray(bordados) ? bordados : []),
                     ...(Array.isArray(rellenos) ? rellenos : []),
-                ];
+                ].filter(materialConImagen);
                 setExtras(lista);
             } catch (err) {
                 console.error('Error al cargar extras:', err);
@@ -394,16 +401,24 @@ const PersonalizarCubrelecho = () => {
                                         <p style={{ color: '#e74c3c' }}>No hay telas disponibles.</p>
                                     ) : (
                                         <>
-                                        <div className="lista-telas">
+                                        <div className="lista-telas lista-telas-con-foto">
                                             {telasPagina.map(tela => (
                                                 <div key={tela.id_material}
-                                                    className={`tela-item ${telaActual?.id_material === tela.id_material ? 'activo' : ''}`}
+                                                    className={`tela-item tela-item-foto ${telaActual?.id_material === tela.id_material ? 'activo' : ''}`}
                                                     onClick={() => setTelaActual(tela)}>
-                                                    {telaActual?.id_material === tela.id_material ? '✓ ' : ''}
-                                                    {tela.nombre}
-                                                    <small style={{ color: '#9a7a8a', marginLeft: '8px' }}>
-                                                        {formatPrice(tela.precio_unitario)}/metro
-                                                    </small>
+                                                    <img
+                                                        src={getImageUrl(tela.ruta_imagen)}
+                                                        alt={tela.nombre}
+                                                        className="material-thumb"
+                                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                                    />
+                                                    <div className="tela-item-texto">
+                                                        {telaActual?.id_material === tela.id_material ? '✓ ' : ''}
+                                                        {tela.nombre}
+                                                        <small style={{ color: '#9a7a8a', display: 'block' }}>
+                                                            {formatPrice(tela.precio_unitario)}/metro
+                                                        </small>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -514,23 +529,29 @@ const PersonalizarCubrelecho = () => {
                                     No hay extras disponibles por ahora.
                                 </p>
                             ) : (
-                                <div className="opciones-radio-grid">
+                                <div className="opciones-radio-grid extras-con-foto">
                                     {extras.map(extra => {
                                         const activo = extrasSeleccionados.includes(extra.id_material);
                                         const unidadLabel = extra.unidad === 'metro' ? '/metro' : '/und';
                                         return (
                                             <label
                                                 key={extra.id_material}
-                                                className={`radio-card ${activo ? 'seleccionado' : ''}`}
+                                                className={`radio-card extra-card ${activo ? 'seleccionado' : ''}`}
                                             >
                                                 <input
                                                     type="checkbox"
                                                     checked={activo}
                                                     onChange={() => toggleExtra(extra.id_material)}
                                                 />
-                                                <span>
+                                                <img
+                                                    src={getImageUrl(extra.ruta_imagen)}
+                                                    alt={extra.nombre}
+                                                    className="extra-card-img"
+                                                    onError={(e) => { e.target.src = 'https://placehold.co/160x120?text=Sin+imagen'; }}
+                                                />
+                                                <span className="extra-card-texto">
                                                     {extra.nombre}
-                                                    <small style={{ color: '#9a7a8a', marginLeft: 6 }}>
+                                                    <small style={{ color: '#9a7a8a', display: 'block', marginTop: 4 }}>
                                                         ({extra.tipo}) {formatPrice(extra.precio_unitario)}{unidadLabel}
                                                     </small>
                                                 </span>

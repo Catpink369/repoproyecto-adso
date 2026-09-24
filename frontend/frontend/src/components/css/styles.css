@@ -7873,6 +7873,81 @@ body {
     color: #a94563;
 }
 
+/* Telas / materiales con miniatura */
+.lista-telas-con-foto {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.tela-item-foto {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
+}
+
+.tela-item-foto .material-thumb {
+    width: 100%;
+    height: 90px;
+    object-fit: cover;
+    display: block;
+    background: #f5eef2;
+}
+
+.tela-item-foto .tela-item-texto {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+}
+
+/* Extras con foto (sábana / cubrelecho) */
+.extras-con-foto {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.extra-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 !important;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+}
+
+.extra-card input[type="checkbox"] {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    width: 16px;
+    height: 16px;
+    accent-color: #c45a77;
+}
+
+.extra-card-img {
+    width: 100%;
+    height: 110px;
+    object-fit: cover;
+    display: block;
+    background: #f5eef2;
+}
+
+.extra-card-texto {
+    padding: 10px 12px;
+    font-size: 0.88rem;
+    color: #5a3d54;
+    line-height: 1.35;
+}
+
+.extra-card.seleccionado {
+    border-color: #c45a77 !important;
+    box-shadow: 0 0 0 2px rgba(196, 90, 119, 0.25);
+}
+
 /* Select dentro de opcion-seccion */
 .opcion-seccion select {
     width: 100%;
