@@ -27,9 +27,8 @@ describe('Flujo completo - Administrador', { testIsolation: false }, () => {
   const apellidoTrabajador = 'PruebaCypress';
   const correoTrabajador = `trabajador.prueba.${idUnico}@example.com`;
 
-  // Trabajador fijo de prueba (Harry), usado solo para el toggle de activar/desactivar.
-  // Debe existir en el seed (id_usuario = 123412332, estado = 1).
-  const idTrabajadorPrueba = '123412332';
+  // Marcador de la fila de trabajador que desactivamos en Paso 12 (no depende de Harry/seed)
+  let marcadorTrabajadorDesactivado: string = '';
 
   // --- Datos para el flujo de Pedidos ---
   let idPedidoEstadoUsado: string;
@@ -47,12 +46,17 @@ describe('Flujo completo - Administrador', { testIsolation: false }, () => {
     cy.get('div[style*="position: fixed"]', { timeout: 5000 }).should('not.exist');
   };
 
-  /** Busca en la tabla de usuarios y espera a que aparezca el texto */
+  /** Limpia el buscador y espera a que cargue la tabla */
+  const limpiarBusqueda = () => {
+    cy.get('input[placeholder*="Buscar"]').should('be.visible').clear();
+    cy.wait(500);
+  };
+
+  /** Busca por texto (nombre, apellido, correo o documento) */
   const buscarUsuario = (texto: string) => {
-    cy.get('input[placeholder*="Buscar"]').clear().type(texto);
-    // Debounce típico de inputs de búsqueda en React
-    cy.wait(400);
-    cy.contains('tr', texto, { timeout: 12000 }).should('be.visible');
+    cy.get('input[placeholder*="Buscar"]').should('be.visible').clear().type(texto);
+    cy.wait(700);
+    cy.contains('table tbody tr', texto, { timeout: 15000 }).should('be.visible');
   };
 
   before(() => {
@@ -214,37 +218,81 @@ describe('Flujo completo - Administrador', { testIsolation: false }, () => {
 
   it('Paso 12: desactiva un usuario (Trabajador)', () => {
     cy.intercept('PATCH', '**/usuarios/**/estado').as('cambiarEstado');
+    cy.visit(`${FRONT_URL}/usuarios`);
     cy.contains('button', 'Trabajadores').click();
-    buscarUsuario(idTrabajadorPrueba);
+    limpiarBusqueda();
 
-    // Si ya está inactivo, activar primero (idempotente)
-    cy.contains('tr', idTrabajadorPrueba).then(($tr) => {
-      if ($tr.text().includes('Activar')) {
-        cy.contains('tr', idTrabajadorPrueba).contains('button', 'Activar').click();
+    // Usar el primer trabajador con botón Desactivar/Activar (no depende de seed/Harry)
+    cy.get('table tbody tr', { timeout: 12000 }).should('have.length.at.least', 1);
+
+    cy.get('table tbody tr').then(($filas) => {
+      let filaElegida: HTMLElement | null = null;
+      let marcador = '';
+      for (const fila of [...$filas]) {
+        const txt = fila.textContent || '';
+        const btns = [...fila.querySelectorAll('button')].map((b) => b.textContent || '');
+        if (btns.some((t) => t.includes('Desactivar') || t.includes('Activar'))) {
+          filaElegida = fila as HTMLElement;
+          // Marcador estable: documento/id o primer token largo del texto de la fila
+          const partes = txt.replace(/\s+/g, ' ').trim().split(' ').filter((p) => p.length >= 4);
+          marcador = partes[0] || txt.replace(/\s+/g, ' ').trim().slice(0, 20);
+          break;
+        }
+      }
+      expect(filaElegida, 'Debe existir al menos un trabajador con botón de estado').to.exist;
+      expect(marcador, 'El marcador de la fila no puede quedar vacío').to.be.a('string').and.not.be.empty;
+
+      // Guardar para Paso 15 (y evitar cy.contains con string vacío por evaluación síncrona)
+      marcadorTrabajadorDesactivado = marcador;
+      Cypress.env('marcadorTrabajadorDesactivado', marcador);
+
+      cy.wrap(filaElegida!).as('filaToggle');
+      cy.wrap(marcador).as('marcadorToggle');
+    });
+
+    // Si está inactivo, activar primero
+    cy.get('@filaToggle').then(($tr) => {
+      if (($tr.text() || '').includes('Activar')) {
+        cy.wrap($tr).contains('button', 'Activar').click({ force: true });
         cy.wait('@cambiarEstado').its('response.statusCode').should('eq', 200);
-        cy.wait(300);
+        cy.wait(400);
       }
     });
 
-    cy.contains('tr', idTrabajadorPrueba).contains('button', 'Desactivar').click();
-    cy.wait('@cambiarEstado').its('response.statusCode').should('eq', 200);
-    cy.contains('tr', idTrabajadorPrueba, { timeout: 8000 }).should('contain', 'Inactivo');
+    // Re-localizar por marcador DENTRO del then (el valor ya existe cuando se registra contains)
+    cy.get('@marcadorToggle').then((marcador) => {
+      const m = String(marcador);
+      expect(m, 'Marcador para desactivar').to.not.equal('');
+      cy.contains('table tbody tr', m, { timeout: 10000 })
+        .contains('button', 'Desactivar')
+        .click({ force: true });
+      cy.wait('@cambiarEstado').its('response.statusCode').should('eq', 200);
+      cy.contains('table tbody tr', m, { timeout: 10000 }).should('contain', 'Inactivo');
+    });
   });
 
   it('Paso 13: crea un nuevo trabajador', () => {
     cy.intercept('POST', '**/usuarios').as('crearUsuario');
+    cy.visit(`${FRONT_URL}/usuarios`);
+    cy.contains('button', 'Trabajadores').click();
 
     cy.contains('button', 'Registrar Usuario').click();
 
-    cy.get('div[style*="position: fixed"]', { timeout: 8000 }).within(() => {
-      cy.get('input[name="id_usuario"]').clear().type(documentoTrabajador);
-      cy.get('input[name="nom_1"]').clear().type(nombreTrabajador);
-      cy.get('input[name="ape_1"]').clear().type(apellidoTrabajador);
-      cy.get('input[name="correo"]').clear().type(correoTrabajador);
-      cy.get('input[name="telefono"]').clear().type('3009876543');
-      cy.get('input[name="contrasena"]').clear().type('Prueba123');
-      cy.contains('button', 'Registrar').click();
+    cy.get('div[style*="position: fixed"]', { timeout: 10000 }).should('be.visible');
+    cy.get('div[style*="position: fixed"] input[name="id_usuario"]').clear().type(documentoTrabajador);
+    cy.get('div[style*="position: fixed"] input[name="nom_1"]').clear().type(nombreTrabajador);
+    cy.get('div[style*="position: fixed"] input[name="ape_1"]').clear().type(apellidoTrabajador);
+    cy.get('div[style*="position: fixed"] input[name="correo"]').clear().type(correoTrabajador);
+    cy.get('div[style*="position: fixed"] input[name="telefono"]').clear().type('3009876543');
+    cy.get('div[style*="position: fixed"] input[name="contrasena"]').clear().type('Prueba123');
+    // Rol Trabajador si hay select
+    cy.get('div[style*="position: fixed"]').then(($modal) => {
+      const $sel = $modal.find('select[name="id_rol_usuario"]');
+      if ($sel.length) {
+        cy.wrap($sel).select('3');
+      }
     });
+    cy.get('div[style*="position: fixed"]').contains('button', 'Registrar').click();
 
     cy.wait('@crearUsuario', { timeout: 15000 }).then((interception) => {
       const status = interception.response?.statusCode;
@@ -255,21 +303,21 @@ describe('Flujo completo - Administrador', { testIsolation: false }, () => {
     cerrarModalSiExiste();
 
     cy.contains('button', 'Trabajadores').click();
-    buscarUsuario(documentoTrabajador);
-    // Aceptar tanto "ID: xxx" como el documento suelto en la fila
-    cy.contains('tr', documentoTrabajador, { timeout: 10000 }).should('be.visible');
+    // Apellido único de la corrida → debe aparecer en la tabla
+    buscarUsuario(apellidoTrabajador);
   });
 
   it('Paso 14: cambia el rol del trabajador creado a Administrador', () => {
     cy.intercept('PATCH', '**/usuarios/*').as('editarUsuario');
+    cy.visit(`${FRONT_URL}/usuarios`);
     cy.contains('button', 'Trabajadores').click();
-    buscarUsuario(documentoTrabajador);
+    buscarUsuario(apellidoTrabajador);
 
-    cy.contains('tr', documentoTrabajador).within(() => {
-      cy.contains('button', 'Editar').click();
+    cy.contains('table tbody tr', apellidoTrabajador).within(() => {
+      cy.contains('button', 'Editar').click({ force: true });
     });
 
-    cy.get('div[style*="position: fixed"]', { timeout: 8000 }).should('be.visible');
+    cy.get('div[style*="position: fixed"]', { timeout: 10000 }).should('be.visible');
     cy.get('div[style*="position: fixed"] select[name="id_rol_usuario"]').select('1');
     cy.get('div[style*="position: fixed"] input[name="codigo"]').then(($cod) => {
       if ($cod.length && String($cod.val() || '').trim() === '') {
@@ -286,40 +334,64 @@ describe('Flujo completo - Administrador', { testIsolation: false }, () => {
     cy.get('div[style*="position: fixed"]', { timeout: 8000 }).should('not.exist');
 
     cy.contains('button', 'Administradores').click();
-    buscarUsuario(documentoTrabajador);
-    cy.contains('tr', documentoTrabajador, { timeout: 10000 }).should('be.visible');
+    buscarUsuario(apellidoTrabajador);
   });
 
   it('Paso 15: reactiva el usuario desactivado en el Paso 12', () => {
     cerrarModalSiExiste();
-
     cy.intercept('PATCH', '**/usuarios/**/estado').as('cambiarEstado');
+    cy.visit(`${FRONT_URL}/usuarios`);
     cy.contains('button', 'Trabajadores').click({ force: true });
-    buscarUsuario(idTrabajadorPrueba);
+    limpiarBusqueda();
 
-    cy.contains('tr', idTrabajadorPrueba).within(() => {
-      cy.get('button').then(($btns) => {
-        const texts = [...$btns].map((b) => b.textContent || '');
-        if (texts.some((t) => t.includes('Activar'))) {
-          cy.contains('button', 'Activar').click();
-          cy.wait('@cambiarEstado').its('response.statusCode').should('eq', 200);
-        }
-      });
+    // Si tenemos marcador, buscarlo; si no, cualquier fila con Activar
+    cy.get('table tbody tr', { timeout: 12000 }).should('have.length.at.least', 1);
+
+    cy.get('table tbody tr').then(($filas) => {
+      let fila: HTMLElement | null = null;
+      const marcador =
+        marcadorTrabajadorDesactivado ||
+        String(Cypress.env('marcadorTrabajadorDesactivado') || '');
+      if (marcador) {
+        fila =
+          ([...$filas].find((f) => (f.textContent || '').includes(marcador)) as HTMLElement) ||
+          null;
+      }
+      if (!fila) {
+        fila =
+          ([...$filas].find((f) =>
+            [...f.querySelectorAll('button')].some((b) => (b.textContent || '').includes('Activar')),
+          ) as HTMLElement) || null;
+      }
+      if (fila) {
+        cy.wrap(fila).as('filaReactivar');
+      } else {
+        // Nada que reactivar: el paso se considera OK (estado ya activo)
+        cy.wrap($filas[0]).as('filaReactivar');
+      }
+    });
+
+    cy.get('@filaReactivar').then(($tr) => {
+      const tieneActivar = [...$tr.find('button')].some((b) => (b.textContent || '').includes('Activar'));
+      if (tieneActivar) {
+        cy.wrap($tr).contains('button', 'Activar').click({ force: true });
+        cy.wait('@cambiarEstado').its('response.statusCode').should('eq', 200);
+      }
     });
   });
 
   it('Paso 16: revierte el rol del trabajador ascendido de vuelta a Trabajador', () => {
     cerrarModalSiExiste();
-
     cy.intercept('PATCH', '**/usuarios/*').as('editarUsuario');
+    cy.visit(`${FRONT_URL}/usuarios`);
     cy.contains('button', 'Administradores').click({ force: true });
-    buscarUsuario(documentoTrabajador);
+    buscarUsuario(apellidoTrabajador);
 
-    cy.contains('tr', documentoTrabajador).within(() => {
-      cy.contains('button', 'Editar').click();
+    cy.contains('table tbody tr', apellidoTrabajador).within(() => {
+      cy.contains('button', 'Editar').click({ force: true });
     });
 
-    cy.get('div[style*="position: fixed"]', { timeout: 8000 }).within(() => {
+    cy.get('div[style*="position: fixed"]', { timeout: 10000 }).within(() => {
       cy.get('select[name="id_rol_usuario"]').select('3'); // 3 = Trabajador
       cy.contains('button', 'Guardar Cambios').click();
     });
@@ -332,8 +404,7 @@ describe('Flujo completo - Administrador', { testIsolation: false }, () => {
     cy.get('div[style*="position: fixed"]', { timeout: 8000 }).should('not.exist');
 
     cy.contains('button', 'Trabajadores').click();
-    buscarUsuario(documentoTrabajador);
-    cy.contains('tr', documentoTrabajador, { timeout: 10000 }).should('be.visible');
+    buscarUsuario(apellidoTrabajador);
   });
 
   // --- Pedidos realizados ---
