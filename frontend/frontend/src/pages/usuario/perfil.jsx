@@ -89,7 +89,7 @@ export default function PerfilAdmin() {
                 method: 'POST',
                 headers: {
                     'x-api-key': import.meta.env.VITE_API_KEY,
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${sessionStorage.getItem('token_admin') || localStorage.getItem('token_client')}`,
                 },
                 body: formData,
             });

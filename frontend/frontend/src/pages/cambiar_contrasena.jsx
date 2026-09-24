@@ -43,7 +43,7 @@ const CambiarContrasena = () => {
         setLoading(true);
 
         try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token_admin') || localStorage.getItem('token_client');
         const response = await axios.patch(
             `${API_URL}/usuarios/${usuarioActual.id_usuario}/cambiar-contrasena`,
             { contrasenaActual, nuevaContrasena },
