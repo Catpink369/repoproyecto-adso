@@ -1,12 +1,15 @@
-name: gurama
-
 # LOCAL / Docker normal → BD guramaonline
-# Pruebas UI: docker compose -f docker-compose.yml -f docker-compose.test.yml up --build
-# (backend usa gurama_test; front sigue en :8080 con VITE_API_URL=http://localhost:3000)
+# Pruebas UI (Cypress):
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml up --build -d
+# Luego seed:
+#   cd backend && npx dotenv -e .env.test -- npx prisma db push && npx dotenv -e .env.test -- npx prisma db seed
+#
+# (backend usa gurama_test; front en :8080 con VITE_API_URL=http://localhost:3000)
 
 services:
   backend:
     build:
+      # Ajusta si tu estructura es backend/backend → usa ../backend/backend
       context: ../backend/backend
       dockerfile: Dockerfile
     container_name: gurama-backend
@@ -15,20 +18,22 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-doKi12345}@db:5432/${POSTGRES_DB:-guramaonline}?schema=public
       API_KEY: ${API_KEY:-xyz123}
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-gurama}
+      JWT_SECRET: ${JWT_SECRET:-clave_secreta_guruma}
       PORT: 3000
     env_file:
       - ../backend/backend/.env
     depends_on:
-      - db
+      db:
+        condition: service_started
     restart: unless-stopped
 
   frontend:
     build:
+      # Ajusta si tu estructura es frontend/frontend → usa ../frontend/frontend
       context: ../frontend/frontend
       dockerfile: Dockerfile
       args:
-        # Debe ser localhost:3000 para que Cypress (y el navegador en el host)
+        # Debe ser localhost:3000 para que Cypress (navegador en el host)
         # hable con el backend local, NO con Render.
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
         VITE_API_KEY: ${VITE_API_KEY:-xyz123}
@@ -48,11 +53,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-doKi12345}
       POSTGRES_DB: ${POSTGRES_DB:-guramaonline}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - gurama_pgdata:/var/lib/postgresql/data
       - ./init-db:/docker-entrypoint-initdb.d
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   gurama_pgdata:

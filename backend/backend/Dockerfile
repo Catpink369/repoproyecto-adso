@@ -10,7 +10,8 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
-RUN npx prisma generate
+# Schema está en src/prisma (no en ./prisma de la raíz)
+RUN npx prisma generate --schema=prisma/schema.prisma
 RUN npm run build
 
 # ---------- Etapa 2: producción ----------

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, HttpCode,  NotFoundException, ConflictException, BadRequestException, UnauthorizedException, ForbiddenException, InternalServerErrorException, HttpStatus, ParseIntPipe, UnprocessableEntityException } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, HttpCode,  NotFoundException, ConflictException, BadRequestException, UnauthorizedException, ForbiddenException, InternalServerErrorException, HttpStatus, ParseIntPipe, UnprocessableEntityException, Logger } from '@nestjs/common';
 import { ProductosService } from './productos.service';
 import { CreateProductoDto } from './dto/create-producto.dto';
 import { UpdateProductoDto } from './dto/update-producto.dto';
@@ -14,6 +14,8 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
 @ApiSecurity('x-api-key')
 @Controller('productos')
 export class ProductosController {
+  private readonly logger = new Logger(ProductosController.name);
+
   constructor(
     private readonly productosService: ProductosService,
     private readonly cloudinaryService: CloudinaryService,
@@ -31,8 +33,14 @@ export class ProductosController {
     try {
       return await this.productosService.create(dto);
     } catch (error: any) {
+      if (error instanceof ConflictException || error instanceof BadRequestException) {
+        throw error;
+      }
       if (error.code === '23505' || error.code === 'P2002') throw new ConflictException('El producto ya existe.');
-      throw new InternalServerErrorException('Error al crear el producto.');
+      this.logger.error(`Error al crear producto: ${error?.message}`, error?.stack);
+      throw new InternalServerErrorException(
+        error?.message ? `Error al crear el producto: ${error.message}` : 'Error al crear el producto.',
+      );
     }
   }
 
@@ -45,7 +53,16 @@ export class ProductosController {
     try {
       return await this.productosService.findAll(query);
     } catch (error: any) {
-      throw new InternalServerErrorException('Error al obtener el catálogo de productos.');
+      // Loguear el error real (antes se tragaba y solo devolvía 500 genérico)
+      this.logger.error(
+        `Error al obtener catálogo de productos: ${error?.message ?? error}`,
+        error?.stack,
+      );
+      throw new InternalServerErrorException(
+        error?.message
+          ? `Error al obtener el catálogo de productos: ${error.message}`
+          : 'Error al obtener el catálogo de productos.',
+      );
     }
   }
 
@@ -68,13 +85,14 @@ export class ProductosController {
       if (error instanceof NotFoundException) {
         throw error;
       }
+      this.logger.error(`Error checkProducto(${id}): ${error?.message}`, error?.stack);
       throw new InternalServerErrorException('Error al verificar el producto.');
     }
   }
 
   // GET /productos/:id
   @Get(':id')
-  @Public() // <-- AÑADIDO: permite consultar el detalle del producto de forma pública
+  @Public()
   @ApiOperation({ summary: 'Obtener un producto por ID' })
   @ApiResponse({ status: 200, description: 'Producto obtenido exitosamente.' })
   @ApiResponse({ status: 400, description: 'ID del producto inválido.' })
@@ -92,6 +110,7 @@ export class ProductosController {
       if (error instanceof NotFoundException || error instanceof BadRequestException) {
         throw error;
       }
+      this.logger.error(`Error findOne(${id}): ${error?.message}`, error?.stack);
       throw new InternalServerErrorException('Error al obtener el producto.');
     }
   }
@@ -114,7 +133,7 @@ export class ProductosController {
         throw new NotFoundException('Producto no encontrado.');
       }
       return productoActualizado;
-        } catch (error: any) {
+    } catch (error: any) {
       if (
         error instanceof NotFoundException ||
         error instanceof BadRequestException ||
@@ -126,11 +145,11 @@ export class ProductosController {
       if (error.code === '23505' || error.code === 'P2002') {
         throw new ConflictException('Ya existe un producto con este código o nombre.');
       }
-      // class-validator messages
       if (Array.isArray(error?.response?.message)) {
         throw new BadRequestException(error.response.message.join('. '));
       }
       const detalle = error?.message && typeof error.message === 'string' ? error.message : null;
+      this.logger.error(`Error update producto ${id}: ${detalle}`, error?.stack);
       throw new InternalServerErrorException(
         detalle && !/internal|unexpected/i.test(detalle)
           ? detalle
@@ -177,6 +196,7 @@ export class ProductosController {
         );
       }
 
+      this.logger.error(`Error remove producto ${id}: ${error?.message}`, error?.stack);
       throw new InternalServerErrorException('Ocurrió un error inesperado al eliminar el producto');
     }
   }
@@ -220,6 +240,7 @@ export class ProductosController {
         throw error;
       }
 
+      this.logger.error(`Error subirImagen producto ${id}: ${error?.message}`, error?.stack);
       throw new InternalServerErrorException('Error al intentar subir la imagen a Cloudinary');
     }
   }

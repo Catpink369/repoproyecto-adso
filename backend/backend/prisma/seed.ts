@@ -470,6 +470,10 @@ async function main() {
     },
   ]
 
+  // Placeholder para que el catálogo del frontend (filtra sin imagen) muestre productos
+  const IMG_PLACEHOLDER =
+    'https://res.cloudinary.com/demo/image/upload/sample.jpg'
+
   for (const p of productosSeed) {
     const existe = await prisma.producto.findFirst({
       where: { nom_producto: p.nom_producto },
@@ -480,7 +484,7 @@ async function main() {
           ...p,
           ultima_actualiz: ahora,
           estado: true,
-          ruta_imagen: null,
+          ruta_imagen: IMG_PLACEHOLDER,
         },
       })
     } else {
@@ -493,6 +497,8 @@ async function main() {
           precio_unitario: p.precio_unitario,
           estado: true,
           ultima_actualiz: ahora,
+          // Si no tenía imagen, poner placeholder para que aparezca en catálogo
+          ruta_imagen: existe.ruta_imagen || IMG_PLACEHOLDER,
         },
       })
     }

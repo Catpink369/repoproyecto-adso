@@ -17,7 +17,12 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "dotenv -e .env.test -- npx prisma db push && dotenv -e .env.test -- npx prisma db seed && dotenv -e .env.test -- jest --config ./test/PruebasIntegracion/jest-integration.config.js"
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:seed": "prisma db seed",
+    "db:prepare:test": "dotenv -e .env.test -- prisma db push && dotenv -e .env.test -- prisma db seed",
+    "db:prepare:local": "dotenv -e .env -- prisma db push && dotenv -e .env -- prisma db seed",
+    "test:e2e": "dotenv -e .env.test -- prisma db push && dotenv -e .env.test -- prisma db seed && dotenv -e .env.test -- jest --config ./test/PruebasIntegracion/jest-integration.config.js --maxWorkers=2"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -78,9 +83,6 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
-  },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
   },
   "jest": {
     "moduleFileExtensions": [
