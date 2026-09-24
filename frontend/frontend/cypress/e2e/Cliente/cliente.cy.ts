@@ -1,10 +1,16 @@
 // Flujo completo - Rol Cliente
 // Recorrido: login -> catálogo (filtros) -> carrito -> ticket -> notificaciones
 //            -> pedido personalizado -> perfil -> cerrar sesión
+//
+// CORRECCIÓN Paso 7: se espera explícitamente GET .../materiales/Tela y se
+// garantiza que las telas tengan ruta_imagen (el front filtra materialConImagen).
+// Sin esto, la UI muestra "No hay telas disponibles." y falla .lista-telas .tela-item.
 
 export {};
 
 const FRONT_URL = Cypress.env('FRONT_URL') || 'http://localhost:8080';
+const IMG_PLACEHOLDER =
+  'https://res.cloudinary.com/demo/image/upload/sample.jpg';
 
 Cypress.on('uncaught:exception', () => false);
 
@@ -71,14 +77,41 @@ describe('Flujo completo - Cliente', { testIsolation: false }, () => {
   });
 
   it('Paso 7: personaliza una sábana (color, tamaño, diseño, fundas) y genera el ticket', () => {
-    cy.intercept('GET', '**/pedidos-personalizados/materiales/**').as('getMateriales');
+    // Intercept SOLO telas: si vienen sin ruta_imagen, el front las oculta
+    // (materialConImagen). Inyectamos placeholder para que .tela-item exista.
+    cy.intercept('GET', '**/pedidos-personalizados/materiales/Tela', (req) => {
+      req.continue((res) => {
+        if (Array.isArray(res.body) && res.body.length > 0) {
+          res.body = res.body.map((m: { ruta_imagen?: string | null }) => ({
+            ...m,
+            ruta_imagen:
+              m.ruta_imagen &&
+              String(m.ruta_imagen).trim() !== '' &&
+              String(m.ruta_imagen).trim().toLowerCase() !== 'null'
+                ? m.ruta_imagen
+                : IMG_PLACEHOLDER,
+          }));
+        }
+      });
+    }).as('getTelas');
+
     cy.visit(`${FRONT_URL}/p_sabanas`);
     cy.location('pathname', { timeout: 10000 }).should('include', '/p_sabanas');
-    cy.wait('@getMateriales');
 
-    cy.get('.radio-card', { timeout: 12000 }).first().should('be.visible').click(); 
-    cy.get('.lista-telas .tela-item', { timeout: 12000 }).first().click(); 
+    cy.wait('@getTelas', { timeout: 15000 }).then((interception) => {
+      const body = interception.response?.body;
+      expect(
+        Array.isArray(body) && body.length > 0,
+        'La API debe devolver al menos 1 tela. Ejecuta en backend: npm run db:prepare:test (seed con materiales tipo Tela y ruta_imagen).',
+      ).to.eq(true);
+    });
 
+    // Tamaño (primera radio-card de la sección tamaño)
+    cy.get('.radio-card', { timeout: 12000 }).first().should('be.visible').click();
+
+    // Telas: ya no deben aparecer "No hay telas disponibles"
+    cy.contains('No hay telas disponibles.').should('not.exist');
+    cy.get('.lista-telas .tela-item', { timeout: 12000 }).first().click();
 
     cy.contains('label', 'Incluir sobresábana')
       .find('input[type="checkbox"]')
@@ -86,7 +119,6 @@ describe('Flujo completo - Cliente', { testIsolation: false }, () => {
     cy.contains('.radio-card', 'Dos fundas').click();
 
     cy.get('.btn-confirmar-ped').should('not.be.disabled').click();
-
   });
 
   it('Paso 8: revisa la notificación del pedido personalizado', () => {

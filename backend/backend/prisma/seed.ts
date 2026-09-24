@@ -3,19 +3,6 @@ import * as bcrypt from 'bcrypt'
 
 const prisma = new PrismaClient()
 
-/**
- * Seed PostgreSQL para GuramaOnline.
- * Idempotente: se puede re-ejecutar sin duplicar catálogos ni usuarios fijos.
- *
- * Usuarios alineados con cypress.env.json:
- *   Admin:      valruiz@gmail.com / vale123 / código 12345
- *   Trabajador: harry@gmail.com / 123456 / código 36910
- *   Cliente:    zahorycardenas9@gmail.com / 07212728
- *   Bloqueo:    cliente.bloqueo@example.com / 123456
- *
- * Productos y materiales con stock suficiente para flujos de catálogo,
- * carrito, pedidos e inventario en Cypress.
- */
 async function main() {
   // ─── ROLES ───────────────────────────────────────────────────────────────
   for (const r of [
@@ -260,6 +247,12 @@ async function main() {
   })
 
   // ─── MATERIALES ──────────────────────────────────────────────────────────
+  // El frontend (p_sabanas.jsx / p_cubrelecho.jsx) filtra con materialConImagen()
+  // y solo muestra telas que tengan ruta_imagen válida. Sin este placeholder,
+  // `telas` queda vacío y ".lista-telas .tela-item" nunca se renderiza en Cypress.
+  const IMG_PLACEHOLDER_MATERIAL =
+    'https://res.cloudinary.com/demo/image/upload/sample.jpg'
+
   const materiales = [
     { id_material: 1, nombre: 'Algodón liso', tipo: 'Tela' as const, unidad: 'metro' as const, precio_unitario: 8000, stock_actual: 200, stock_minimo: 10 },
     { id_material: 4, nombre: 'Algodón estampado', tipo: 'Tela' as const, unidad: 'metro' as const, precio_unitario: 9000, stock_actual: 200, stock_minimo: 10 },
@@ -282,8 +275,11 @@ async function main() {
         stock_actual: m.stock_actual,
         stock_minimo: m.stock_minimo,
         estado: true,
+        // SIEMPRE forzar placeholder válido: el front (materialConImagen) oculta
+        // telas sin ruta_imagen y Cypress Paso 7 falla con ".lista-telas .tela-item"
+        ruta_imagen: IMG_PLACEHOLDER_MATERIAL,
       },
-      create: { ...m, estado: true },
+      create: { ...m, estado: true, ruta_imagen: IMG_PLACEHOLDER_MATERIAL },
     })
   }
 
