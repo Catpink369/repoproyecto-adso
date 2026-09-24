@@ -306,7 +306,7 @@ function ModalRegistrar({ onClose, onGuardado }) {
                         <select style={s.modalInput} name="t_doc" value={form.t_doc} onChange={handleChange}>
                             <option value="CC">Cédula de ciudadanía</option>
                             <option value="CE">Cédula de extranjería</option>
-                            <option value="TI">Tarjeta de identidad</option>
+                            <option value="PASS">Pasaporte</option>
                         </select>
                     </div>
                 </div>

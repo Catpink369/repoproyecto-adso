@@ -34,7 +34,7 @@ async function main() {
   const tiposDoc = [
     { t_doc: 'CC' as const, desc_doc: 'C_dula_de_ciudadan_a' as const },
     { t_doc: 'CE' as const, desc_doc: 'C_dula_de_extranjer_a' as const },
-    { t_doc: 'TI' as const, desc_doc: 'Tarjeta_de_identidad' as const },
+    { t_doc: 'PASS' as const, desc_doc: 'Pasaporte' as const },
   ]
   for (const td of tiposDoc) {
     await prisma.tipo_documento.upsert({

@@ -259,7 +259,7 @@ export default function FormularioSalidaProducto() {
                                     <div className="campo">
                                         <label htmlFor="documento_cliente">Documento (Opcional)</label>
                                         <input type="text" id="documento_cliente" name="documento_cliente" 
-                                            placeholder="CC, CE, TI"
+                                            placeholder="CC, CE, PASS"
                                             value={formData.documento_cliente} onChange={handleChange}
                                             disabled={!productoEncontrado || cargando} />
                                     </div>

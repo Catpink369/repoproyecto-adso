@@ -1050,7 +1050,7 @@ class _ModalRegistrarTrabajadorState
           _campoDropdown(
             'Tipo doc.',
             _tDoc,
-            {'CC': 'Cédula', 'CE': 'C. Extranjería', 'TI': 'T. Identidad'},
+            {'CC': 'Cédula', 'CE': 'C. Extranjería', 'PASS': 'Pasaporte'},
             (v) => setState(() => _tDoc = v!),
           ),
           _campo('Número de documento *', _idCtrl,

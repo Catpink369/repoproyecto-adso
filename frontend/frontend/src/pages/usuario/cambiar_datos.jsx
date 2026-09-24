@@ -240,7 +240,7 @@ export default function CambiarDatosCliente() {
                         required
                     >
                         <option value="CC">Cédula de Ciudadanía</option>
-                        <option value="TI">Tarjeta de Identidad</option>
+                        <option value="PASS">Pasaporte</option>
                         <option value="CE">Cédula de Extranjería</option>
                     </select>
 

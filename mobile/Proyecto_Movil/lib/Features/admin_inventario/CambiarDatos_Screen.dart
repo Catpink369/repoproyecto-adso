@@ -124,7 +124,7 @@ class _CambiarDatosAScreenState extends State<CambiarDatosAScreen> {
                   ),
                   items: const [
                     DropdownMenuItem(value: 'CC', child: Text('Cédula de Ciudadanía')),
-                    DropdownMenuItem(value: 'TI', child: Text('Tarjeta de Identidad')),
+                    DropdownMenuItem(value: 'PASS', child: Text('Pasaporte')),
                     DropdownMenuItem(value: 'CE', child: Text('Cédula de Extranjería')),
                   ],
                   onChanged: (v) => setState(() => _tipoDoc = v!),

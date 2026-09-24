@@ -170,7 +170,7 @@ class RegistroScreen extends StatefulWidget {
                             DropdownMenuItem(
                                 value: 'CE', child: Text('Cédula de Extranjería')),
                             DropdownMenuItem(
-                                value: 'TI', child: Text('Tarjeta de Identidad')),
+                                value: 'PASS', child: Text('Pasaporte')),
                             ],
                             onChanged: (v) => setState(() => _tipoDoc = v!),
                             dropdownColor: AppColors.blanco,
